@@ -4,7 +4,7 @@ Compile a Rust code to GBZ80 (WIP)
 ## How can is it possible?
 1. Rust compiler can produce llvm-ir
 2. llvm-ir can be compiled to C code ([llvm-cbe](https://github.com/JuliaHubOSS/llvm-cbe))
-3. C code can compiled to Z80 Assembly ([sdcc](https://sdcc.sourceforge.net/))
+3. C code can be compiled to Z80 Assembly ([sdcc](https://sdcc.sourceforge.net/))
 4. Z80 ASM can be assembled for GBZ80 ([sdasgb](https://gbdk-2020.github.io/gbdk-2020/docs/api/docs_supported_consoles.html))
 
 I will use [z80-babel](https://github.com/MartinezTorres/z80_babel) for task 1~3.
