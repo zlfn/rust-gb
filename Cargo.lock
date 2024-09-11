@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "rust-z80"
+name = "rust-gb"
 version = "0.1.0"

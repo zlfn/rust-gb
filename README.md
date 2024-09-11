@@ -15,3 +15,8 @@ If possible, I would like to create a library in pure Rust. But it might end up 
 
 Either way, it's going to be quite a long time for me.  
 But Gameboy is already 30 years old, and a few more years won't change much.
+
+
+## Dependencies
+* avr-gcc
+* avr-libc
