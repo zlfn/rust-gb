@@ -30,3 +30,6 @@ sdcc -S -Iinc -Isrc -Itests \
 
 echo "SDCC compile completed"
 
+./bin/lcc -o ./out/main.gb ./out/main.asm
+
+echo "Gameboy ROM compile completed"
