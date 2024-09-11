@@ -1,2 +1,2 @@
-/lib/** linguist-vendored=true
-/bin/** linguist-vendored=true
+/lib/**/* linguist-vendored=true
+/bin/**/* linguist-vendored=true
