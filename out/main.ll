@@ -6,22 +6,22 @@ target triple = "avr-unknown-unknown"
 ; Function Attrs: nounwind
 define dso_local void @main() unnamed_addr addrspace(1) #0 {
 start:
-  tail call addrspace(1) void @color(i8 noundef 3, i8 noundef 0, i8 noundef 0) #3
+  tail call addrspace(1) void @"color __sdcccall(0)"(i8 noundef 3, i8 noundef 0, i8 noundef 0) #3
   br label %bb3.preheader
 
 bb3.preheader:                                    ; preds = %start, %bb3.preheader
   %x.sroa.0.06 = phi i8 [ 20, %start ], [ %0, %bb3.preheader ]
-  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 20, i8 noundef 15, i8 noundef 0) #3
-  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 30, i8 noundef 15, i8 noundef 0) #3
-  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 40, i8 noundef 15, i8 noundef 0) #3
-  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 50, i8 noundef 15, i8 noundef 0) #3
-  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 60, i8 noundef 15, i8 noundef 0) #3
-  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 70, i8 noundef 15, i8 noundef 0) #3
-  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 80, i8 noundef 15, i8 noundef 0) #3
-  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 90, i8 noundef 15, i8 noundef 0) #3
-  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 100, i8 noundef 15, i8 noundef 0) #3
-  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 110, i8 noundef 15, i8 noundef 0) #3
-  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 120, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @"circle __sdcccall(0)"(i8 noundef %x.sroa.0.06, i8 noundef 20, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @"circle __sdcccall(0)"(i8 noundef %x.sroa.0.06, i8 noundef 30, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @"circle __sdcccall(0)"(i8 noundef %x.sroa.0.06, i8 noundef 40, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @"circle __sdcccall(0)"(i8 noundef %x.sroa.0.06, i8 noundef 50, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @"circle __sdcccall(0)"(i8 noundef %x.sroa.0.06, i8 noundef 60, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @"circle __sdcccall(0)"(i8 noundef %x.sroa.0.06, i8 noundef 70, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @"circle __sdcccall(0)"(i8 noundef %x.sroa.0.06, i8 noundef 80, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @"circle __sdcccall(0)"(i8 noundef %x.sroa.0.06, i8 noundef 90, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @"circle __sdcccall(0)"(i8 noundef %x.sroa.0.06, i8 noundef 100, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @"circle __sdcccall(0)"(i8 noundef %x.sroa.0.06, i8 noundef 110, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @"circle __sdcccall(0)"(i8 noundef %x.sroa.0.06, i8 noundef 120, i8 noundef 15, i8 noundef 0) #3
   %0 = add nuw i8 %x.sroa.0.06, 10
   %_4 = icmp ult i8 %x.sroa.0.06, -121
   br i1 %_4, label %bb3.preheader, label %bb7
@@ -45,10 +45,10 @@ start:
 }
 
 ; Function Attrs: nounwind
-declare dso_local void @color(i8 noundef, i8 noundef, i8 noundef) unnamed_addr addrspace(1) #0
+declare dso_local void @"color __sdcccall(0)"(i8 noundef, i8 noundef, i8 noundef) unnamed_addr addrspace(1) #0
 
 ; Function Attrs: nounwind
-declare dso_local void @circle(i8 noundef, i8 noundef, i8 noundef, i8 noundef) unnamed_addr addrspace(1) #0
+declare dso_local void @"circle __sdcccall(0)"(i8 noundef, i8 noundef, i8 noundef, i8 noundef) unnamed_addr addrspace(1) #0
 
 attributes #0 = { nounwind "target-cpu"="atmega328" }
 attributes #1 = { mustprogress nofree norecurse nosync nounwind willreturn memory(none) "target-cpu"="atmega328" }
