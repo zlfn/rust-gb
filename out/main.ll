@@ -4,17 +4,37 @@ target datalayout = "e-P1-p:16:8-i8:8-i16:8-i32:8-i64:8-f32:8-f64:8-n8-a:8"
 target triple = "avr-unknown-unknown"
 
 ; Function Attrs: nounwind
-define dso_local noundef i8 @main() unnamed_addr addrspace(1) #0 {
+define dso_local void @main() unnamed_addr addrspace(1) #0 {
 start:
-  tail call addrspace(1) void @delay(i16 noundef 10000) #3
-  ret i8 42
+  tail call addrspace(1) void @color(i8 noundef 3, i8 noundef 0, i8 noundef 0) #3
+  br label %bb3.preheader
+
+bb3.preheader:                                    ; preds = %start, %bb3.preheader
+  %x.sroa.0.06 = phi i8 [ 20, %start ], [ %0, %bb3.preheader ]
+  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 20, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 30, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 40, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 50, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 60, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 70, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 80, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 90, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 100, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 110, i8 noundef 15, i8 noundef 0) #3
+  tail call addrspace(1) void @circle(i8 noundef %x.sroa.0.06, i8 noundef 120, i8 noundef 15, i8 noundef 0) #3
+  %0 = add nuw i8 %x.sroa.0.06, 10
+  %_4 = icmp ult i8 %x.sroa.0.06, -121
+  br i1 %_4, label %bb3.preheader, label %bb7
+
+bb7:                                              ; preds = %bb3.preheader
+  ret void
 }
 
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
-define dso_local noundef i8 @add(i8 noundef %left, i8 noundef %right) unnamed_addr addrspace(1) #1 {
+define dso_local noundef i32 @add(i32 noundef %left, i32 noundef %right) unnamed_addr addrspace(1) #1 {
 start:
-  %_0 = add i8 %right, %left
-  ret i8 %_0
+  %_0 = mul i32 %right, %left
+  ret i32 %_0
 }
 
 ; Function Attrs: nofree noreturn nosync nounwind memory(none)
@@ -25,7 +45,10 @@ start:
 }
 
 ; Function Attrs: nounwind
-declare dso_local void @delay(i16 noundef) unnamed_addr addrspace(1) #0
+declare dso_local void @color(i8 noundef, i8 noundef, i8 noundef) unnamed_addr addrspace(1) #0
+
+; Function Attrs: nounwind
+declare dso_local void @circle(i8 noundef, i8 noundef, i8 noundef, i8 noundef) unnamed_addr addrspace(1) #0
 
 attributes #0 = { nounwind "target-cpu"="atmega328" }
 attributes #1 = { mustprogress nofree norecurse nosync nounwind willreturn memory(none) "target-cpu"="atmega328" }
