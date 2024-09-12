@@ -44,8 +44,16 @@ typedef unsigned char bool;
 void main(void) __ATTRIBUTELIST__((nothrow));
 uint32_t add(uint32_t llvm_cbe_left, uint32_t llvm_cbe_right) __ATTRIBUTELIST__((nothrow));
 __noreturn void rust_begin_unwind(void* llvm_cbe_info) __ATTRIBUTELIST__((nothrow)) __HIDDEN__;
-void color(uint8_t _1, uint8_t _2, uint8_t _3) __ATTRIBUTELIST__((nothrow)) __sdcccall(0);
-void circle(uint8_t _4, uint8_t _5, uint8_t _6, uint8_t _7) __ATTRIBUTELIST__((nothrow)) __sdcccall(0);
+void* __rust_alloc(uint16_t llvm_cbe_size, uint16_t llvm_cbe_align) __ATTRIBUTELIST__((nothrow)) __HIDDEN__;
+void __rust_dealloc(void* llvm_cbe_ptr, uint16_t llvm_cbe_size, uint16_t llvm_cbe_align) __ATTRIBUTELIST__((nothrow)) __HIDDEN__;
+void* __rust_realloc(void* llvm_cbe_ptr, uint16_t llvm_cbe_size, uint16_t llvm_cbe_align, uint16_t llvm_cbe_new_size) __ATTRIBUTELIST__((nothrow)) __HIDDEN__;
+void* __rust_alloc_zeroed(uint16_t llvm_cbe_size, uint16_t llvm_cbe_align) __ATTRIBUTELIST__((nothrow)) __HIDDEN__;
+void* malloc(uint16_t _2) __ATTRIBUTELIST__((nothrow, alloc_size(0)));
+void free(void* _3) __ATTRIBUTELIST__((nothrow));
+void color(uint8_t _4, uint8_t _5, uint8_t _6) __ATTRIBUTELIST__((nothrow)) __sdcccall(0);
+void circle(uint8_t _7, uint8_t _8, uint8_t _9, uint8_t _10) __ATTRIBUTELIST__((nothrow)) __sdcccall(0);
+void* calloc(uint16_t _11, uint16_t _12) __ATTRIBUTELIST__((nothrow, alloc_size(0,1)));
+void* memcpy(void* _13, void* _14, uint16_t _15);
 
 
 /* LLVM Intrinsic Builtin Function Bodies */
@@ -55,6 +63,11 @@ static __forceinline uint8_t llvm_add_u8(uint8_t a, uint8_t b) {
 }
 static __forceinline uint32_t llvm_mul_u32(uint32_t a, uint32_t b) {
   uint32_t r = a * b;
+  return r;
+}
+static __forceinline uint16_t llvm_OC_umin_OC_i16(uint16_t a, uint16_t b) {
+  uint16_t r;
+  r = a < b ? a : b;
   return r;
 }
 
@@ -104,5 +117,45 @@ __noreturn void rust_begin_unwind(void* llvm_cbe_info) {
    /*tail*/ rust_begin_unwind(llvm_cbe_info);
   __builtin_unreachable();
 
+}
+
+
+void* __rust_alloc(uint16_t llvm_cbe_size, uint16_t llvm_cbe_align) {
+
+  void* llvm_cbe__4_2e_i =  /*tail*/ malloc(llvm_cbe_size);
+  return llvm_cbe__4_2e_i;
+}
+
+
+void __rust_dealloc(void* llvm_cbe_ptr, uint16_t llvm_cbe_size, uint16_t llvm_cbe_align) {
+   /*tail*/ free(llvm_cbe_ptr);
+}
+
+
+void* __rust_realloc(void* llvm_cbe_ptr, uint16_t llvm_cbe_size, uint16_t llvm_cbe_align, uint16_t llvm_cbe_new_size) {
+  void* llvm_cbe__4_2e_i_2e_i;
+
+  llvm_cbe__4_2e_i_2e_i =  /*tail*/ malloc(llvm_cbe_new_size);
+  if ((llvm_cbe__4_2e_i_2e_i == ((void*)/*NULL*/0))) {
+    goto llvm_cbe__ZN68__24_LT_24_main_2e__2e_LibcAlloc_24_u20_24_as_24_u20_24_core_2e__2e_alloc_2e__2e_global_2e__2e_GlobalAlloc_24_GT_24_7realloc17h3ef0212bdae7f97aE_2e_exit;
+  } else {
+    goto llvm_cbe_bb3_2e_i;
+  }
+
+llvm_cbe_bb3_2e_i:;
+  uint16_t llvm_cbe_size_2e_sroa_2e_0_2e_0_2e_i =  /*tail*/ llvm_OC_umin_OC_i16(llvm_cbe_size, llvm_cbe_new_size);
+  void* _1 = memcpy(llvm_cbe__4_2e_i_2e_i, llvm_cbe_ptr, llvm_cbe_size_2e_sroa_2e_0_2e_0_2e_i);
+   /*tail*/ free(llvm_cbe_ptr);
+  goto llvm_cbe__ZN68__24_LT_24_main_2e__2e_LibcAlloc_24_u20_24_as_24_u20_24_core_2e__2e_alloc_2e__2e_global_2e__2e_GlobalAlloc_24_GT_24_7realloc17h3ef0212bdae7f97aE_2e_exit;
+
+llvm_cbe__ZN68__24_LT_24_main_2e__2e_LibcAlloc_24_u20_24_as_24_u20_24_core_2e__2e_alloc_2e__2e_global_2e__2e_GlobalAlloc_24_GT_24_7realloc17h3ef0212bdae7f97aE_2e_exit:;
+  return llvm_cbe__4_2e_i_2e_i;
+}
+
+
+void* __rust_alloc_zeroed(uint16_t llvm_cbe_size, uint16_t llvm_cbe_align) {
+
+  void* llvm_cbe_calloc_2e_i =  /*tail*/ calloc(1, llvm_cbe_size);
+  return llvm_cbe_calloc_2e_i;
 }
 

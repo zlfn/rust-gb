@@ -1,8 +1,6 @@
 [package]
-name = "rust-gb"
+name = "rust-deps"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-buddy_system_allocator = "0.10.0"
-
