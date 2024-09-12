@@ -1,4 +1,4 @@
-use std::{fs, process::{self, Command}};
+use std::{fs, io::ErrorKind, process::{self, Command}};
 
 use colored::Colorize;
 
@@ -53,6 +53,15 @@ fn main() {
     //Command::new("sed 's/static __forceinline/inline/g' -i ./out/main.c").status().unwrap();
     //Command::new("sed 's/uint8_t\\* memset(uint8_t\\*, uint32_t, uint16_t);/inline uint8_t\\* memset(uint8_t\\* dst, uint8_t c, uint16_t sz) {uint8_t \\*p = dst; while (sz--) *p++ = c; return dst; }/g' -i ./out/main.c").status().unwrap();
     //Command::new("sed '/__noreturn void rust_begin_unwind(struct l_struct_core_KD__KD_panic_KD__KD_PanicInfo\\* llvm_cbe_info)/{:a;N;/__builtin_unreachable/{N;N;d};/  }/b;ba}' -i ./out/main.c").status().unwrap();
+    let postprocess_status = postprocess();
+
+    if postprocess_status.is_err() {
+        println!("{}", "[sed] C postprocess for SDCC failed".red());
+        process::exit(1);
+    }
+    else {
+        println!("{}", "[sed] C postprocess for SDCC succeeded".green());
+    }
     
     let sdcc_status = Command::new("sdcc")
         .args([
@@ -104,4 +113,33 @@ fn main() {
     }
 
     println!("{}", "GB ROM build succeeded".green());
+}
+
+fn postprocess() -> Result<(), std::io::Error> {
+    //Add sdcc calling convention attributes to functions that have #[link_name="`function_name` __sdcccall"]
+    //"__sdcccall(0)"
+    let s = Command::new("sed")
+        .args([
+            "/void.*\\(_AC___sdcccall_IC_0_JC_\\).*/ s/;/ __sdcccall(0);/g;s/_AC___sdcccall_IC_0_JC_//g",
+            "-i", "./out/main.c"
+        ])
+        .status()?;
+
+    if !s.success() {
+        return Err(std::io::Error::new(ErrorKind::NotFound, "sed failed"))
+    }
+
+    //"__sdcccall(1)"
+    let s = Command::new("sed")
+        .args([
+            "/void.*\\(_AC___sdcccall_IC_1_JC_\\).*/ s/;/ __sdcccall(1);/g;s/_AC___sdcccall_IC_1_JC_//g",
+            "-i", "./out/main.c"
+        ])
+        .status()?;
+
+    if !s.success() {
+        return Err(std::io::Error::new(ErrorKind::NotFound, "sed failed"))
+    }
+
+    Ok(())
 }

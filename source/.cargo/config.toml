@@ -3,7 +3,7 @@ target = "avr-unknown-gnu-atmega328"
 # rustflags = ["--emit=llvm-ir"]
 
 [unstable]
-build-std = ["core"]
+build-std = ["core", "alloc"]
 
 [profile.dev]
 panic = "abort"

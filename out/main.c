@@ -44,8 +44,8 @@ typedef unsigned char bool;
 void main(void) __ATTRIBUTELIST__((nothrow));
 uint32_t add(uint32_t llvm_cbe_left, uint32_t llvm_cbe_right) __ATTRIBUTELIST__((nothrow));
 __noreturn void rust_begin_unwind(void* llvm_cbe_info) __ATTRIBUTELIST__((nothrow)) __HIDDEN__;
-void color(uint8_t _1, uint8_t _2, uint8_t _3) __ATTRIBUTELIST__((nothrow));
-void circle(uint8_t _4, uint8_t _5, uint8_t _6, uint8_t _7) __ATTRIBUTELIST__((nothrow));
+void color(uint8_t _1, uint8_t _2, uint8_t _3) __ATTRIBUTELIST__((nothrow)) __sdcccall(0);
+void circle(uint8_t _4, uint8_t _5, uint8_t _6, uint8_t _7) __ATTRIBUTELIST__((nothrow)) __sdcccall(0);
 
 
 /* LLVM Intrinsic Builtin Function Bodies */

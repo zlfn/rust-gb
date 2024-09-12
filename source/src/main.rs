@@ -24,7 +24,9 @@ const AND: u8 = 0x03;
 
 extern "C" {
     fn delay(delay: u16);
+    #[link_name="circle __sdcccall(0)"]
     fn circle(x: u8, y: u8, radius: u8, style: u8);
+    #[link_name="color __sdcccall(0)"]
     fn color(forecolor: u8, backcolor: u8, mode: u8);
 }
 
@@ -51,6 +53,7 @@ pub fn add(left: u32, right: u32) -> u32 {
 }
 
 #[allow(unconditional_recursion)]
+#[cfg(not(test))]
 #[panic_handler]
 fn panic_handler_phony(info: &core::panic::PanicInfo) -> ! {
     panic_handler_phony(info)

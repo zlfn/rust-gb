@@ -92,100 +92,179 @@ _main::
 	dec	sp
 ;./out/main.c:67: /*tail*/ color(3, 0, 0);
 	xor	a, a
+	rrca
+	push	af
+	xor	a, a
+	ld	a, #0x03
 	push	af
 	inc	sp
-	ld	e, #0x00
-	ld	a, #0x03
 	call	_color
+	add	sp, #3
 ;./out/main.c:68: llvm_cbe_x_2e_sroa_2e_0_2e_06__PHI_TEMPORARY = 20;   /* for PHI node */
 	ldhl	sp,	#0
 	ld	(hl), #0x14
 ;./out/main.c:72: llvm_cbe_bb3_2e_preheader:;
 00101$:
 ;./out/main.c:74: /*tail*/ circle(llvm_cbe_x_2e_sroa_2e_0_2e_06, 20, 15, 0);
-	ld	hl, #0x0f
+	xor	a, a
+	ld	h, a
+	ld	l, #0x0f
 	push	hl
-	ld	e, #0x14
-	ldhl	sp,	#2
+	ld	a, #0x14
+	push	af
+	inc	sp
+	ldhl	sp,	#3
 	ld	a, (hl)
+	push	af
+	inc	sp
 	call	_circle
+	add	sp, #4
 ;./out/main.c:75: /*tail*/ circle(llvm_cbe_x_2e_sroa_2e_0_2e_06, 30, 15, 0);
-	ld	hl, #0x0f
+	xor	a, a
+	ld	h, a
+	ld	l, #0x0f
 	push	hl
-	ld	e, #0x1e
-	ldhl	sp,	#2
+	ld	a, #0x1e
+	push	af
+	inc	sp
+	ldhl	sp,	#3
 	ld	a, (hl)
+	push	af
+	inc	sp
 	call	_circle
+	add	sp, #4
 ;./out/main.c:76: /*tail*/ circle(llvm_cbe_x_2e_sroa_2e_0_2e_06, 40, 15, 0);
-	ld	hl, #0x0f
+	xor	a, a
+	ld	h, a
+	ld	l, #0x0f
 	push	hl
-	ld	e, #0x28
-	ldhl	sp,	#2
+	ld	a, #0x28
+	push	af
+	inc	sp
+	ldhl	sp,	#3
 	ld	a, (hl)
+	push	af
+	inc	sp
 	call	_circle
+	add	sp, #4
 ;./out/main.c:77: /*tail*/ circle(llvm_cbe_x_2e_sroa_2e_0_2e_06, 50, 15, 0);
-	ld	hl, #0x0f
+	xor	a, a
+	ld	h, a
+	ld	l, #0x0f
 	push	hl
-	ld	e, #0x32
-	ldhl	sp,	#2
+	ld	a, #0x32
+	push	af
+	inc	sp
+	ldhl	sp,	#3
 	ld	a, (hl)
+	push	af
+	inc	sp
 	call	_circle
+	add	sp, #4
 ;./out/main.c:78: /*tail*/ circle(llvm_cbe_x_2e_sroa_2e_0_2e_06, 60, 15, 0);
-	ld	hl, #0x0f
+	xor	a, a
+	ld	h, a
+	ld	l, #0x0f
 	push	hl
-	ld	e, #0x3c
-	ldhl	sp,	#2
+	ld	a, #0x3c
+	push	af
+	inc	sp
+	ldhl	sp,	#3
 	ld	a, (hl)
+	push	af
+	inc	sp
 	call	_circle
+	add	sp, #4
 ;./out/main.c:79: /*tail*/ circle(llvm_cbe_x_2e_sroa_2e_0_2e_06, 70u, 15, 0);
-	ld	hl, #0x0f
+	xor	a, a
+	ld	h, a
+	ld	l, #0x0f
 	push	hl
-	ld	e, #0x46
-	ldhl	sp,	#2
+	ld	a, #0x46
+	push	af
+	inc	sp
+	ldhl	sp,	#3
 	ld	a, (hl)
+	push	af
+	inc	sp
 	call	_circle
+	add	sp, #4
 ;./out/main.c:80: /*tail*/ circle(llvm_cbe_x_2e_sroa_2e_0_2e_06, 80u, 15, 0);
-	ld	hl, #0x0f
+	xor	a, a
+	ld	h, a
+	ld	l, #0x0f
 	push	hl
-	ld	e, #0x50
-	ldhl	sp,	#2
+	ld	a, #0x50
+	push	af
+	inc	sp
+	ldhl	sp,	#3
 	ld	a, (hl)
+	push	af
+	inc	sp
 	call	_circle
+	add	sp, #4
 ;./out/main.c:81: /*tail*/ circle(llvm_cbe_x_2e_sroa_2e_0_2e_06, 90u, 15, 0);
-	ld	hl, #0x0f
+	xor	a, a
+	ld	h, a
+	ld	l, #0x0f
 	push	hl
-	ld	e, #0x5a
-	ldhl	sp,	#2
+	ld	a, #0x5a
+	push	af
+	inc	sp
+	ldhl	sp,	#3
 	ld	a, (hl)
+	push	af
+	inc	sp
 	call	_circle
+	add	sp, #4
 ;./out/main.c:82: /*tail*/ circle(llvm_cbe_x_2e_sroa_2e_0_2e_06, 100u, 15, 0);
-	ld	hl, #0x0f
+	xor	a, a
+	ld	h, a
+	ld	l, #0x0f
 	push	hl
-	ld	e, #0x64
-	ldhl	sp,	#2
+	ld	a, #0x64
+	push	af
+	inc	sp
+	ldhl	sp,	#3
 	ld	a, (hl)
+	push	af
+	inc	sp
 	call	_circle
+	add	sp, #4
 ;./out/main.c:83: /*tail*/ circle(llvm_cbe_x_2e_sroa_2e_0_2e_06, 110u, 15, 0);
-	ld	hl, #0x0f
+	xor	a, a
+	ld	h, a
+	ld	l, #0x0f
 	push	hl
-	ld	e, #0x6e
-	ldhl	sp,	#2
+	ld	a, #0x6e
+	push	af
+	inc	sp
+	ldhl	sp,	#3
 	ld	a, (hl)
+	push	af
+	inc	sp
 	call	_circle
+	add	sp, #4
 ;./out/main.c:84: /*tail*/ circle(llvm_cbe_x_2e_sroa_2e_0_2e_06, 120u, 15, 0);
-	ld	hl, #0x0f
+	xor	a, a
+	ld	h, a
+	ld	l, #0x0f
 	push	hl
-	ld	e, #0x78
-	ldhl	sp,	#2
+	ld	a, #0x78
+	push	af
+	inc	sp
+	ldhl	sp,	#3
 	ld	a, (hl)
+	push	af
+	inc	sp
 	call	_circle
+	add	sp, #4
 ;./out/main.c:85: if ((((uint8_t)llvm_cbe_x_2e_sroa_2e_0_2e_06) < ((uint8_t)((uint8_t)-121)))) {
 	ldhl	sp,	#0
-	ld	a, (hl)
-	sub	a, #0x87
-	jr	NC, 00108$
 ;./out/main.c:53: uint8_t r = a + b;
-	ld	a, (hl)
+	ld	a,(hl)
+	cp	a,#0x87
+	jr	NC, 00108$
 	add	a, #0x0a
 	ld	(hl), a
 ;./out/main.c:87: goto llvm_cbe_bb3_2e_preheader;
