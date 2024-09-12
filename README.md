@@ -20,7 +20,7 @@ Thanks to GBDK, Z80 Assembly generated from Rust can call GBDK's low-level libra
 
 My task is to wrap these functions in high-level Rust abstractions.
 
-## Why Rust not C or ASM?
+## Why use Rust instead of C or ASM?
 1. Rust provides higher-level grammer than C like traits or generics.
 2. Rust's memory stability helps you avoid to write incorrect code (even on a small device).
 3. Putting everything aside, it's fun!
