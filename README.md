@@ -1,6 +1,8 @@
 # Rust-GB
-Compile Rust code to GBZ80 (Work in Progress)
-My primary language is not English. It is always welcome to point out the awkward parts of this README.
+Compile Rust code to GBZ80 (Work in Progress)  
+My first language is not English. It is always welcome to point out the awkward parts of this README.
+
+![image](https://github.com/user-attachments/assets/ad6be282-170f-4a05-9d38-55217396e232)
 
 ## How is this possible?
 1. The Rust compiler can generate LLVM-IR for the ATMega328 processor. (which powers Arduino)
@@ -44,7 +46,20 @@ But if you want to do it, Here is the description below.
 2. Build llvm-cbe in `./ext` directory.
   follow [llvm-cbe](https://github.com/JuliaHubOSS/llvm-cbe)'s instruction to build it.  
   the path is `./ext/llvm-project/llvm/build/bin/llvm-cbe`
-3. Command `cargo build-rom` will build your GB ROM to `./out/main.gb`
+3. Execute `cargo build --release` in `./ext/rust-deps`
+4. Now, `cargo build-rom` will build your GB ROM to `./out/main.gb`
+
+```bash
+# build GB ROM from Rust code
+cargo build-rom
+
+# build GB ROM from LLVM-IR
+cargo llvm-rom
+# ... from C code
+cargo c-rom
+# ... from ASM code
+cargo asm-romm
+```
 
 ## Build chain Description
 ### Rust -> LLVM-IR
@@ -69,9 +84,8 @@ I used GBDK's build chain for this. GBDK's `lcc` link ASM with GBDK libraries an
 ### Can do 
 * Call inline GB ASM functions in Rust
 * Call the GBDK library in Rust
-* Use `core` or `alloc` libaries of Rust
+* Use `core` and `alloc` libaries of Rust
 ### Can't do
-* Some Rust functions use fast calling convention which not supported in `LLVM-CBE`. (`alloc::Vec` or `assert_eq!` etc.)
-  I'm finding a solution for it.
+* Some Rust functions use fast calling convention which not supported in `LLVM-CBE`. (`alloc::Vec` or `assert_eq!` etc.<br>I'm finding a solution for it.
 * External crates are likely not supported.
 
