@@ -1,7 +1,6 @@
-[package]
-name = "rust-gb"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-
+[workspace]
+resolver = "2"
+members = [
+	"source",
+	"xtask/*",
+]
