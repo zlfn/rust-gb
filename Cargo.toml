@@ -4,3 +4,6 @@ members = [
 	"source",
 	"xtask/*",
 ]
+exclude = [
+	"ext/rust-deps"
+]

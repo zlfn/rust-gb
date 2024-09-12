@@ -1,38 +1,8 @@
-use std::{fs, io::ErrorKind, process::{self, Command}};
+use std::{io::ErrorKind, process::{self, Command}};
 
 use colored::Colorize;
 
 fn main() {
-    fs::create_dir_all("./out").unwrap();
-    let rustc_status = Command::new("rustc")
-        .args([
-            "--emit=llvm-ir",
-            "--target", "avr-unknown-gnu-atmega328",
-            "-C", "opt-level=3",
-            "-C", "embed-bitcode=no",
-            "-C", "panic=abort",
-            "-Z", "unstable-options",
-
-            //TODO: self compile these dependencies
-            "-L", "dependency=./ext/rust-deps/target/avr-unknown-gnu-atmega328/release/deps",
-            "--extern", "noprelude:compiler_builtins=./ext/rust-deps/target/avr-unknown-gnu-atmega328/release/deps/libcompiler_builtins-7c8cb6a88df6298c.rlib",
-            "--extern", "noprelude:core=./ext/rust-deps/target/avr-unknown-gnu-atmega328/release/deps/libcore-19ea3eec74d36e50.rlib",
-            "--extern", "noprelude:alloc=./ext/rust-deps/target/avr-unknown-gnu-atmega328/release/deps/liballoc-11d2f291f5bc32b8.rlib",
-
-            "./source/src/main.rs",
-            "-o", "./out/main.ll"
-        ])
-        .status()
-        .unwrap();
-
-    if !rustc_status.success() {
-        println!("{}", "[rustc] Rust -> LLVM-IR compile failed".red());
-        process::exit(1);
-    }
-    else {
-        println!("{}", "[rustc] Rust -> LLVM-IR compile succeeded".green());
-    }
-
     let llvm_status = Command::new("./ext/llvm-project/llvm/build/bin/llvm-cbe")
         .args([
             "--cbe-declare-locals-late",
