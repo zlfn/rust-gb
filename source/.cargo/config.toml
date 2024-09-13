@@ -1,15 +1,12 @@
 [build]
 target = "avr-unknown-gnu-atmega328"
-# rustflags = ["--emit=llvm-ir"]
+rustflags = ["--emit=llvm-ir"]
 
-[unstable]
-build-std = ["core", "alloc"]
+# [target.avr-unknown-gnu-atmega328]
+
 
 [profile.dev]
 panic = "abort"
 
 [profile.release]
 panic = "abort"
-
-[alias]
-build-rom = "run --package xtask --"
