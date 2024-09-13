@@ -1,5 +1,5 @@
 [alias]
-build-rom = "run --package xtask-build-rom --"
-llvm-rom = "run --package xtask-llvm-rom --"
-c-rom = "run --package xtask-c-rom --"
-asm-rom = "run --package xtask-asm-rom --"
+build-rom = "run --package xtask-build-rom -- --from rust"
+llvm-rom = "run --package xtask-build-rom -- --from llvm"
+c-rom = "run --package xtask-build-rom -- --from c"
+asm-rom = "run --package xtask-build-rom -- --from asm"
