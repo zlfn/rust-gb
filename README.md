@@ -78,8 +78,6 @@ Rust codes in `./source` bundled in one .rs file by [rust-bundler-cp](https://gi
 ### Rust -> LLVM-IR
 Bundled Rust code is compiled to target `avr-unknown-gnu-atmega328`.  
 This will provide 8-bit compatibility for z80.
-### LLVM-IR post-processing
-Currently, nigtly Rust's LLVM version is 19. and LLVM-CBE's LLVM version is 17.
 
 Keep compatibility through the replacement of new function or polyfill.
 ### LLVM-IR -> C
@@ -91,7 +89,7 @@ Also, I'm considering If it can be replaced with [llvm-gbz80](https://github.com
 ### C post-processing
 The generated C code is for GCC. Therefore, it goes through post-processing before it is entered into SDCC.
 
-It's a simple string replacement right now, but it can be more complicated.
+Use the tree-sitter to parse the C code, and replace or add the required codes.
 ### C -> ASM
 SDCC compile C code for GBZ80 (`sm83`)
 ### ASM -> ROM
