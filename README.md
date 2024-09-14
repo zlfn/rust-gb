@@ -2,7 +2,9 @@
 Compile Rust code to GBZ80 (Work in Progress)  
 My first language is not English. It is always welcome to point out the awkward parts of this README.
 
-![image](https://github.com/user-attachments/assets/ad6be282-170f-4a05-9d38-55217396e232)
+![image](https://github.com/user-attachments/assets/90c049f7-7317-44c9-9c73-a7865c78b24e)
+^ `filltest` example of GBDK-2020, ported to Rust.
+
 
 ## How is this possible?
 1. The Rust compiler can generate LLVM-IR for the ATMega328 processor. (which powers Arduino)
@@ -13,17 +15,17 @@ My first language is not English. It is always welcome to point out the awkward 
 
 I referred to [z80-babel](https://github.com/MartinezTorres/z80_babel) for steps 1–3, and used [gbdk-2020](https://github.com/gbdk-2020/gbdk-2020) for steps 4–5.
 
+## Why use Rust instead of C or ASM?
+1. Rust provides higher-level and better grammer than C.
+2. Rust's memory stability and strict types help you avoid to write incorrect code (even on a small device).
+3. Putting everything aside, it's fun!
+
 ## Goal
 My goal is to develop a Game Boy Development Kit that enables the creation of Game Boy games using Rust. 
 
 Thanks to GBDK, Z80 Assembly generated from Rust can call GBDK's low-level library functions (such as `delay`, `waitpad`, etc.). 
 
 My task is to wrap these functions in high-level Rust abstractions.
-
-## Why use Rust instead of C or ASM?
-1. Rust provides higher-level grammer than C like traits or generics.
-2. Rust's memory stability helps you avoid to write incorrect code (even on a small device).
-3. Putting everything aside, it's fun!
 
 ## Dependencies
 * rust
@@ -61,6 +63,15 @@ cargo c-rom
 cargo asm-romm
 ```
 
+## Can do and Can't do
+### Can do 
+* Call inline GB ASM functions in Rust
+* Call the GBDK library in Rust
+* Use `core` or `alloc` libraries of Rust
+### Can't do
+* Some Rust functions use fast calling convention which not supported in `LLVM-CBE`. (`alloc::Vec` or `assert_eq!` etc. I'm finding a solution for it.
+* External crates are likely not supported.
+
 ## Build chain Description
 ### Rust bundling
 Rust codes in `./source` bundled in one .rs file by [rust-bundler-cp](https://github.com/Endle/rust-bundler-cp)
@@ -85,13 +96,4 @@ It's a simple string replacement right now, but it can be more complicated.
 SDCC compile C code for GBZ80 (`sm83`)
 ### ASM -> ROM
 I used GBDK's build chain for this. GBDK's `lcc` link ASM with GBDK libraries and build a complete Gameboy ROM file.
-
-## Can do and Can't do
-### Can do 
-* Call inline GB ASM functions in Rust
-* Call the GBDK library in Rust
-* Use `core` or `alloc` libraries of Rust
-### Can't do
-* Some Rust functions use fast calling convention which not supported in `LLVM-CBE`. (`alloc::Vec` or `assert_eq!` etc.<br>I'm finding a solution for it.
-* External crates are likely not supported.
 
