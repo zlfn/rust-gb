@@ -1,8 +1,9 @@
 use core::str;
-use std::{fs, io::{ErrorKind, Write}, process::{self, Command}, str::FromStr};
+use std::{fs::{self, File, OpenOptions}, io::{ErrorKind, Write}, process::{self, Command}, str::FromStr};
 use clap::Parser;
 
 use colored::Colorize;
+use tree_sitter::{self, Query, QueryCursor};
 
 ///Build GB ROM from Rust
 #[derive(Parser, Debug)]
@@ -125,18 +126,6 @@ fn main() {
         else {
             println!("{}", "[rustc] Rust -> LLVM-IR compile succeeded".green());
         }
-
-        fs::copy("./out/out.ll", "./out/pre.ll").unwrap();
-        let postprocess_status = llvm_post_process();
-
-
-        if postprocess_status.is_err() {
-            println!("{}", "[sed] LLVM-IR postprocess for LLVM-CBE failed".red());
-            process::exit(1);
-        }
-        else {
-            println!("{}", "[sed] LLVM-IR postprocess for LLVM-CBE succeeded".green());
-        }
     }
 
     if build_from <= BuildChain::LLVM {
@@ -162,7 +151,7 @@ fn main() {
         //Command::new("sed 's/uint8_t\\* memset(uint8_t\\*, uint32_t, uint16_t);/inline uint8_t\\* memset(uint8_t\\* dst, uint8_t c, uint16_t sz) {uint8_t \\*p = dst; while (sz--) *p++ = c; return dst; }/g' -i ./out/main.c").status().unwrap();
         //Command::new("sed '/__noreturn void rust_begin_unwind(struct l_struct_core_KD__KD_panic_KD__KD_PanicInfo\\* llvm_cbe_info)/{:a;N;/__builtin_unreachable/{N;N;d};/  }/b;ba}' -i ./out/main.c").status().unwrap();
         fs::copy("./out/out.c", "./out/pre.c").unwrap();
-        let postprocess_status = c_post_process();
+        let postprocess_status = treesitter_process();
 
         if postprocess_status.is_err() {
             println!("{}", "[sed] C postprocess for SDCC failed".red());
@@ -229,18 +218,46 @@ fn main() {
     }
 }
 
-fn llvm_post_process() -> Result<(), std::io::Error> {
-    //`or disjoint` -> `or`
-    let s = Command::new("sed")
-        .args([
-            "s/or disjoint/or/g",
-            "-i", "./out/out.ll",
-        ])
-        .status()?;
+fn treesitter_process() -> Result<(), std::io::Error> {
+    let mut code = fs::read_to_string("./out/out.c")?;
+    let code_bytes = code.clone();
+    let code_bytes = code_bytes.as_bytes();
+    let mut parser = tree_sitter::Parser::new();
+    parser.set_language(&tree_sitter_c::LANGUAGE.into()).unwrap();
 
-    if !s.success() {
-        return Err(std::io::Error::new(ErrorKind::NotFound, "sed failed"))
+    let tree = parser.parse(code_bytes, None).unwrap();
+    let query = Query::new(&tree_sitter_c::LANGUAGE.into(), "(function_declarator(identifier)@iden)@decl").unwrap();
+    let mut cursor = QueryCursor::new();
+
+    let mut diff: i32 = 0;
+
+    for qm in cursor.matches(&query, tree.root_node(), code_bytes) {
+        let node = qm.captures[1].node;
+        let identifier = node.utf8_text(&code_bytes).unwrap();
+        let attributes: Vec<_> = identifier.split("_AC___").collect(); //` __`
+
+        if attributes.len() < 2 {
+            continue;
+        }
+
+        match &attributes[..] {
+            [] | [_] => {},
+            [name, attrib @ ..] => {
+                code.replace_range(((node.start_byte() as i32) + diff) as usize..((node.end_byte() as i32) + diff) as usize, name);
+                diff += name.len() as i32 - node.byte_range().len() as i32;
+                let attrib = format!("__{}", attrib.join(" __"));
+                let attrib = attrib
+                    .replace("_AC_", " ")
+                    .replace("_IC_", "(")
+                    .replace("_JC_", ")")
+                    .replace("_MC_", ",");
+                println!("{:?}", attrib);
+            }
+        }
     }
+
+    let mut file = File::create("./out/out.c")?;
+    file.write_all(&code.as_bytes())?;
 
     Ok(())
 }
