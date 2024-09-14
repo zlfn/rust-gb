@@ -259,47 +259,6 @@ fn treesitter_process() -> Result<(), std::io::Error> {
     let mut file = File::create("./out/out.c")?;
     file.write_all(&code.as_bytes())?;
 
-    Ok(())
-}
-
-fn c_post_process() -> Result<(), std::io::Error> {
-    //Add sdcc calling convention attributes to functions that have #[link_name="`function_name` __`convention`"]
-    //__sdcccall(0)
-    let s = Command::new("sed")
-        .args([
-            "/\\(void\\|uint8_t\\) .*\\(_AC___sdcccall_IC_0_JC_\\).*/ s/((nothrow));/((nothrow)) __sdcccall(0);/g;s/_AC___sdcccall_IC_0_JC_//g",
-            "-i", "./out/out.c"
-        ])
-        .status()?;
-
-    if !s.success() {
-        return Err(std::io::Error::new(ErrorKind::NotFound, "sed failed"))
-    }
-
-    //__sdcccall(1)
-    let s = Command::new("sed")
-        .args([
-            "/\\(void\\|uint8_t\\) .*\\(_AC___sdcccall_IC_1_JC_\\).*/ s/((nothrow));/((nothrow)) __sdcccall(1);/g;s/_AC___sdcccall_IC_1_JC_//g",
-            "-i", "./out/out.c"
-        ])
-        .status()?;
-
-    if !s.success() {
-        return Err(std::io::Error::new(ErrorKind::NotFound, "sed failed"))
-    }
-
-    //__nonbanked
-    let s = Command::new("sed")
-        .args([
-            "/void.*\\(_AC___nonbanked\\).*/ s/;/ __nonbanked;/g;s/_AC___nonbanked//g",
-            "-i", "./out/out.c"
-        ])
-        .status()?;
-
-    if !s.success() {
-        return Err(std::io::Error::new(ErrorKind::NotFound, "sed failed"))
-    }
-
     //Remove All Global Variable Declarations (Because it is mostly duplicated with Global Variable Definitions)
     //TODO: It can cause problems, so it needs to be replaced with a more sophisticated logic 
     let s = Command::new("sed")
