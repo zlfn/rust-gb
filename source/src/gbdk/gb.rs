@@ -1,12 +1,15 @@
 pub mod gb {
     extern "C" {
         pub fn delay(delay: u16);
+        #[link_name="waitpad __preserves_regs(b, c, h, l)"]
+        pub fn waitpad(mask: u8) -> u8;
+        #[link_name="waitpad __preserves_regs(a, b, c, d, e, h, l)"]
+        pub fn waitpadup();
     }
 }
 
 pub mod drawing {
     use core::ffi::c_char;
-
     pub const GRAPHICS_WIDTH: u8 = 160;
     pub const GRAPHICS_HEIGHT: u8 = 144;
 
@@ -27,7 +30,7 @@ pub mod drawing {
     pub const AND: u8 = 0x03;
 
     extern "C" {
-        #[link_name="circle __sdcccall(0)"]
+        #[link_name="circle __sdcccall(0) __preserve_regs(a, b, c)"]
         pub fn circle(x: u8, y: u8, radius: u8, style: u8);
         #[link_name="color __sdcccall(0)"]
         pub fn color(forecolor: u8, backcolor: u8, mode: u8);
