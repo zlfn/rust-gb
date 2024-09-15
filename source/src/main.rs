@@ -7,28 +7,24 @@ mod gbdk;
 
 use core::ffi::c_char;
 
-use gbdk::{gb::{drawing::{gotogxy, gprint, plot, plot_point, LTGREY, SOLID}, gb::{delay, waitpad, waitpadup}}, rand::{initarand, rand}};
+use gbdk::{gb::drawing::gprint, rand::{initarand, rand}};
 
 #[no_mangle]
 pub extern fn main() {
     unsafe {
-        gprint("Getting seed\0".as_ptr() as *const c_char);
-        gotogxy(0, 1);
-        gprint("Push any key (1)\0".as_ptr() as *const c_char);
-        let a: u8 = waitpad(0xFF);
-        waitpadup();
-        let mut seed = a as u16;
-        gotogxy(0, 2);
-        gprint("Push any key (2)\0".as_ptr() as *const c_char);
-        let b: u8 = waitpad(0xFF);
-        waitpadup();
-        seed |= (b as u16) << 8;
+        initarand(0);
 
-        initarand(seed);
+        let mut array: [u8; 10] = [0; 10]; 
 
         loop {
             let r = rand();
-            gprint([r, 0].as_ptr() as *const c_char);
+            if r < 10 {
+                array[r as usize] += 1;
+                gprint([array[r as usize], 0].as_ptr() as *const c_char);
+                if array[r as usize] == 100 {
+                    break;
+                }
+            }
         }
     }
 }
