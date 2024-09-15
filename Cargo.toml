@@ -3,7 +3,8 @@ resolver = "2"
 members = [
 	"source",
 	"xtask/*",
+	"examples/*",
 ]
 exclude = [
-	"ext/rust-deps"
+	"ext/rust-deps",
 ]
