@@ -1,6 +1,6 @@
 # Rust-GB
 Compile Rust code to GBZ80 (Work in Progress)  
-My first language is not English. It is always welcome to point out the awkward parts of this README.
+You can find ROM builds of examples in [release](https://github.com/zlfn/rust-gb/releases/tag/v0.0.1-alpha)
 
 ![image](https://github.com/user-attachments/assets/90c049f7-7317-44c9-9c73-a7865c78b24e)
 ^ `filltest` example of GBDK-2020, ported to Rust.
@@ -49,7 +49,7 @@ But if you want to do it, Here is the description below.
   follow [llvm-cbe](https://github.com/JuliaHubOSS/llvm-cbe)'s instruction to build it.  
   the path is `./ext/llvm-project/llvm/build/bin/llvm-cbe`
 3. Execute `cargo build --release` in `./ext/rust-deps`
-4. Now, `cargo build-rom` will build your GB ROM to `./out/main.gb`
+4. Now, `cargo build-rom` (where the `./src` directory is located) will build your GB ROM to `./out/main.gb`
 
 ```bash
 # build GB ROM from Rust code
