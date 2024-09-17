@@ -214,12 +214,22 @@ fn main() {
     }
 
     if build_from <= BuildChain::ASM {
-        let lcc_status = Command::new(format!("{}/ext/bin/lcc", root))
+        let asm_path = Command::new("find")
             .args([
-                "-msm83:gb",
-                "-o", "./out/out.gb",
-                "./out/out.asm"
+                "./asm",
+                "-name", "*.asm"
             ])
+            .output()
+            .unwrap()
+            .stdout;
+        let asm_path = String::from_utf8(asm_path).unwrap();
+        let mut lcc_args: Vec<&str> = vec!["-msm83:gb", "-o", "./out/out.gb", "./out/out.asm"];
+        let mut asm_path:Vec<&str> = asm_path.trim().split("\n").collect();
+
+        lcc_args.append(&mut asm_path);
+
+        let lcc_status = Command::new(format!("{}/ext/bin/lcc", root))
+            .args(lcc_args)
             .status()
             .unwrap();
 
