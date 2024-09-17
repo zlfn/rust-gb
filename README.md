@@ -21,9 +21,17 @@ I referred to [z80-babel](https://github.com/MartinezTorres/z80_babel) for steps
 3. Putting everything aside, it's fun!
 
 ## Goal
-This project's goal is to develop a Game Boy Development Kit that enables the creation of Game Boy games using Rust, include *safe* management APIs in Game Boy memory, abstracted functions, and more.
+This project's goal is to develop a Game Boy Development Kit that enables the creation of Game Boy games using Rust, including *safe* management APIs in Game Boy memory, abstracted functions, and more.
 
 Currently, the dependence on GBDK is large, but we plan to gradually reduce it.
+
+## Support
+If you like this project, you can always join our [Discussion](https://github.com/zlfn/rust-gb/discussions)!
+Please feel free to share your opinions or ideas.
+
+This project is in its very early stages, and we are still designing many things, so it would be nice to have a variety of ideas.
+
+PRs are always welcome too!
 
 ## Dependencies
 * rust
