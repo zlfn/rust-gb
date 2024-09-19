@@ -24,13 +24,13 @@ pub enum MemBank {
 }
 
 /// Array corresponding to the memory of each bank
-pub struct MemArray<T> {
+pub struct BankArray<T> {
     bank: MemBank,
     size: usize,
     ptr: *mut T,
 }
 
-impl<T> MemArray<T> {
+impl<T> BankArray<T> {
     /// Creates a MemArray from the pointer and size.
     /// This is unsafe because MemArray is not given exclusive access to that memory area.
     ///
@@ -59,7 +59,7 @@ impl<T> MemArray<T> {
             }
         }
 
-        MemArray {
+        BankArray {
             bank,
             size,
             ptr
@@ -67,7 +67,7 @@ impl<T> MemArray<T> {
     }
 }
 
-impl<T: Sized + Copy> MemArray<T> {
+impl<T: Sized + Copy> BankArray<T> {
     /// Fill the entire range of MemArray with a specific value.
     /// Note: Sometimes this is optimized with memset by compiler.
     pub fn fill(&self, data: T) {
@@ -79,7 +79,7 @@ impl<T: Sized + Copy> MemArray<T> {
     }
 }
 
-impl<T: LoadFromMem<T>> Index<usize> for MemArray<T> {
+impl<T: LoadFromMem<T>> Index<usize> for BankArray<T> {
     type Output = T;
     fn index(&self, index: usize) -> &Self::Output {
         //TODO: handle banking
@@ -93,7 +93,7 @@ impl<T: LoadFromMem<T>> Index<usize> for MemArray<T> {
     }
 }
 
-impl<T: LoadFromMem<T>> IndexMut<usize> for MemArray<T> {
+impl<T: LoadFromMem<T>> IndexMut<usize> for BankArray<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         //TODO: handle banking
         if index >= self.size {
