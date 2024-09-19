@@ -46,6 +46,7 @@ fn main() {
     let root = root.to_str().unwrap();
 
     fs::create_dir_all("./out").unwrap();
+    fs::create_dir_all("./out/asm").unwrap();
 
     if build_from <= BuildChain::Rust {
         let bundle_result = Command::new("rust_bundler_cp")
@@ -162,21 +163,42 @@ fn main() {
             println!("{}", "[treesitter] C postprocess for SDCC succeeded".green());
         }
 
-        Command::new("sed")
-            .args(["s/static __forceinline/inline/g' -i ./out/out.c"])
+        /*Command::new("sed")
+            .args(["'s/static __forceinline/inline/g' -i ./out/out.c"])
             .status()
             .unwrap();
         Command::new("sed")
-            .args(["s/uint8_t\\* memset(uint8_t\\*, uint32_t, uint16_t);/inline uint8_t\\* memset(uint8_t\\* dst, uint8_t c, uint16_t sz) {uint8_t \\*p = dst; while (sz--) *p++ = c; return dst; }/g' -i ./out/out.c"])
+            .args(["'s/uint8_t\\* memset(uint8_t\\*, uint32_t, uint16_t);/inline uint8_t\\* memset(uint8_t\\* dst, uint8_t c, uint16_t sz) {uint8_t \\*p = dst; while (sz--) *p++ = c; return dst; }/g' -i ./out/out.c"])
             .status()
             .unwrap();
         Command::new("sed")
             .args(["/__noreturn void rust_begin_unwind(struct l_struct_core_KD__KD_panic_KD__KD_PanicInfo\\* llvm_cbe_info)/{:a;N;/__builtin_unreachable/{N;N;d};/  }/b;ba}' -i ./out/out.c"])
             .status()
-            .unwrap();
+            .unwrap();*/
     }
 
     if build_from <= BuildChain::C {
+        let c_path = Command::new("find")
+            .args([
+                "./c",
+                "-name", "*.c"
+            ])
+            .output()
+            .unwrap()
+            .stdout;
+
+        let c_path = String::from_utf8(c_path).unwrap();
+        let c_path = c_path.trim();
+
+        let c_path: Vec<&str> = {
+            if c_path.len() == 0 {
+                Vec::new()
+            }
+            else {
+                c_path.split("\n").collect()
+            }
+        };
+
         let sdcc_status = Command::new("sdcc")
             .args([
                 "-S", "-linc", "-lsrc", "-ltests",
@@ -205,26 +227,70 @@ fn main() {
             .unwrap();
 
         if !sdcc_status.success() {
-            println!("{}", "[sdcc] C -> ASM compile failed".red());
+            println!("{}", "[sdcc] C -> ASM code compile failed".red());
             process::exit(1);
         }
-        else {
-            println!("{}", "[sdcc] C -> ASM compile succeeded".green());
+
+        for c_file in c_path {
+            let out_name = c_file.replace("./c", "");
+            let sdcc_status = Command::new("sdcc")
+                .args([
+                    "-S", "-linc", "-lsrc", "-ltests",
+                    "-D", "__HIDDEN__=",
+                    "-D", "__attribute__(a)=",
+                    "-D", "__builtin_unreachable()=while(1);",
+                    "--out-fmt-ihx",
+                    "--max-allocs-per-node", "2000",
+                    "--disable-warning", "85",
+                    "--disable-warning", "110",
+                    "--disable-warning", "126",
+                    "--allow-unsafe-read",
+                    "--opt-code-speed",
+                    "--no-std-crt0",
+                    "--nostdlib",
+                    "--no-xinit-opt",
+                    "--std-sdcc11",
+
+                    "-msm83",
+                    "-D", "__PORT_sm83",
+                    "-D", "__TARGET_gb",
+
+                    c_file,
+                    "-o", format!("./out/asm{}.asm", out_name).as_str()
+                ])
+                .status()
+                .unwrap();
+
+            if !sdcc_status.success() {
+                println!("{}", "[sdcc] C -> ASM library compile failed".red());
+                process::exit(1);
+            }
         }
+
+        println!("{}", "[sdcc] C -> ASM compile succeeded".green());
     }
 
     if build_from <= BuildChain::ASM {
         let asm_path = Command::new("find")
             .args([
-                "./asm",
+                "./asm", "./out/asm",
                 "-name", "*.asm"
             ])
             .output()
             .unwrap()
             .stdout;
         let asm_path = String::from_utf8(asm_path).unwrap();
+        let asm_path = asm_path.trim();
+        let mut asm_path: Vec<&str> = {
+            if asm_path.len() == 0 {
+                Vec::new()
+            }
+            else {
+                asm_path.split("\n").collect()
+            }
+        };
+
         let mut lcc_args: Vec<&str> = vec!["-msm83:gb", "-o", "./out/out.gb", "./out/out.asm"];
-        let mut asm_path:Vec<&str> = asm_path.trim().split("\n").collect();
 
         lcc_args.append(&mut asm_path);
 
