@@ -178,6 +178,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand-rs"
+version = "0.1.0"
+
+[[package]]
 name = "rand-text"
 version = "0.1.0"
 
