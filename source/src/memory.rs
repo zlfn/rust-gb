@@ -1,3 +1,5 @@
+use core::ops::Range;
+
 /// Rust's memory safety rules assume your program operates in a linear, non-segmented memory
 /// space. This means that Rust assumes there are no "holes" in the address space and writing to
 /// any place in memory never has any affect on other parts of memory. Neither of these are true in
@@ -48,9 +50,9 @@ impl MemoryMap {
     /// overwriten.
     pub unsafe fn default() -> Self {
         Self {
-            external_ram: Some(RamManager::new(Some(0x0000), 0xA000)),
+            external_ram: Some(RamManager::new(Some(0x0000), 0xA000..0xAFFF)),
             work_ram_1: None,
-            work_ram_0: Some(RamManager::new(None, 0xC000)),
+            work_ram_0: Some(RamManager::new(None, 0xC000..0xCFFF)),
             high_ram: None,
         }
     }
@@ -63,7 +65,7 @@ impl MemoryMap {
 #[non_exhaustive]
 pub struct RamManager {
     bank_selection_addr: Option<u16>,
-    bank_start_addr: u16,
+    bank_addr: Range<u16>,
 }
 
 impl RamManager {
@@ -71,10 +73,10 @@ impl RamManager {
     ///
     /// SAFETY:
     /// Same safety rules as `MemoryMap::new`
-    unsafe fn new(bank_selection_addr: Option<u16>, bank_start_addr: u16) -> Self {
+    unsafe fn new(bank_selection_addr: Option<u16>, bank_addr: Range<u16>) -> Self {
         RamManager {
             bank_selection_addr,
-            bank_start_addr
+            bank_addr
         }
     }
 
@@ -94,7 +96,7 @@ impl RamManager {
     unsafe fn read_bank(&self) -> u8 {
         // TODO: There is an unstable feature to provide `as_ref_unchecked`. This should probably
         // use that.
-        *(self.bank_start_addr as *const u8).as_ref().unwrap()
+        *(self.bank_addr.start as *const u8).as_ref().unwrap()
     }
 
     /// This fetches the necessary memory bank.
@@ -104,7 +106,7 @@ impl RamManager {
     pub fn fetch_bank(&mut self, bank: u8) -> &mut RamBank {
         unsafe {
             self.select_bank(bank);
-            (self.bank_start_addr as *mut RamBank).as_mut().unwrap()
+            (self.bank_addr.start as *mut RamBank).as_mut().unwrap()
         }
     }
 
@@ -150,4 +152,30 @@ impl RamBank {
 struct BankPtr<T> {
     bank_number: u8,
     ptr: *mut T,
+}
+
+/// Type can be referenced from memory.
+/// By default, it is implemented for all types that have a `Size` trait.
+pub trait LoadFromMem<T: Sized> {
+    /// Gets the reference from the raw pointer.
+    unsafe fn ref_from_mem<'a>(ptr: *const T) -> &'a T {
+        ptr.as_ref().unwrap()
+    }
+
+    /// Gets the mutable reference from the raw pointer.
+    unsafe fn mut_from_mem<'a>(ptr: *mut T) -> &'a mut T {
+        ptr.as_mut().unwrap()
+    }
+}
+
+impl<T: Sized> LoadFromMem<T> for T {}
+
+/// Gets the reference from the raw pointer.
+pub unsafe fn ref_from_mem<'a, T: LoadFromMem<T>>(ptr: *const T) -> &'a T {
+    T::ref_from_mem(ptr)
+}
+
+/// Gets the mutable reference from the raw pointer.
+pub unsafe fn mut_from_mem<'a, T: LoadFromMem<T>>(ptr: *mut T) -> &'a mut T {
+    T::mut_from_mem(ptr)
 }
