@@ -18,12 +18,12 @@ use core::ops::Range;
 #[non_exhaustive]
 pub struct MemoryMap {
     /// The manager for the external RAM banks
-    pub external_ram: Option<RamManager>,
+    pub external_ram: Option<BankManager>,
     /// The manager for the work RAM banks
-    pub work_ram_1: Option<RamManager>,
-    pub work_ram_0: Option<RamManager>,
+    pub work_ram_1: Option<BankManager>,
+    pub work_ram_0: Option<BankManager>,
     /// The manager for the high RAM banks
-    pub high_ram: Option<RamManager>
+    pub high_ram: Option<BankManager>
 }
 
 impl MemoryMap {
@@ -34,7 +34,7 @@ impl MemoryMap {
     /// This function is the first thing you call in your program. 
     /// Any existing data might get over overwriten.
     /// In addition, there should be a guarantee that the area is not invaded by the stack or other dependencies.
-    pub unsafe fn new(external_ram: Option<RamManager>, work_ram_1: Option<RamManager>, work_ram_0: Option<RamManager>, high_ram: Option<RamManager>) -> Self {
+    pub unsafe fn new(external_ram: Option<BankManager>, work_ram_1: Option<BankManager>, work_ram_0: Option<BankManager>, high_ram: Option<BankManager>) -> Self {
         Self {
             external_ram,
             work_ram_1,
@@ -50,9 +50,9 @@ impl MemoryMap {
     /// overwriten.
     pub unsafe fn default() -> Self {
         Self {
-            external_ram: Some(RamManager::new(Some(0x0000), 0xA000..0xAFFF)),
+            external_ram: Some(BankManager::new(Some(0x0000), 0xA000..0xAFFF)),
             work_ram_1: None,
-            work_ram_0: Some(RamManager::new(None, 0xC000..0xCFFF)),
+            work_ram_0: Some(BankManager::new(None, 0xC000..0xCFFF)),
             high_ram: None,
         }
     }
@@ -63,18 +63,18 @@ impl MemoryMap {
 /// Manages access to a series of RAM banks that overlap in a memory space as well as the register
 /// used to toggle between them.
 #[non_exhaustive]
-pub struct RamManager {
+pub struct BankManager {
     bank_selection_addr: Option<u16>,
     bank_addr: Range<u16>,
 }
 
-impl RamManager {
+impl BankManager {
     /// This method should only be called by `MemoryMap::new`.
     ///
     /// SAFETY:
     /// Same safety rules as `MemoryMap::new`
     unsafe fn new(bank_selection_addr: Option<u16>, bank_addr: Range<u16>) -> Self {
-        RamManager {
+        BankManager {
             bank_selection_addr,
             bank_addr
         }
