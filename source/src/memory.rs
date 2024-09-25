@@ -1,4 +1,3 @@
-
 /// Rust's memory safety rules assume your program operates in a linear, non-segmented memory
 /// space. This means that Rust assumes there are no "holes" in the address space and writing to
 /// any place in memory never has any affect on other parts of memory. Neither of these are true in
@@ -94,7 +93,7 @@ impl BankManager {
 
 // I'm not sure what all this would hold... It depends on if this type manages how the bank's
 // memory is allocated.
-struct RamBank {
+pub struct RamBank {
     bank_number: u8,
 }
 
