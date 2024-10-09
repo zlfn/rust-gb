@@ -1,4 +1,3 @@
-
 /// Rust's memory safety rules assume your program operates in a linear, non-segmented memory
 /// space. This means that Rust assumes there are no "holes" in the address space and writing to
 /// any place in memory never has any affect on other parts of memory. Neither of these are true in

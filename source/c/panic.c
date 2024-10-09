@@ -21,3 +21,12 @@ void _ZN4core9panicking18panic_bounds_check17h7c8da0e27d354709E(uint16_t index, 
 	color(1, 3, 0);
 	gprint("index out of bounds");
 }
+
+void _ZN4core6option13unwrap_failed17h2de88f13d05098f0E(void* _1) {
+	gotogxy(0, 0);
+	color(0, 3, 0);
+	gprint("PANIC occured");
+	gotogxy(0, 1);
+	color(1, 3, 0);
+	gprint("called `Option::unwrap()` on a `None` value");
+}
