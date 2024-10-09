@@ -1,5 +1,3 @@
-use core::ffi::CStr;
-
 use super::gbdk_c::drawing;
 
 #[repr(u8)]
@@ -18,7 +16,7 @@ impl From<u8> for DrawingMode {
             drawing::OR => Self::Or,
             drawing::XOR => Self::Xor,
             drawing::AND => Self::And,
-            _ => panic!("Style from u8 outbounded\0")
+            _ => panic!("DrawingMode from u8 outbounded\0")
         }
     }
 }
@@ -39,7 +37,7 @@ impl From<u8> for DmgColor {
             drawing::LTGREY => Self::LightGrey,
             drawing::DKGREY => Self::DarkGrey,
             drawing::BLACK => Self::Black,
-            _ => panic!("Color from u8 outbounded\0")
+            _ => panic!("DmgColor from u8 outbounded\0")
         }
     }
 }
@@ -56,6 +54,14 @@ impl DrawingStyle {
         DrawingStyle {
             foreground: DmgColor::Black, 
             background: DmgColor::White, 
+            drawing_mode: DrawingMode::Solid
+        }
+    }
+
+    pub fn reversed() -> Self {
+        DrawingStyle {
+            foreground: DmgColor::White, 
+            background: DmgColor::Black, 
             drawing_mode: DrawingMode::Solid
         }
     }
@@ -86,8 +92,93 @@ impl DrawingStyle {
     }
 }
 
-// TODO: Chante &str to &CStr
-// Currently, rust-bundler-cp does not support CStr literal
-pub fn gb_print(text: &str) {
-    unsafe { drawing::gprint(text.as_ptr() as *const i8) }
+pub mod print {
+    use core::ffi::CStr;
+
+    use crate::gb::gbdk_c::drawing::{gotogxy, GRAPHICS_HEIGHT, GRAPHICS_WIDTH, SIGNED, UNSIGNED};
+
+    use super::super::gbdk_c::drawing;
+
+    pub trait GPrint {
+        fn gprint(&self);
+    }
+
+    pub trait GPrintNumber: GPrint {
+        unsafe fn gprintn(&self, radix: u8);
+
+        fn gprint_oct(&self) {
+            unsafe {self.gprintn(8)}
+        }
+
+        fn gprint_hex(&self) {
+            unsafe {self.gprintn(16)}
+        }
+    }
+
+    impl<T: GPrintNumber> GPrint for T {
+        fn gprint(&self) {
+            unsafe {self.gprintn(10)}
+        }
+    }
+
+    pub fn cursor(x: u8, y: u8) {
+        if x >= GRAPHICS_WIDTH/8 {
+            panic!("Cursor x outbounded\0");
+        }
+
+        if y >= GRAPHICS_HEIGHT/8 {
+            panic!("Cursor y outbounded\0");
+        }
+
+        unsafe {gotogxy(x, y)}
+    }
+
+    pub fn print<T: GPrint>(s: T) {
+        s.gprint();
+    }
+
+    pub fn print_oct<T: GPrintNumber>(s: T) {
+        s.gprint_oct();
+    }
+
+    pub fn print_hex<T: GPrintNumber>(s: T) {
+        s.gprint_hex();
+    }
+
+    // TODO: Delete this implementation.
+    impl GPrint for &str {
+        fn gprint(&self) {
+            unsafe { drawing::gprint(self.as_ptr() as *const i8) }
+        }
+    }
+
+    impl GPrint for CStr {
+        fn gprint(&self) {
+            unsafe { drawing::gprint(self.as_ptr() as *const i8) }
+        }
+    }
+
+    impl GPrintNumber for u8 {
+        unsafe fn gprintn(&self, radix: u8) {
+            unsafe { drawing::gprintn(*self as i8, radix as i8, UNSIGNED as i8) }
+        }
+    }
+
+    impl GPrintNumber for i8 {
+        unsafe fn gprintn(&self, radix: u8) {
+            unsafe { drawing::gprintn(*self as i8, radix as i8, SIGNED as i8) }
+        }
+    }
+
+    impl GPrintNumber for u16 {
+        unsafe fn gprintn(&self, radix: u8) {
+            unsafe { drawing::gprintln(*self as i16, radix as i8, UNSIGNED as i8) }
+        }
+    }
+
+    impl GPrintNumber for i16 {
+        unsafe fn gprintn(&self, radix: u8) {
+            unsafe { drawing::gprintln(*self as i16, radix as i8, SIGNED as i8) }
+        }
+    }
 }
