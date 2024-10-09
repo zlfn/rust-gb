@@ -1,5 +1,10 @@
 use super::gbdk_c::drawing;
 
+pub const SCREEN_WIDTH: u8 = drawing::GRAPHICS_WIDTH;
+pub const SCREEN_HEIGHT: u8 = drawing::GRAPHICS_WIDTH;
+pub const TILE_WIDTH: u8 = SCREEN_WIDTH / 8;
+pub const TILE_HEIGHT: u8 = SCREEN_HEIGHT / 8;
+
 #[repr(u8)]
 #[derive(PartialEq, Clone, Copy)]
 pub enum DrawingMode {
@@ -95,9 +100,9 @@ impl DrawingStyle {
 pub mod print {
     use core::ffi::CStr;
 
-    use crate::gb::gbdk_c::drawing::{gotogxy, GRAPHICS_HEIGHT, GRAPHICS_WIDTH, SIGNED, UNSIGNED};
+    use crate::gb::gbdk_c::drawing::{gotogxy, SIGNED, UNSIGNED};
 
-    use super::super::gbdk_c::drawing;
+    use super::{super::gbdk_c::drawing, TILE_HEIGHT, TILE_WIDTH};
 
     pub trait GPrint {
         fn gprint(&self);
@@ -122,11 +127,11 @@ pub mod print {
     }
 
     pub fn cursor(x: u8, y: u8) {
-        if x >= GRAPHICS_WIDTH/8 {
+        if x >= TILE_WIDTH {
             panic!("Cursor x outbounded\0");
         }
 
-        if y >= GRAPHICS_HEIGHT/8 {
+        if y >= TILE_HEIGHT {
             panic!("Cursor y outbounded\0");
         }
 

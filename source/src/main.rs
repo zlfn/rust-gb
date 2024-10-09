@@ -9,7 +9,7 @@ use gb::drawing::{print::{cursor, print}, DmgColor, DrawingStyle};
 
 #[no_mangle]
 pub extern fn main() {
-    print("TEST\0");
+    print("TE\nST\0");
 
     cursor(0, 17);
     print(u8::MAX);
