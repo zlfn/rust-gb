@@ -34,11 +34,9 @@ This project is in its very early stages, and we are still designing many things
 PRs are always welcome too!
 
 ## Dependencies
-* rust
+* rust (nightly-2024-02-13)
 * avr-gcc
 * avr-libc
-* llvm
-* llvm-cbe
 * sdcc
 
 This project is still a work in progress, and I haven't tested it outside of my development environment.
@@ -50,12 +48,31 @@ I do not recommend that you build this project now. because this is WIP and I'm 
 
 But if you want to do it, Here is the description below.
 
-1. Install all dependencies in your linux (Use WSL for Windows)
-2. Build llvm-cbe in `./ext` directory.
-  follow [llvm-cbe](https://github.com/JuliaHubOSS/llvm-cbe)'s instruction to build it.  
-  the path is `./ext/llvm-project/llvm/build/bin/llvm-cbe`
-3. Execute `cargo build --release` in `./ext/rust-deps`
-4. Now, `cargo build-rom` (where the `./src` directory is located) will build your GB ROM to `./out/main.gb`
+1. Clone this repository
+```bash
+git clone https://github.com/zlfn/rust-gb
+cd rust-gb
+```
+2. Install Rust toolchains. Because of the llvm-cbe's LLVM version, rustc `nightly-2024-02-13` version required.  
+  I highly recommand to use [mise](https://github.com/jdx/mise)
+```bash
+mise install
+```
+3. Install all dependencies in your linux (Use WSL for Windows)
+```bash
+# Arch Linux
+sudo pacman -S avr-gcc avr-libc sdcc
+# Ubuntu (NOT TESTED)
+sudo apt install binutils-avr gcc-avr avr-libc avrdude sdcc
+```
+4. Download llvm-cbe binary and build rust build dependencies.
+```bash
+# This shell script will download llvm-cbe binary from my server and build rust dependencies in ext/rust-deps
+# Be aware that the file is large (1.7GB after decompress)
+
+curl https://mirror.zlfn.space/rust-gb/setup.sh | sh
+```
+5. Now, `cargo build-rom` (where the `./src` directory is located) will build your GB ROM to `./out/main.gb`
 
 ```bash
 # build GB ROM from Rust code
@@ -66,7 +83,7 @@ cargo llvm-rom
 # ... from C code
 cargo c-rom
 # ... from ASM code
-cargo asm-romm
+cargo asm-rom
 ```
 
 ## Build chain Description
