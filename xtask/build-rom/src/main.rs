@@ -49,7 +49,7 @@ fn main() {
     fs::create_dir_all("./out/asm").unwrap();
 
     if build_from <= BuildChain::Rust {
-        let bundle_result = Command::new("rust_bundler_cp")
+        let bundle_result = Command::new("{}/ext/rust_bundler_cp")
             .args([
                 "--input", ".",
             ])
@@ -134,7 +134,7 @@ fn main() {
     }
 
     if build_from <= BuildChain::LLVM {
-        let llvm_status = Command::new(format!("{}/ext/llvm-project/llvm/build/bin/llvm-cbe", root))
+        let llvm_status = Command::new(format!("{}/ext/llvm-cbe", root))
             .args([
                 "--cbe-declare-locals-late",
                 "./out/out.ll",
