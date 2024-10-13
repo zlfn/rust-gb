@@ -75,6 +75,7 @@ curl https://mirror.zlfn.space/rust-gb/setup.sh | sh
 5. Now, `cargo build-rom` (where the `./src` directory is located) will build your GB ROM to `./out/main.gb`
 
 ```bash
+# Caution: It should be executed in the /source directory, not the project root directory
 # build GB ROM from Rust code
 cargo build-rom
 
