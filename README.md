@@ -68,7 +68,7 @@ mise install
 # Arch Linux
 sudo pacman -S avr-gcc avr-libc sdcc
 # Ubuntu
-sudo apt install binutils-avr gcc-avr avr-libc avrdude sdcc
+sudo apt install gcc-avr avr-libc sdcc
 ```
 4. Download llvm-cbe binary and build rust build dependencies.
 ```bash
