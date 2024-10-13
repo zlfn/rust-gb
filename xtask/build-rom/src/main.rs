@@ -49,7 +49,7 @@ fn main() {
     fs::create_dir_all("./out/asm").unwrap();
 
     if build_from <= BuildChain::Rust {
-        let bundle_result = Command::new("{}/ext/rust_bundler_cp")
+        let bundle_result = Command::new(format!("{}/ext/rust_bundler_cp", root))
             .args([
                 "--input", ".",
             ])
