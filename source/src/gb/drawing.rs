@@ -138,15 +138,15 @@ pub mod print {
         unsafe {gotogxy(x, y)}
     }
 
-    pub fn print<T: GPrint>(s: T) {
+    pub fn gprint<T: GPrint>(s: T) {
         s.gprint();
     }
 
-    pub fn print_oct<T: GPrintNumber>(s: T) {
+    pub fn gprint_oct<T: GPrintNumber>(s: T) {
         s.gprint_oct();
     }
 
-    pub fn print_hex<T: GPrintNumber>(s: T) {
+    pub fn gprint_hex<T: GPrintNumber>(s: T) {
         s.gprint_hex();
     }
 
