@@ -56,6 +56,11 @@ cd rust-gb
 2. Install Rust toolchains. Because of the llvm-cbe's LLVM version, rustc `nightly-2024-02-13` version required.  
   I highly recommand to use [mise](https://github.com/jdx/mise)
 ```bash
+# Install mise
+curl https://mise.run | sh
+echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc
+
+# Install rust using mise (Shell restart may be required)
 mise install
 ```
 3. Install all dependencies in your linux (Use WSL for Windows)
@@ -63,11 +68,11 @@ mise install
 # Arch Linux
 sudo pacman -S avr-gcc avr-libc sdcc
 # Ubuntu
-sudo apt install binutils-avr gcc-avr avr-libc avrdude sdcc
+sudo apt install gcc-avr avr-libc sdcc
 ```
 4. Download llvm-cbe binary and build rust build dependencies.
 ```bash
-# This shell script will download llvm-cbe binary from my server and build rust dependencies in ext/rust-deps
+# This shell script will download llvm-cbe binary from server and build rust dependencies in ext/rust-deps
 # Be aware that the file is large (1.7GB after decompress)
 
 curl https://mirror.zlfn.space/rust-gb/setup.sh | sh
@@ -75,15 +80,11 @@ curl https://mirror.zlfn.space/rust-gb/setup.sh | sh
 5. Now, `cargo build-rom` (where the `./src` directory is located) will build your GB ROM to `./out/main.gb`
 
 ```bash
-# build GB ROM from Rust code
-cargo build-rom
+# Caution: `build-rom` should be executed in the /source directory, not the project root directory
+cd ./source
 
-# build GB ROM from LLVM-IR
-cargo llvm-rom
-# ... from C code
-cargo c-rom
-# ... from ASM code
-cargo asm-rom
+# Build GB ROM from Rust code
+cargo build-rom
 ```
 
 ## Build chain Description
