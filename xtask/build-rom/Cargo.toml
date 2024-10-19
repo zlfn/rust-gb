@@ -10,5 +10,5 @@ project-root = "0.2.2"
 tree-sitter = "0.23.0"
 tree-sitter-c = "0.23.0"
 
-[build-dependencies]
-cc="*"
+# [build-dependencies]
+# cc="*"

@@ -1,6 +1,6 @@
 [build]
 target = "avr-unknown-gnu-atmega328"
-rustflags = ["--emit=llvm-ir"]
+rustflags = ["--emit=llvm-ir", "--cfg", "no_fp_fmt_parse"]
 
 [unstable]
 build-std = ["core", "alloc"]

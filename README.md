@@ -34,7 +34,7 @@ This project is in its very early stages, and we are still designing many things
 PRs are always welcome too!
 
 ## Dependencies
-* rust (nightly-2024-02-13)
+* rust (nightly)
 * avr-gcc
 * avr-libc
 * sdcc
@@ -53,8 +53,9 @@ But if you want to do it, Here is the description below.
 git clone https://github.com/zlfn/rust-gb
 cd rust-gb
 ```
-2. Install Rust toolchains. Because of the llvm-cbe's LLVM version, rustc `nightly-2024-02-13` version required.  
-  I highly recommand to use [mise](https://github.com/jdx/mise)
+2. Install Rust toolchains. Because of the llvm-cbe's LLVM version, rustc `nightly` version required.  
+  I highly recommand to use [mise](https://github.com/jdx/mise) because the required version of rust nightly may change.  
+  But there's no big problem if you install rust the way you want it.
 ```bash
 # Install mise
 curl https://mise.run | sh
@@ -73,7 +74,6 @@ sudo apt install gcc-avr avr-libc sdcc
 4. Download llvm-cbe binary and build rust build dependencies.
 ```bash
 # This shell script will download llvm-cbe binary from server and build rust dependencies in ext/rust-deps
-# Be aware that the file is large (1.7GB after decompress)
 
 curl https://mirror.zlfn.space/rust-gb/setup.sh | sh
 ```
