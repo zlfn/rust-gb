@@ -99,11 +99,11 @@ rust-deps                (not acutally linked)                  for SDCC        
 │         │              │                ││               │    │ rom0.c   │   SDCC     │ rom0.asm  │      
 │  core   │  build-std   │ libcore*.rlib  ││ libcore*.ll   │    │ rom1.c   ├───────────►│ rom1.asm  │      
 │  alloc  ├─────────────►│ liballoc*.rlib ││ liballoc*.ll  │    └──────────┘            └┬──────────┘      
-│         │+emit=llvm-ir │ libgbdk*.so    ││               │         ▲                   │                 
+│         │ emit=llvm-ir │ libgbdk*.o     ││               │         ▲                   │                 
 └─────────┘              │                ││               │         │                   │ GBDK build chain
                          └─────┬──────────┘└──────────┬────┘         │ Treesitter        │ - lcc           
 ┌──────────┐              ▲    │                      │              │                   │ - sdasgb        
-│          │     gcc      │    │                      │ llvm-cbe                         │ - bankpack      
+│          │    clang     │    │                      │ llvm-cbe                         │ - bankpack      
 │ gbdk-lib ├──────────────┘    │         llvm-ir file ├──────────► C file           link │ - sdlgdb        
 │          │                   │                      │ llvm-link  for Clang        ┌───►│ - ihxcheck      
 └─▲────────┘                   │                      │                             │    │ - makebin       
