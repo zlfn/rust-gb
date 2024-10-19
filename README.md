@@ -88,8 +88,37 @@ cargo build-rom
 ```
 
 ## Build chain Description
+
+### Build chain design diagram (WIP)
+This may be change in the future
+
+```
+                         Fake dependencies                      C files                 SM83               
+rust-deps                (not acutally linked)                  for SDCC                Assembly files     
+┌─────────┐              ┌────────────────┐┌───────────────┐    ┌──────────┐            ┌───────────┐      
+│         │              │                ││               │    │ rom0.c   │   SDCC     │ rom0.asm  │      
+│  core   │  build-std   │ libcore*.rlib  ││ libcore*.ll   │    │ rom1.c   ├───────────►│ rom1.asm  │      
+│  alloc  ├─────────────►│ liballoc*.rlib ││ liballoc*.ll  │    └──────────┘            └┬──────────┘      
+│         │+emit=llvm-ir │ libgbdk*.so    ││               │         ▲                   │                 
+└─────────┘              │                ││               │         │                   │ GBDK build chain
+                         └─────┬──────────┘└──────────┬────┘         │ Treesitter        │ - lcc           
+┌──────────┐              ▲    │                      │              │                   │ - sdasgb        
+│          │     gcc      │    │                      │ llvm-cbe                         │ - bankpack      
+│ gbdk-lib ├──────────────┘    │         llvm-ir file ├──────────► C file           link │ - sdlgdb        
+│          │                   │                      │ llvm-link  for Clang        ┌───►│ - ihxcheck      
+└─▲────────┘                   │                      │                             │    │ - makebin       
+  │ extern                     │           ┌──────────┴────┐   ┌──────────────┐     │    │                 
+┌─┴────────┐                   │           │               │   │ rustcore.c   │     │    │                 
+│          │   cargo build     ▼           │ project*.ll   │   │ rustalloc.c  ├─────┘    ▼                 
+│ rust-gb  ├──────────────────────────────►│ crates*.ll    │   │ gbdk C files │                            
+│ source   │                               │               │   │ memory.asm.. │        game.gb              
+│          │                               └───────────────┘   └──────────────┘                            
+└──────────┘                                                   Real dependencies
+```
+
 ### Rust bundling
 Rust codes in `./source` bundled in one .rs file by [rust-bundler-cp](https://github.com/Endle/rust-bundler-cp)
+
 ### Rust -> LLVM-IR
 Bundled Rust code is compiled to target `avr-unknown-gnu-atmega328`.  
 This will provide 8-bit compatibility for z80.
@@ -98,12 +127,15 @@ This will provide 8-bit compatibility for z80.
 LLVM-CBE compile LLVM-IR to C code.  
 
 I'm considering If it can be replaced with [llvm-gbz80](https://github.com/Bevinsky/llvm-gbz80)
+
 ### C post-processing
 The generated C code is for GCC. Therefore, it goes through post-processing before it is entered into SDCC.
 
 Use the `tree-sitter` and `sed` to parse the C code, and replace or add the required codes.
+
 ### C -> ASM
 SDCC compile C code for GBZ80 (`sm83`)
+
 ### ASM -> ROM
 I used GBDK's build chain for this. GBDK's `lcc` link ASM with GBDK libraries and build a complete Gameboy ROM file.
 
