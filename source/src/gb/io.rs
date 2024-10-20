@@ -31,7 +31,7 @@ macro_rules! print {
     ($($arg:tt)*) => {{
         use core::fmt::Write;
         let mut s = crate::gb::io::GBStream::new();
-        s.write_fmt(core::format_args!($($arg)*));
+        s.write_fmt(core::format_args!($($arg)*)).unwrap();
     }};
 }
 
@@ -67,7 +67,7 @@ macro_rules! println {
     ($($arg:tt)*) => {{
         use core::fmt::Write;
         let mut s = crate::gb::io::GBStream::new();
-        s.write_fmt(core::format_args_nl!($($arg)*));
+        s.write_fmt(core::format_args_nl!($($arg)*)).unwrap();
     }};
 }
 
