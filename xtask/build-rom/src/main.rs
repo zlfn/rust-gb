@@ -134,10 +134,40 @@ fn main() {
     }
 
     if build_from <= BuildChain::LLVM {
+        let coreir = Command::new("find")
+            .args([
+                format!("{}/ext/rust-deps/target/avr-unknown-gnu-atmega328/release/deps", root),
+                "-name".to_string(),
+                "core*.ll".to_string()
+            ])
+            .output()
+            .unwrap()
+            .stdout;
+        let coreir = str::from_utf8(&coreir).unwrap().trim();
+
+        let link_status = Command::new(format!("{}/ext/llvm-link", root))
+            .args([
+                "--only-needed", "-S",
+                "./out/out.ll",
+                coreir,
+
+                "-o", "./out/link.ll"
+            ])
+            .status()
+            .unwrap();
+
+        if !link_status.success() {
+            println!("{}", "[llvm-link] LLVM-IR linking failed".red());
+            process::exit(1);
+        }
+        else {
+            println!("{}", "[llvm-link] LLVM-IR linking succeeded".green());
+        }
+
         let llvm_status = Command::new(format!("{}/ext/llvm-cbe", root))
             .args([
                 "--cbe-declare-locals-late",
-                "./out/out.ll",
+                "./out/link.ll",
                 "-o", "./out/out.c",
             ])
             .status()

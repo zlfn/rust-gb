@@ -1,3 +1,8 @@
+/// Binding of GBDK's `gb/*`
 pub mod gb;
+
+/// Binding of GBDK's `rand.h`
 pub mod rand;
-pub mod drawing;
+
+/// Binding of GBDK's `stdio.h`
+pub mod stdio;
