@@ -8,14 +8,16 @@ mod gb;
 
 #[no_mangle]
 pub extern fn main() {
-    let u: u8 = u8::MIN;
-    println!("Hello, World!");
-    println!("{}", u);
+    println!("Hello, Rust-GB!");
 }
 
-#[allow(unconditional_recursion)]
 #[panic_handler]
-#[cfg(not(test))]
-fn panic_handler_phony(info: &core::panic::PanicInfo) -> ! {
+#[allow(unused_variables)]
+pub fn panic_handler(info: &core::panic::PanicInfo) -> ! {
+    println!("PANIC occured");
+
+    // If you want to see more information, uncomment below line.
+    // println!("{}", info.message());
+
     loop {}
 }
