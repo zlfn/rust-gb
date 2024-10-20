@@ -1,0 +1,18 @@
+[build]
+# target = "avr-unknown-gnu-atmega328"
+# rustflags = [
+# 	"--emit=llvm-ir", 
+# 	"--cfg", "no_fp_fmt_parse",
+# 	"-C", "opt-level=3",
+# 	"-C", "embed-bitcode=no",
+# 	"-Z", "unstable-options",
+# ]
+
+[unstable]
+# build-std = ["core"]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"

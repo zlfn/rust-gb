@@ -2,28 +2,15 @@
 #![no_main]
 #![allow(dead_code)]
 #![feature(strict_provenance)]
+#![feature(format_args_nl)]
 
 mod gb;
 
-use gb::drawing::{print::{cursor, gprint}, DmgColor, DrawingStyle};
-
 #[no_mangle]
 pub extern fn main() {
-    gprint("TE\nST\0");
-
-    cursor(0, 17);
-    gprint(u8::MAX);
-
-    DrawingStyle::default()
-        .foreground(DmgColor::DarkGrey)
-        .apply();
-    gprint(i8::MIN);
-
-    DrawingStyle::reversed().apply();
-    gprint(u16::MAX);
-
-    DrawingStyle::default().apply();
-    gprint(i16::MIN);
+    let u: u8 = u8::MIN;
+    println!("Hello, World!");
+    println!("{}", u);
 }
 
 #[allow(unconditional_recursion)]
