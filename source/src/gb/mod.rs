@@ -10,9 +10,11 @@
 /// When possible it's much faster and more efficient to work will the tiles
 /// and tiles maps that the GameBoy hardware is built around.
 ///
+/// We do not recommend using this function in Rust-GB.
+///
 /// # Safety
 /// Due to the complex side effect of APA mode, `drawing` functions can cause
-/// unexpected issues. All the expected issues are wrapped in Rust-GB, but it is
+/// unexpected issues. Most of expected issues are wrapped in Rust-GB, but it is
 /// your own risk to use this module.
 pub mod drawing;
 

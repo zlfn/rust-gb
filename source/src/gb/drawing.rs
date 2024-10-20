@@ -1,6 +1,6 @@
 use core::{ffi::c_char, fmt::Write};
 
-use super::gbdk_c::gb::drawing;
+use super::gbdk_c::gb::{drawing, gb::{mode, M_DRAWING}};
 
 pub const SCREEN_WIDTH: u8 = drawing::GRAPHICS_WIDTH;
 pub const SCREEN_HEIGHT: u8 = drawing::GRAPHICS_WIDTH;
@@ -80,11 +80,12 @@ impl From<u8> for DmgColor {
 ///
 /// # Examples
 /// ```
+/// let mut w = unsafe {DrawingStream::new()};
 /// DrawingStyle::default()
 ///     .foreground(DmgColor::LTGREY);
-///     .apply();
+///     .apply(&w);
 ///
-/// DrawingStyle::reversed().apply();
+/// w.set_style(DrawingStyle::reversed());
 /// ```
 #[derive(PartialEq, Clone, Copy)]
 pub struct DrawingStyle {
@@ -138,52 +139,15 @@ impl DrawingStyle {
 
     /// Apply drawing style.
     ///
-    /// Internally, call `color` function of GBDK.
-    pub fn apply(&self) {
-        unsafe {
-            drawing::color(
-                self.foreground as u8,
-                self.background as u8,
-                self.drawing_mode as u8
-            )
-        }
+    /// DrawingStream needed as parameter to ensure GameBoy is in `APA` mode. 
+    pub fn apply(&self, stream: &DrawingStream) {
+        stream.set_style(*self);
     }
-}
-
-/// Set cursor of [`DrawingStream`].
-///
-/// # Panics
-///
-/// Panics if coordinate parameter out of bounds.
-///
-/// # Safety
-/// 
-/// Because of the bound check, it is guaranteed to move the cursor to a
-/// valid range.
-///
-/// # Examples
-///
-/// ```
-/// let mut s = DrawingStream::new();
-/// cursor(0, 1); //prints to second line.
-/// write!(s, "Hello, Cursor!");
-///
-/// ```
-pub fn cursor(x: u8, y: u8) {
-        if x >= TILE_WIDTH {
-            panic!("Cursor x outbounded");
-        }
-
-        if y >= TILE_HEIGHT {
-            panic!("Cursor y outbounded");
-        }
-
-        unsafe {drawing::gotogxy(x, y)}
 }
 
 /// Byte drawing stream of GameBoy.
 ///
-/// It simillars with [`crate::gb::io::GBStream`]. But there are some
+/// It simillars with [`crate::gb::io::GbStream`]. But there are some
 /// significant differences.
 ///
 /// 1. `DrawingStream` uses `APA` mode drawing library of GBDK. this causes
@@ -194,31 +158,78 @@ pub fn cursor(x: u8, y: u8) {
 /// 2. Unable to change line with `\n`, this means, when you want to make a new
 /// line, you should use the [`cursor`] fucntion.
 ///
+/// 3. `DrawingStream` can also draw shapes in addition to texts.
+///
 /// # Examples
 ///
 /// ```
-/// let mut s = DrawingStream::with_cursor(0, 1); // prints to second line.
+/// let mut s = unsafe {DrawingStream::new()}; // prints to second line.
 /// write!(s, "Hello, APA!");
 /// ```
-pub struct DrawingStream {}
+pub struct DrawingStream {
+    private: ()
+}
 
 impl DrawingStream {
     /// Creates new `DrawingStream`.
     ///
-    /// Currently, this function is no-op.
-    pub fn new() -> Self {
-        DrawingStream {}
+    /// Enable `APA` mode to draw texts.
+    ///
+    /// # Safety
+    ///
+    /// This will break [`crate::gb::io::GbStream`].
+    ///
+    /// After this function, you cannot use GbStream dependent functions such as
+    /// `println!`.
+    pub unsafe fn new() -> Self {
+        unsafe { mode(M_DRAWING) };
+        DrawingStream { private: () }
     }
 
-    /// Creates new `DrawingStream` and move the cursor.
+    /// Apply drawing style.
     ///
-    /// Note that `cursor` is global state and does not belong to `DrawingStream`.
-    pub fn with_cursor(x: u8, y: u8) -> Self {
-        cursor(x , y);
-        DrawingStream {}
+    /// Internally, call `color` function of GBDK.
+    pub fn set_style(&self, style: DrawingStyle) {
+        unsafe {
+            drawing::color(
+                style.foreground as u8,
+                style.background as u8,
+                style.drawing_mode as u8
+            )
+        }
+    }
+
+    /// Set cursor of [`DrawingStream`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if coordinate parameter out of bounds.
+    ///
+    /// # Safety
+    /// 
+    /// Because of the bound check, it is guaranteed to move the cursor to a
+    /// valid range.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut s = unsafe {DrawingStream::new()};
+    /// DrawingStream::cursor(0, 1); //prints to second line.
+    /// write!(s, "Hello, Cursor!");
+    ///
+    /// ```
+    pub fn cursor(&self, x: u8, y: u8) {
+            if x >= TILE_WIDTH {
+                panic!("Cursor x outbounded");
+            }
+
+            if y >= TILE_HEIGHT {
+                panic!("Cursor y outbounded");
+            }
+
+            unsafe {drawing::gotogxy(x, y)}
     }
 }
-
 
 impl Write for DrawingStream {
     #[inline(never)]
