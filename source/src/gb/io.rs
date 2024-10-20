@@ -1,6 +1,6 @@
 use core::{ffi::c_char, fmt::Write};
 
-use super::gbdk_c::stdio::putchar;
+use super::{drawing::{DmgColor, TILE_HEIGHT, TILE_WIDTH}, gbdk_c::{console::{cls, gotoxy}, font::{font_color, font_ibm, font_init, font_load, font_set, font_t}, stdio::putchar}};
 
 /// Prints to the GameBoy screen.
 /// If you've ever used `print!` macro in `std`, you'll familiar with this.
@@ -8,8 +8,8 @@ use super::gbdk_c::stdio::putchar;
 /// Equivalent to the [`println!`] macro except that newline is not printed at
 /// the end of the message.
 ///
-/// The `print!` macro will make new `GBStream` on each call. This will probably
-/// be optimized at the compilation time. So you don't have to worry about it.
+/// The `print!` macro will work with default `GbStream`. So, texts that
+/// written with your custom GbStream will removed.
 ///
 /// # Warning
 ///
@@ -30,7 +30,7 @@ use super::gbdk_c::stdio::putchar;
 macro_rules! print {
     ($($arg:tt)*) => {{
         use core::fmt::Write;
-        let mut s = crate::gb::io::GBStream::new();
+        let mut s = crate::gb::io::GbStream::stream();
         s.write_fmt(core::format_args!($($arg)*)).unwrap();
     }};
 }
@@ -41,8 +41,8 @@ macro_rules! print {
 /// Equivalent to the [`print!`] macro except that newline is printed at the
 /// end of the message.
 ///
-/// The `println!` macro will make new `GBStream` on each call. This will probably
-/// be optimized at the compilation time. So you don't have to worry about it.
+/// The `println!` macro will work with default `GbStream`. So, texts that
+/// written with your custom GbStream will removed.
 ///
 /// # Warning
 ///
@@ -66,35 +66,111 @@ macro_rules! println {
     };
     ($($arg:tt)*) => {{
         use core::fmt::Write;
-        let mut s = crate::gb::io::GBStream::new();
+        let mut s = crate::gb::io::GbStream::stream();
         s.write_fmt(core::format_args_nl!($($arg)*)).unwrap();
     }};
 }
 
+
 /// Byte print stream of GameBoy.
 ///
-/// Currently, GBStream prints bytes one by one using GBDK's `putchar` function.
+/// Currently, GbStream prints bytes one by one using GBDK's `putchar` function.
 /// In the long run, it is likely to change to RustGB own implementation.
+///
+/// Optionally, GbStream can have font and color.
 ///
 /// # Examples
 /// ```
 /// use core::fmt::Write;
 ///
-/// let mut w = GBStream::new();
+/// let mut w = GbStream::new();
 /// write!(w, "Hello, World!");
 /// ```
-pub struct GBStream {}
+pub struct GbStream {
+    private: ()
+}
 
-impl GBStream {
-    /// Creates new GBStream.
+impl GbStream {
+    /// Get GameBoy console stream.
+    pub fn stream() -> Self {
+        GbStream { private: () }
+    }
+
+    /// Clear GameBoy console.
+    pub fn clear() {
+        unsafe { cls();}
+    }
+
+    /// Set cursor of [`GbStream`].
     ///
-    /// Currently, this function is no-op
-    pub fn new() -> Self {
-        GBStream {}
+    /// # Panics
+    ///
+    /// Panics if coordinate parameter out of bounds.
+    ///
+    /// # Safety
+    /// 
+    /// Because of the bound check, it is guaranteed to move the cursor to a
+    /// valid range.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// cursor(0, 1); //prints to second line.
+    /// print!("Hello, cursor!");
+    ///
+    /// ```
+    pub fn cursor(x: u8, y: u8) {
+        if x >= TILE_WIDTH {
+            panic!("Cursor x outbounded");
+        }
+
+        if y >= TILE_HEIGHT {
+            panic!("Cursor y outbounded");
+        }
+
+        unsafe {gotoxy(x, y)};
+    }
+
+    /// Set a default font and custom color.
+    ///
+    /// # Caution
+    ///
+    /// It will clear GameBoy console and reset the cursor.
+    ///
+    /// # Safety
+    ///
+    /// It is safe because only predetermined default fonts are loaded.
+    pub fn set_color(foreground: DmgColor, background: DmgColor) {
+        unsafe { 
+            cls();
+            font_init();
+            font_color(foreground as u8, background as u8);
+        }
+        let font = unsafe { font_load(font_ibm) };
+        unsafe { font_set(font) };
+    }
+
+    /// Set a GbStream with custom font.
+    ///
+    /// # Caution
+    ///
+    /// It will clear GameBoy console and reset the cursor.
+    ///
+    /// # Safety
+    ///
+    /// If an invalid font address is entered, it causes an Undefined Behavior.
+    pub unsafe fn set_font_and_color(font: font_t, foreground: DmgColor, background: DmgColor) {
+        unsafe { 
+            cls();
+            font_init();
+            font_color(foreground as u8, background as u8) 
+        }
+        let font = unsafe { font_load(font) };
+        unsafe { font_set(font) };
     }
 }
 
-impl Write for GBStream {
+impl Write for GbStream {
     #[inline(never)]
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         for c in s.bytes() {
