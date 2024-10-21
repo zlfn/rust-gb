@@ -4,6 +4,7 @@ rustflags = ["--emit=llvm-ir", "--cfg", "no_fp_fmt_parse"]
 
 [unstable]
 build-std = ["core", "alloc"]
+# build-std-features = "optimize_for_size"
 
 [profile.dev]
 panic = "abort"
