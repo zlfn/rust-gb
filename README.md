@@ -7,6 +7,7 @@ You can find ROM builds of examples in [release](https://github.com/zlfn/rust-gb
 
 
 ## How is this possible?
+GameBoy is not a possible target of Rust (even its not in [Tier 3](https://doc.rust-lang.org/nightly/rustc/platform-support.html)), and there is currently no suitable (stable) LLVM backend for the CPU in GameBoy. Therefore, the Rust code is compiled using the following process.
 ```
                          Fake dependencies                      C files                 SM83          
 rust-deps                (not acutally linked)                  for SDCC                Assembly files
@@ -14,20 +15,20 @@ rust-deps                (not acutally linked)                  for SDCC        
 │         │  build-std   │                │                     │ rom0.c   ├───────────►│ rom0.asm  │ 
 │  core   ├─────────────►│ libcore*.rlib  │ Compiled LLVM-IR    │ rom1.c   │            │ rom1.asm  │ 
 │         │+emit=llvm-ir │ libgbdk*.so    │┌───────────────┐    └──────────┘            └┬──────────┘ 
-└─────────┘              │                ││ libcore*.ll   │         ▲                   │ GBDK chain 
-┌──────────┐             └─────┬──────────┘└──────────┬────┘         │ Treesitter        │ - lcc      
-│          │              ▲    │                      │              │                   │ - sdasgb   
-│ gbdk-lib │    clang     │    │                      │ llvm-cbe                         │ - bankpack 
-│          ├──────────────┘    │         LLVM-IR file ├──────────► C file           link │ - sdlgdb   
-└──────────┘                   │                      │ llvm-link  for Clang        ┌───►│ - ihxcheck 
-  ▲                            │                      │                             │    │ - makebin  
-  │ extern                     │           ┌──────────┴────┐   ┌────────────────┐   │    │            
+└─────────┘              │                ││ libcore*.ll   │         ▲                   │            
+┌──────────┐             └─────┬──────────┘└──────────┬────┘         │ Treesitter        │ GBDK chain 
+│          │              ▲    │                      │              │                   │ - lcc      
+│ gbdk-lib │    clang     │    │                      │ llvm-cbe                         │ - sdasgb   
+│          ├──────────────┘    │         LLVM-IR file ├──────────► C file           link │ - bankpack 
+└──────────┘                   │                      │ llvm-link  for Clang        ┌───►│ - sdlgdb   
+  ▲                            │                      │                             │    │ - ihxcheck 
+  │ extern                     │           ┌──────────┴────┐   ┌────────────────┐   │    │ - makebin  
 ┌─┴────────┐                   │           │               │   │ memory.c       │   │    │            
 │          │   cargo build     ▼           │ project*.ll   │   │ custom asms    ├───┘    ▼            
 │ rust-gb  ├──────────────────────────────►│ crates*.ll    │   │ GBDK c files   │                     
 │ source   │                               │               │   │ GBDK asm files │     game.gb         
 │          │                               └───────────────┘   └────────────────┘                     
-└──────────┘                                                   Real dependencies                                       
+└──────────┘                                                   Real dependencies                                                  
 ```
 1. The Rust compiler can generate LLVM-IR for the ATMega328 processor. (which powers Arduino)
 2. LLVM-IR can be converted to C code using [llvm-cbe](https://github.com/JuliaHubOSS/llvm-cbe).
