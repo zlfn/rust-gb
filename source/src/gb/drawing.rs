@@ -1,6 +1,6 @@
-use core::{ffi::c_char, fmt::Write};
+use core::{ffi::c_char, fmt::{Error, Write}};
 
-use super::gbdk_c::gb::{drawing, gb::{mode, M_DRAWING}};
+use super::gbdk_c::gb::{drawing::{self, r#box, circle, line, plot_point, M_FILL, M_NOFILL}, gb::{mode, M_DRAWING}};
 
 pub const SCREEN_WIDTH: u8 = drawing::GRAPHICS_WIDTH;
 pub const SCREEN_HEIGHT: u8 = drawing::GRAPHICS_WIDTH;
@@ -228,6 +228,82 @@ impl DrawingStream {
             }
 
             unsafe {drawing::gotogxy(x, y)}
+    }
+
+    fn panic_screen_bound(x: u8, y: u8)  {
+        if x >= SCREEN_WIDTH || y >= SCREEN_HEIGHT {
+            panic!("DrawingStream coordinate out of bounds");
+        }
+    }
+
+    /// Draw a point to screen.
+    ///
+    /// # Panics
+    /// 
+    /// Panics if coordinates out of bounds.
+    pub fn draw_point(&self, (x, y): (u8, u8)) {
+        Self::panic_screen_bound(x, y);
+
+        unsafe { plot_point(x, y) }
+    }
+
+    /// Draw a line to screen.
+    ///
+    /// # Panics
+    /// 
+    /// Panics if coordinates out of bounds.
+    pub fn draw_line(&self, (x1, y1): (u8, u8), (x2, y2): (u8, u8)) {
+        Self::panic_screen_bound(x1, y1);
+        Self::panic_screen_bound(x2, y2);
+
+        unsafe { line(x1, y1, x2, y2) }
+    }
+
+    /// Draw a box to screen.
+    ///
+    /// # Panics
+    /// 
+    /// Panics if coordinates out of bounds.
+    pub fn draw_box(&self, (x1, y1): (u8, u8), (x2, y2): (u8, u8), fill: bool) {
+        Self::panic_screen_bound(x1, y1);
+        Self::panic_screen_bound(x2, y2);
+
+        if fill {
+            unsafe { r#box(x1, y1, x2, y2, M_FILL) }
+        } else {
+            unsafe { r#box(x1, y1, x2, y2, M_NOFILL) }
+        }
+    }
+
+    /// Draw a circle to screen.
+    ///
+    /// # Panics
+    /// 
+    /// Panics if coordinates out of bounds.
+    pub fn draw_circle(&self, (x, y): (u8, u8), radius: u8, fill: bool) {
+        Self::panic_screen_bound(x, y);
+
+        if fill {
+            unsafe { circle(x, y, radius, M_FILL) }
+        } else {
+            unsafe { circle(x, y, radius, M_NOFILL) }
+        }
+    }
+
+    /// Writes a byte into this writer, returning whether the write succeeded.
+    ///
+    /// write_char assumes that the input is valid Unicode character. However,
+    /// GBDK maps one byte to one character or symbol.
+    ///
+    /// Therefore, `write_byte` is recommended when you want to print one
+    /// character to the GameBoy.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an instance of `Error` on error.
+    pub fn write_byte(&mut self, b: u8) -> Result<(), Error> {
+        unsafe { drawing::wrtchr(b as c_char) }
+        Ok(())
     }
 }
 
