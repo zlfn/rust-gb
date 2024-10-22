@@ -1,5 +1,4 @@
 use core::ffi::c_char;
-
 extern "C" {
     #[link_name="gotoxy __sdcccall(0)"]
     pub fn gotoxy(x: u8, y: u8);

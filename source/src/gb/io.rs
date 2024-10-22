@@ -1,4 +1,4 @@
-use core::{ffi::c_char, fmt::Write};
+use core::{ffi::c_char, fmt::{Error, Write}};
 
 use super::{drawing::{DmgColor, TILE_HEIGHT, TILE_WIDTH}, gbdk_c::{console::{cls, gotoxy}, font::{font_color, font_ibm, font_init, font_load, font_set, font_t}, stdio::putchar}};
 
@@ -167,6 +167,22 @@ impl GbStream {
         }
         let font = unsafe { font_load(font) };
         unsafe { font_set(font) };
+    }
+
+    /// Writes a byte into this writer, returning whether the write succeeded.
+    ///
+    /// write_char assumes that the input is valid Unicode character. However,
+    /// GBDK maps one byte to one character or symbol.
+    ///
+    /// Therefore, `write_byte` is recommended when you want to print one
+    /// character to the GameBoy.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an instance of `Error` on error.
+    pub fn write_byte(&mut self, b: u8) -> Result<(), Error> {
+        unsafe { putchar(b as c_char) }
+        Ok(())
     }
 }
 
