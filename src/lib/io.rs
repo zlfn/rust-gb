@@ -30,7 +30,7 @@ use super::{drawing::{DmgColor, TILE_HEIGHT, TILE_WIDTH}, gbdk_c::{console::{cls
 macro_rules! print {
     ($($arg:tt)*) => {{
         use core::fmt::Write;
-        let mut s = crate::gb::io::GbStream::stream();
+        let mut s = gb::io::GbStream::stream();
         s.write_fmt(core::format_args!($($arg)*)).unwrap();
     }};
 }
@@ -66,7 +66,7 @@ macro_rules! println {
     };
     ($($arg:tt)*) => {{
         use core::fmt::Write;
-        let mut s = crate::gb::io::GbStream::stream();
+        let mut s = gb::io::GbStream::stream();
         s.write_fmt(core::format_args_nl!($($arg)*)).unwrap();
     }};
 }

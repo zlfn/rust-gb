@@ -1,3 +1,9 @@
+#![no_std]
+#![no_main]
+#![allow(dead_code)]
+#![feature(strict_provenance)]
+#![feature(format_args_nl)]
+
 /// All Points Addressable (APA) mode drawing library.
 /// 
 /// This provies wrapper of `drawing.h` routines from GBDK.
@@ -36,3 +42,4 @@ pub mod memory;
 /// in mind that there is a possibility of conflict with basic features of Rust-GB,
 /// everything in this module is "unsafe"
 pub mod gbdk_c;
+

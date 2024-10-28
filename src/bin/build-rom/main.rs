@@ -18,10 +18,9 @@ struct Args {
 #[derive(PartialEq, PartialOrd)]
 enum BuildChain {
     Rust = 0,
-    Bundle = 1,
-    LLVM = 2,
-    C = 3,
-    ASM = 4,
+    LLVM = 1,
+    C = 2,
+    ASM = 3,
 }
 
 impl FromStr for BuildChain {
@@ -29,7 +28,6 @@ impl FromStr for BuildChain {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "rust" => Ok(BuildChain::Rust),
-            "bundle" => Ok(BuildChain::Bundle),
             "llvm" => Ok(BuildChain::LLVM),
             "c" => Ok(BuildChain::C),
             "asm" => Ok(BuildChain::ASM),
@@ -37,6 +35,7 @@ impl FromStr for BuildChain {
         }
     }
 }
+
 
 fn main() {
     let args = Args::parse();
@@ -49,94 +48,30 @@ fn main() {
     fs::create_dir_all("./out/asm").unwrap();
 
     if build_from <= BuildChain::Rust {
-        let bundle_result = Command::new(format!("{}/ext/rust_bundler_cp", root))
+
+        let rustc_status = Command::new("cargo")
             .args([
-                "--input", ".",
-            ])
-            .output()
-            .unwrap();
-
-        let mut file = fs::File::create("./out/out.rs").unwrap();
-        let bundle_result = file.write_all(&bundle_result.stdout);
-
-        if let Err(_) = bundle_result {
-            println!("{}", "[rust_bundler_cp] Rust bundling failed".red());
-            process::exit(1);
-        }
-        else {
-            println!("{}", "[rust_bundler_cp] Rust bundling succeeded".green());
-        }
-    }
-
-
-    if build_from <= BuildChain::Bundle {
-
-        let libcompiler = Command::new("find")
-            .args([
-                format!("{}/ext/rust-deps/target/avr-unknown-gnu-atmega328/release/deps", root),
-                "-name".to_string(),
-                "libcompiler*.rlib".to_string()
-            ])
-            .output()
-            .unwrap()
-            .stdout;
-        let libcompiler = str::from_utf8(&libcompiler).unwrap().trim();
-
-        let libcore = Command::new("find")
-            .args([
-                format!("{}/ext/rust-deps/target/avr-unknown-gnu-atmega328/release/deps", root),
-                "-name".to_string(),
-                "libcore*.rlib".to_string()
-            ])
-            .output()
-            .unwrap()
-            .stdout;
-        let libcore = str::from_utf8(&libcore).unwrap().trim();
-
-        let liballoc = Command::new("find")
-            .args([
-                format!("{}/ext/rust-deps/target/avr-unknown-gnu-atmega328/release/deps", root),
-                "-name".to_string(),
-                "liballoc*.rlib".to_string()
-            ])
-            .output()
-            .unwrap()
-            .stdout;
-        let liballoc = str::from_utf8(&liballoc).unwrap().trim();
-
-        let rustc_status = Command::new("rustc")
-            .args([
-                "--emit=llvm-ir",
-                "--target", "avr-unknown-gnu-atmega328",
-                "-C", "opt-level=3",
-                "-C", "embed-bitcode=no",
-                "-C", "panic=abort",
-                "-Z", "unstable-options",
-
-                "-L", format!("dependency={}/ext/rust-deps/target/avr-unknown-gnu-atmega328/release/deps", root).as_str(),
-                "--extern", format!("noprelude:compiler_builtins={}", libcompiler).as_str(),
-                "--extern", format!("noprelude:core={}", libcore).as_str(),
-                "--extern", format!("noprelude:alloc={}", liballoc).as_str(),
-
-                "./out/out.rs",
-                "-o", "./out/out.ll"
+                "build",
+                "--release",
+                "--target-dir", "out",
             ])
             .status()
             .unwrap();
 
         if !rustc_status.success() {
-            println!("{}", "[rustc] Rust -> LLVM-IR compile failed".red());
+            println!("{}", "[cargo] Rust -> LLVM-IR compile failed".red());
             process::exit(1);
         }
         else {
-            println!("{}", "[rustc] Rust -> LLVM-IR compile succeeded".green());
+            println!("{}", "[cargo] Rust -> LLVM-IR compile succeeded".green());
         }
     }
 
+    // TODO: Generalize llvm-link process
     if build_from <= BuildChain::LLVM {
         let coreir = Command::new("find")
             .args([
-                format!("{}/ext/rust-deps/target/avr-unknown-gnu-atmega328/release/deps", root),
+                format!("{}/out/avr-unknown-gnu-atmega328/release/deps", root),
                 "-name".to_string(),
                 "core*.ll".to_string()
             ])
@@ -145,13 +80,36 @@ fn main() {
             .stdout;
         let coreir = str::from_utf8(&coreir).unwrap().trim();
 
+        let gbir = Command::new("find")
+            .args([
+                format!("{}/out/avr-unknown-gnu-atmega328/release/deps", root),
+                "-name".to_string(),
+                "gb*.ll".to_string()
+            ])
+            .output()
+            .unwrap()
+            .stdout;
+        let gbir = str::from_utf8(&gbir).unwrap().trim();
+        
+        let romir = Command::new("find")
+            .args([
+                format!("{}/out/avr-unknown-gnu-atmega328/release/deps", root),
+                "-name".to_string(),
+                "rom*.ll".to_string()
+            ])
+            .output()
+            .unwrap()
+            .stdout;
+        let romir = str::from_utf8(&romir).unwrap().trim();
+
         let link_status = Command::new(format!("{}/ext/llvm-link", root))
             .args([
                 "--only-needed", "-S",
-                "./out/out.ll",
+                romir,
+                gbir,
                 coreir,
 
-                "-o", "./out/link.ll"
+                "-o", "./out/out.ll"
             ])
             .status()
             .unwrap();
@@ -167,7 +125,7 @@ fn main() {
         let llvm_status = Command::new(format!("{}/ext/llvm-cbe", root))
             .args([
                 "--cbe-declare-locals-late",
-                "./out/link.ll",
+                "./out/out.ll",
                 "-o", "./out/out.c",
             ])
             .status()
