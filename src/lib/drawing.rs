@@ -1,3 +1,22 @@
+//! All Points Addressable (APA) mode drawing library.
+//! 
+//! This provies wrapper of `drawing.h` routines from GBDK.
+//!
+//! # Caution
+//! The GameBoy graphics hardware is not well suited to frame-buffer style
+//! graphics such as the kind provided in `drawing`. Due to that, most drawing
+//! functions will slow.
+//!
+//! When possible it's much faster and more efficient to work will the tiles
+//! and tiles maps that the GameBoy hardware is built around.
+//!
+//! We do not recommend using this function in Rust-GB.
+//!
+//! # Safety
+//! Due to the complex side effect of APA mode, `drawing` functions can cause
+//! unexpected issues. Most of expected issues are wrapped in Rust-GB, but it is
+//! your own risk to use this module.
+
 use core::{ffi::c_char, fmt::{Error, Write}};
 
 use super::gbdk_c::gb::{drawing::{self, r#box, circle, line, plot_point, M_FILL, M_NOFILL}, gb::{mode, M_DRAWING}};
@@ -147,7 +166,7 @@ impl DrawingStyle {
 
 /// Byte drawing stream of GameBoy.
 ///
-/// It simillars with [`crate::gb::io::GbStream`]. But there are some
+/// It simillars with [`crate::io::GbStream`]. But there are some
 /// significant differences.
 ///
 /// 1. `DrawingStream` uses `APA` mode drawing library of GBDK. this causes
@@ -156,7 +175,7 @@ impl DrawingStyle {
 /// [GBDK Docs](https://gbdk-2020.github.io/gbdk-2020/docs/api/drawing_8h.html#aa8abfd58ea514228abd69d8f6330e91d)
 /// 
 /// 2. Unable to change line with `\n`, this means, when you want to make a new
-/// line, you should use the [`cursor`] fucntion.
+/// line, you should use the [`DrawingStream::cursor`] fucntion.
 ///
 /// 3. `DrawingStream` can also draw shapes in addition to texts.
 ///
@@ -177,7 +196,7 @@ impl DrawingStream {
     ///
     /// # Safety
     ///
-    /// This will break [`crate::gb::io::GbStream`].
+    /// This will break [`crate::io::GbStream`].
     ///
     /// After this function, you cannot use GbStream dependent functions such as
     /// `println!`.

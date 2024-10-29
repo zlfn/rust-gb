@@ -1,45 +1,47 @@
+//! # A crate for GameBoy (Color) development.
+//! Rust-GB is a both toolchain and library for compiling Rust code into
+//! Nintendo GameBoy. It compiles Rust code into valid GameBoy ROM through
+//! LLVM-CBE and GBDK-2020.
+//!
+//! ## Install the compiler
+//! Install a Rust-GB compiler with `cargo install`
+//! 
+//! ``` bash
+//! cargo install rust-gb --features=compiler
+//! ```
+//!
+//! `compiler` feature is required when installing the Rust-GB compiler.
+//! If not, binary will not be installed.
+//!
+//! Also, Rust-GB compiler requires complex toolchains, such as `llvm-cbe` or `lcc`.
+//! Below command will install that kind of toolchains in cargo path.
+//!
+//! ```bash
+//! cargo gb setup
+//! ```
+//!
+//! ## Setup a project
+//! 
+//! ## Compile your project
+//! ## Execute your ROM
+#![doc = document_features::document_features!()]
+
 #![no_std]
 #![no_main]
 #![allow(dead_code)]
 #![feature(strict_provenance)]
 #![feature(format_args_nl)]
+#![feature(doc_cfg)]
 
-/// All Points Addressable (APA) mode drawing library.
-/// 
-/// This provies wrapper of `drawing.h` routines from GBDK.
-///
-/// # Caution
-/// The GameBoy graphics hardware is not well suited to frame-buffer style
-/// graphics such as the kind provided in `drawing`. Due to that, most drawing
-/// functions will slow.
-///
-/// When possible it's much faster and more efficient to work will the tiles
-/// and tiles maps that the GameBoy hardware is built around.
-///
-/// We do not recommend using this function in Rust-GB.
-///
-/// # Safety
-/// Due to the complex side effect of APA mode, `drawing` functions can cause
-/// unexpected issues. Most of expected issues are wrapped in Rust-GB, but it is
-/// your own risk to use this module.
-pub mod drawing;
-
-/// Helpers for GameBoy I/O. including buttons, texts, and else.
-///
-/// This modules contains a helper for simple input and output. you can print
-/// text or read joypad input as bytes.
 pub mod io;
+
+pub mod mmio;
+
+#[cfg(feature = "with-gbdk")]
+pub mod drawing;
 
 #[cfg(feature = "prototype")]
 pub mod memory;
 
-/// Direct access API to GBDK extern functions
-///
-/// It's not recommended to using it, but you may be forced to use this due
-/// to the incomplete Rust-GB functionality.
-///
-/// If so, we recommend that you read GBDK's documents sufficiently. And keep
-/// in mind that there is a possibility of conflict with basic features of Rust-GB,
-/// everything in this module is "unsafe"
 pub mod gbdk_c;
 
