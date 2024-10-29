@@ -36,7 +36,6 @@ impl FromStr for BuildChain {
     }
 }
 
-
 fn main() {
     let args = Args::parse();
     let build_from = BuildChain::from_str(&args.from).unwrap();
@@ -44,8 +43,8 @@ fn main() {
     let root = get_project_root().unwrap();
     let root = root.to_str().unwrap();
 
-    fs::create_dir_all("./out").unwrap();
-    fs::create_dir_all("./out/asm").unwrap();
+    fs::create_dir_all(format!("{}/out", root)).unwrap();
+    fs::create_dir_all(format!("{}/out/asm", root)).unwrap();
 
     if build_from <= BuildChain::Rust {
 

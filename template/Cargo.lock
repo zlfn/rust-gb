@@ -3,6 +3,15 @@
 version = 4
 
 [[package]]
+name = "document-features"
+version = "0.2.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb6969eaabd2421f8a2775cfd2471a2b634372b4a25d41e3bd647b79912850a0"
+dependencies = [
+ "litrs",
+]
+
+[[package]]
 name = "gb-template"
 version = "0.1.0"
 dependencies = [
@@ -10,5 +19,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "litrs"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
+
+[[package]]
 name = "rust-gb"
 version = "0.0.1"
+dependencies = [
+ "document-features",
+ "voladdress",
+]
+
+[[package]]
+name = "voladdress"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75f4a9a7c7e717541992e2405d44d12fb019db4117ec9fcca84b784060b27084"

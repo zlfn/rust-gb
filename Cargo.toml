@@ -1,6 +1,6 @@
 [package]
 name = "rust-gb"
-version = "0.0.1"
+version = "0.1.0-alpha.0"
 edition = "2021"
 authors = ["zlfn <ung@zlfn.space>"]
 readme = "README.md"
@@ -25,10 +25,39 @@ colored = { version = "2.1.0", optional = true }
 project-root = { version = "0.2.2", optional = true }
 tree-sitter = { version = "0.23.0", optional = true }
 tree-sitter-c = { version = "0.23.0", optional = true }
+document-features = "0.2"
+voladdress = "1.4.0"
 
 [features]
-# default = ["compiler"]
-# compiler feature
-compiler = ["clap", "colored", "project-root", "tree-sitter", "tree-sitter-c"]
-# library feature
+default = ["with-gbdk"]
+
+#! ### Library features
+
+## GameBoy Color feature
+##
+## This feature enables GameBoy Color only features.
+## Such as VRAM bank or color palette.
+color = []
+
+## Prototype feature
+##
+## This feature enables the prototype APIs of Rust-GB.
+## Because it's a prototype, it won't work properly.
 prototype = []
+
+## GBDK feature
+##
+## This feature enables functions that depend on the GBDK-2020 API.
+## There is a possibility that they will be deprecated in the future.
+with-gbdk = []
+
+#! ### Binary features
+
+## Feature for compiler
+##
+## This feature needed to enabled when you install Rust-GB compiler with `cargo install`.
+## 
+## DO NOT enable this feature in your GameBoy ROM crate. It will cause compile error.
+## This is because the Rust-GB compiler cannot be compiled for ATMega328 target.
+compiler = ["clap", "colored", "project-root", "tree-sitter", "tree-sitter-c"]
+

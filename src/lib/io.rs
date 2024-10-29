@@ -1,6 +1,44 @@
+//! Helpers for GameBoy I/O. including buttons, texts, and else.
+//!
+//! This modules contains a helper for simple input and output. you can print
+//! text or read joypad input as bytes.
+
 use core::{ffi::c_char, fmt::{Error, Write}};
 
 use super::{drawing::{DmgColor, TILE_HEIGHT, TILE_WIDTH}, gbdk_c::{console::{cls, gotoxy}, font::{font_color, font_ibm, font_init, font_load, font_set, font_t}, stdio::putchar}};
+
+/// Prints to the GameBoy screen, with a newline.
+/// If you've ever used `println!` macro in `std`, you'll familiar with this.
+///
+/// The `println!` macro will work with default `GbStream`. So, texts that
+/// written with your custom GbStream will removed.
+///
+/// # Warning
+///
+/// Since the compiled fmt function is very large, care must be taken not to
+/// exceed the ROM capacity of GameBoy.
+///
+/// In addition, compilation will fail if formatting is attempted for floating points
+/// and integers over 32bits. Attempts to use `Debug` trait (`{:?}`) will also fail.
+/// 
+/// # Examples
+///
+/// ```
+/// println!(); //prints just a newline
+/// println!("Hello, Rust-GB!");
+/// println!("Answer!: {}", 42);
+/// ```
+#[macro_export]
+macro_rules! println {
+    () => {
+        $crate::print!("\n")
+    };
+    ($($arg:tt)*) => {{
+        use core::fmt::Write;
+        let mut s = gb::io::GbStream::stream();
+        s.write_fmt(core::format_args_nl!($($arg)*)).unwrap();
+    }};
+}
 
 /// Prints to the GameBoy screen.
 /// If you've ever used `print!` macro in `std`, you'll familiar with this.
@@ -34,43 +72,6 @@ macro_rules! print {
         s.write_fmt(core::format_args!($($arg)*)).unwrap();
     }};
 }
-
-/// Prints to the GameBoy screen, with a newline.
-/// If you've ever used `println!` macro in `std`, you'll familiar with this.
-///
-/// Equivalent to the [`print!`] macro except that newline is printed at the
-/// end of the message.
-///
-/// The `println!` macro will work with default `GbStream`. So, texts that
-/// written with your custom GbStream will removed.
-///
-/// # Warning
-///
-/// Since the compiled fmt function is very large, care must be taken not to
-/// exceed the ROM capacity of GameBoy.
-///
-/// In addition, compilation will fail if formatting is attempted for floating points
-/// and integers over 32bits. Attempts to use `Debug` trait (`{:?}`) will also fail.
-/// 
-/// # Examples
-///
-/// ```
-/// println!(); //prints just a newline
-/// println!("Hello, Rust-GB!");
-/// println!("Answer!: {}", 42);
-/// ```
-#[macro_export]
-macro_rules! println {
-    () => {
-        $crate::print!("\n")
-    };
-    ($($arg:tt)*) => {{
-        use core::fmt::Write;
-        let mut s = gb::io::GbStream::stream();
-        s.write_fmt(core::format_args_nl!($($arg)*)).unwrap();
-    }};
-}
-
 
 /// Byte print stream of GameBoy.
 ///
