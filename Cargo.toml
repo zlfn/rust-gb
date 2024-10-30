@@ -29,8 +29,6 @@ document-features = "0.2"
 voladdress = "1.4.0"
 
 [features]
-default = ["with-gbdk"]
-
 #! ### Library features
 
 ## GameBoy Color feature
@@ -44,12 +42,6 @@ color = []
 ## This feature enables the prototype APIs of Rust-GB.
 ## Because it's a prototype, it won't work properly.
 prototype = []
-
-## GBDK feature
-##
-## This feature enables functions that depend on the GBDK-2020 API.
-## There is a possibility that they will be deprecated in the future.
-with-gbdk = []
 
 #! ### Binary features
 

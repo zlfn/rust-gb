@@ -23,7 +23,12 @@ use voladdress::{Safe, Unsafe, VolAddress, VolBlock};
 /// (all buttons released).
 ///
 /// If both buttons and d-pad is selected, then the low nibble reads d-pad *or* button is pressed.
-pub const JOYP: VolAddress<u8, Safe, Safe> = 
+///
+/// ### Safety
+/// After writing to [`JOYP`], if [`JOYP`] is read in the following instruction, the
+/// unexpected value will be read. Therefore, if you want it to work as intended, you have
+/// to give a brief delay.
+pub const JOYP: VolAddress<u8, Safe, Unsafe> = 
     unsafe { VolAddress::new(0xFF00) };
 
 /// [Serial transfer data](https://gbdev.io/pandocs/Serial_Data_Transfer_(Link_Cable).html#ff01--sb-serial-transfer-data)
@@ -217,7 +222,7 @@ pub const NR52: VolAddress<u8, Safe, Safe> =
 /// The way it works is that wave RAM is a 16-byte memory buffer, and whie it's playing, CH3 has
 /// priority over the CPU when choosing which of those 16 bytes is accessed. So, from the CPU's
 /// point of view, wave RAM reads out the same byte, reagardless of the address.
-pub const WAVERAM: VolBlock<u8, Unsafe, Unsafe, 16> = 
+pub const WAVE_RAM: VolBlock<u8, Unsafe, Unsafe, 16> = 
     unsafe { VolBlock::new(0xFF30) };
 
 /// [LCD control](https://gbdev.io/pandocs/LCDC.html#ff40--lcdc-lcd-control)
