@@ -113,20 +113,22 @@ pub struct DrawingStyle {
     pub drawing_mode: DrawingMode,
 }
 
-impl DrawingStyle {
+impl Default for DrawingStyle {
     /// Creates default `DrawingStyle`.
     ///
     /// Black drawings on a white background.
     ///
     /// Same as when GameBoy starts.
-    pub fn default() -> Self {
+    fn default() -> Self {
         DrawingStyle {
             foreground: DmgColor::Black, 
             background: DmgColor::White, 
             drawing_mode: DrawingMode::Solid
         }
     }
+}
 
+impl DrawingStyle {
     /// Creates reversed `DrawingStyle`.
     ///
     /// Black drawings on a white background.
@@ -175,7 +177,7 @@ impl DrawingStyle {
 /// [GBDK Docs](https://gbdk-2020.github.io/gbdk-2020/docs/api/drawing_8h.html#aa8abfd58ea514228abd69d8f6330e91d)
 /// 
 /// 2. Unable to change line with `\n`, this means, when you want to make a new
-/// line, you should use the [`DrawingStream::cursor`] fucntion.
+/// line, you should use the [`DrawingStream::cursor`] function.
 ///
 /// 3. `DrawingStream` can also draw shapes in addition to texts.
 ///

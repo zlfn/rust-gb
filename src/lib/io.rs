@@ -5,9 +5,13 @@
 
 use core::{ffi::c_char, fmt::{Error, Write}};
 
-use crate::{gbdk_c::gb::gb::delay, mmio::JOYP};
+use crate::mmio::JOYP;
 
 use super::{drawing::{DmgColor, TILE_HEIGHT, TILE_WIDTH}, gbdk_c::{console::{cls, gotoxy}, font::{font_color, font_ibm, font_init, font_load, font_set, font_t}, stdio::putchar}};
+
+// Imports for docs
+#[allow(unused_imports)]
+use crate::gbdk_c;
 
 /// Prints to the GameBoy screen, with a newline.
 /// If you've ever used `println!` macro in `std`, you'll familiar with this.
@@ -60,7 +64,6 @@ macro_rules! println {
 /// and integers over 32bits. Attempts to use `Debug` trait (`{:?}`) will also fail.
 ///
 /// # Examples
-///
 /// ```
 /// print!("Hello, ");
 /// print!("Rust-GB!\n");
@@ -143,6 +146,7 @@ impl GbStream {
     /// # Safety
     ///
     /// It is safe because only predetermined default fonts are loaded.
+    #[cfg(feature="prototype")]
     pub fn set_color(foreground: DmgColor, background: DmgColor) {
         unsafe { 
             cls();
@@ -162,6 +166,7 @@ impl GbStream {
     /// # Safety
     ///
     /// If an invalid font address is entered, it causes an Undefined Behavior.
+    #[cfg(feature="prototype")]
     pub unsafe fn set_font_and_color(font: font_t, foreground: DmgColor, background: DmgColor) {
         unsafe { 
             cls();
@@ -200,7 +205,6 @@ impl Write for GbStream {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, PartialEq)]
 enum JoypadMode {
     None = 0x30,
     DPad = 0x20,
@@ -208,7 +212,43 @@ enum JoypadMode {
     All = 0x00
 }
 
-pub struct Joypad { }
+/// Joypad key enum.
+///
+/// The value of the keys returned by the [`Joypad`] struct.
+/// Same as the `J_*` consts in GBDK.
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq)]
+pub enum JoypadKey {
+    Right = 0x01,
+    Left = 0x02,
+    Up = 0x04,
+    Down = 0x08,
+    A = 0x10,
+    B = 0x20,
+    Select = 0x40,
+    Start = 0x80
+}
+
+/// Joypad input struct.
+///
+/// Joypad (Buttons and D-Pad key) can be checked by writing and reading the [`JOYP`]
+/// register. (`0xFF00`) This struct makes it easy and safe.
+///
+/// The most recommended use is to receive key information on all keys at once using the [`Joypad::read()`]
+/// function for once in each frame, and then check the key press using a method.
+///
+/// # Examples
+/// ```
+/// let key = Joypad::read();
+/// if key.a() {
+///     println!("A pressed!");
+/// }
+/// if key.b() {
+///     println!("B pressed!");
+/// }
+/// ```
+#[derive(Clone, Copy)]
+pub struct Joypad(u8);
 
 impl Joypad {
     fn change_mode(mode: JoypadMode) {
@@ -217,45 +257,62 @@ impl Joypad {
         JOYP.read();
     }
 
-    pub fn a() -> bool {
-        Self::change_mode(JoypadMode::Button);
-        JOYP.read() & (1 << 0) == 0
+    /// Get all buttons status.
+    ///
+    /// Internally, write and read twice in the [`JOYP`] register, and returns 
+    /// [`Joypad`] tuple struct with bitwise OR of [`JoypadKey`] values.
+    pub fn read() -> Self {
+        Joypad::change_mode(JoypadMode::Button);
+        let buttons = (JOYP.read() << 4) | 0xF;
+        Joypad::change_mode(JoypadMode::DPad);
+        let d_pad = JOYP.read() | 0xF0;
+
+        Joypad(!(buttons & d_pad))
     }
 
-    pub fn b() -> bool {
-        Self::change_mode(JoypadMode::Button);
-        JOYP.read() & (1 << 1) == 0
+    /// Check if A button is pressed.
+    pub fn a(&self) -> bool {
+        self.0 & (JoypadKey::A as u8) != 0
     }
 
-    pub fn select() -> bool {
-        Self::change_mode(JoypadMode::Button);
-        JOYP.read() & (1 << 2) == 0
+    /// Check if B button is pressed.
+    pub fn b(&self) -> bool {
+        self.0 & (JoypadKey::B as u8) != 0
     }
 
-    pub fn start() -> bool {
-        Self::change_mode(JoypadMode::Button);
-        JOYP.read() & (1 << 3) == 0
+    /// Check if Select button is pressed.
+    pub fn select(&self) -> bool {
+        self.0 & (JoypadKey::Select as u8) != 0
     }
 
-    pub fn right() -> bool {
-        Self::change_mode(JoypadMode::DPad);
-        JOYP.read() & (1 << 0) == 0
+    /// Check if Start button is pressed.
+    pub fn start(&self) -> bool {
+        self.0 & (JoypadKey::Start as u8) != 0
     }
 
-    pub fn left() -> bool {
-        Self::change_mode(JoypadMode::DPad);
-        JOYP.read() & (1 << 1) == 0
+    /// Check if Right of d-pad is pressed.
+    pub fn right(&self) -> bool {
+        self.0 & (JoypadKey::Right as u8) != 0
     }
 
-    pub fn up() -> bool {
-        Self::change_mode(JoypadMode::DPad);
-        JOYP.read() & (1 << 2) == 0
+    /// Check if Left of d-pad is pressed.
+    pub fn left(&self) -> bool {
+        self.0 & (JoypadKey::Left as u8) != 0
     }
 
-    pub fn down() -> bool {
-        Self::change_mode(JoypadMode::DPad);
-        JOYP.read() & (1 << 3) == 0
+    /// Check if Up of d-pad is pressed.
+    pub fn up(&self) -> bool {
+        self.0 & (JoypadKey::Up as u8) != 0
+    }
+
+    /// Check if Down of d-pad is pressed.
+    pub fn down(&self) -> bool {
+        self.0 & (JoypadKey::Down as u8) != 0
     }
 }
 
-
+impl From<Joypad> for u8 {
+    fn from(value: Joypad) -> Self {
+        value.0
+    }
+}
