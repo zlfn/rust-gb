@@ -5,6 +5,8 @@
 
 use core::{ffi::c_char, fmt::{Error, Write}};
 
+use crate::{gbdk_c::gb::gb::delay, mmio::JOYP};
+
 use super::{drawing::{DmgColor, TILE_HEIGHT, TILE_WIDTH}, gbdk_c::{console::{cls, gotoxy}, font::{font_color, font_ibm, font_init, font_load, font_set, font_t}, stdio::putchar}};
 
 /// Prints to the GameBoy screen, with a newline.
@@ -196,3 +198,64 @@ impl Write for GbStream {
         Ok(())
     }
 }
+
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq)]
+enum JoypadMode {
+    None = 0x30,
+    DPad = 0x20,
+    Button = 0x10,
+    All = 0x00
+}
+
+pub struct Joypad { }
+
+impl Joypad {
+    fn change_mode(mode: JoypadMode) {
+        unsafe {JOYP.write(mode as u8)};
+        // 1 instruction delay is required after writing JOYP
+        JOYP.read();
+    }
+
+    pub fn a() -> bool {
+        Self::change_mode(JoypadMode::Button);
+        JOYP.read() & (1 << 0) == 0
+    }
+
+    pub fn b() -> bool {
+        Self::change_mode(JoypadMode::Button);
+        JOYP.read() & (1 << 1) == 0
+    }
+
+    pub fn select() -> bool {
+        Self::change_mode(JoypadMode::Button);
+        JOYP.read() & (1 << 2) == 0
+    }
+
+    pub fn start() -> bool {
+        Self::change_mode(JoypadMode::Button);
+        JOYP.read() & (1 << 3) == 0
+    }
+
+    pub fn right() -> bool {
+        Self::change_mode(JoypadMode::DPad);
+        JOYP.read() & (1 << 0) == 0
+    }
+
+    pub fn left() -> bool {
+        Self::change_mode(JoypadMode::DPad);
+        JOYP.read() & (1 << 1) == 0
+    }
+
+    pub fn up() -> bool {
+        Self::change_mode(JoypadMode::DPad);
+        JOYP.read() & (1 << 2) == 0
+    }
+
+    pub fn down() -> bool {
+        Self::change_mode(JoypadMode::DPad);
+        JOYP.read() & (1 << 3) == 0
+    }
+}
+
+

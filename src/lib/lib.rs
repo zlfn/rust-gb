@@ -13,13 +13,6 @@
 //! `compiler` feature is required when installing the Rust-GB compiler.
 //! If not, binary will not be installed.
 //!
-//! Also, Rust-GB compiler requires complex toolchains, such as `llvm-cbe` or `lcc`.
-//! Below command will install that kind of toolchains in cargo path.
-//!
-//! ```bash
-//! cargo gb setup
-//! ```
-//!
 //! ## Setup a project
 //! 
 //! ## Compile your project
@@ -37,7 +30,6 @@ pub mod io;
 
 pub mod mmio;
 
-#[cfg(feature = "with-gbdk")]
 pub mod drawing;
 
 #[cfg(feature = "prototype")]
