@@ -18,6 +18,7 @@
 //! ## Compile your project
 //! ## Execute your ROM
 #![doc = document_features::document_features!()]
+#![doc(html_logo_url = "https://github.com/zlfn/rust-gb/blob/main/media/ferris-gb.png?raw=true")]
 
 #![no_std]
 #![no_main]

@@ -1,4 +1,4 @@
-//! Direct access API to GBDK extern functions
+//! Direct access API to GBDK extern functions.
 //!
 //! It's not recommended to using it, but you may be forced to use this due
 //! to the incomplete Rust-GB functionality.
