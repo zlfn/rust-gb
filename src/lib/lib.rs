@@ -19,7 +19,7 @@
 //!
 //! ## Setup a project
 //! Rust-GB ROM project have to provide all the right default settings so `cargo build` will just work.
-//! Most recommended way to do this is cloning [`rust-gb-template`](https://github.com/zlfn/rust-gb-template/blob/0e131c6ef90a19140c37bcfd092af2ea8824b5ae/src/main.rs) 
+//! Most recommended way to do this is cloning [`rust-gb-template`](https://github.com/zlfn/rust-gb-template) 
 //! repository.
 //! 
 //! ```bash
@@ -29,7 +29,24 @@
 //! This repository contains minimum files to be compiled GameBoy ROM properly.
 //! 
 //! ## Compile your project
+//! By executing the `cargo build-rom` command inside you GameBoy ROM project, you can compile the
+//! Rust code into GameBoy ROM.
+//!
+//! The command creates two directories: `out` and `ext`.
+//!
+//! * **out** : In this directory, all intermediates generated during the compilation process
+//! (LLVM-IR, C, ASM etc.) and the final result `out.gb` are generated.
+//!
+//! * **ext** : GameBoy ROM builds require external binaries (SDCC, LLVM-CBE) and dependency files.
+//! By default, the Rust-GB compiler contains these files, but when compile GameBoy ROM, it needs
+//! to be copied to the file system. This directory contains those external dependency files.
+//!
 //! ## Execute your ROM
+//! The final result, `out.gb`, is located in the `out` directory. This file can be run using the
+//! GameBoy emulator or real GameBoy (Color / Advance).
+//!
+//! The most recommended emulator is [bgb](https://bgb.bircd.org/). However, unless there is a
+//! major problem, any GameBoy emulator should be able to run the `out.gb` file.
 #![doc = document_features::document_features!()]
 #![doc(html_logo_url = "https://github.com/zlfn/rust-gb/blob/main/media/ferris-gb.png?raw=true")]
 

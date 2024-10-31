@@ -1,23 +1,29 @@
 use core::str;
 use std::{fs::{self, File}, io::{ErrorKind, Write}, os::unix::fs::PermissionsExt, process::{self, Command, ExitStatus}, str::FromStr};
-use clap::Parser;
+use clap::{arg, command, Parser};
 
 use colored::Colorize;
 use include_dir::{include_dir, Dir};
 use project_root::get_project_root;
 use tree_sitter::{self, Query, QueryCursor};
 
-// Build GB ROM from Rust
+// External files
+static EXT_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/ext");
+
+#[derive(Parser)]
+#[command(bin_name="cargo", version, author, disable_help_subcommand = true)]
+pub enum Subcommand {
+    /// Build a Cargo package to GameBoy ROM
+    #[command(name = "build-rom", version, author, disable_version_flag = true)]
+    BuildRom(BuildRom)
+}
+
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Start build chain from
+pub struct BuildRom {
+    /// Select at what stage Rust-GB starts building (rust, llvm, c, asm)
     #[arg(short, long, default_value = "rust")]
     from: String,
 }
-
-// External files
-static EXT_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/ext");
 
 #[derive(PartialEq, PartialOrd)]
 enum BuildChain {
@@ -338,8 +344,14 @@ fn get_asm_paths(root: &str, out: &str, ext: &str) -> Vec<String> {
 }
 
 fn main() {
-    let args = Args::parse();
-    let build_from = BuildChain::from_str(&args.from).unwrap();
+    let Subcommand::BuildRom(build_rom) = Subcommand::parse();
+    let build_from = match BuildChain::from_str(&build_rom.from) {
+        Ok(from) => from,
+        Err(_) => {
+            println!("{}", "[rust-gb] build from flag parse failed".red());
+            process::exit(1)
+        }
+    };
 
     let root = get_project_root().unwrap();
     let root = root.to_str().unwrap();
@@ -376,7 +388,10 @@ fn main() {
         }
 
         //C postprocessing for SDCC
-        fs::copy("./out/out.c", "./out/pre.c").unwrap();
+        fs::copy(
+            format!("{}/out.c", out_dir),
+            format!("{}/pre.c", out_dir),
+        ).unwrap();
         let c_path = format!("{}/out.c", out_dir);
 
         if treesitter_process(&c_path).is_err() {
@@ -424,11 +439,16 @@ fn main() {
     }
 
     if build_from <= BuildChain::ASM {
-        let asm_path = get_asm_paths(&root, &out_dir, &ext_dir);
+        let mut asm_path = get_asm_paths(&root, &out_dir, &ext_dir);
 
-        let mut lcc_args: Vec<&str> = vec!["-msm83:gb", "-o", "./out/out.gb", "./out/out.asm"];
+        let mut lcc_args: Vec<String> = vec![
+            "-msm83:gb".to_string(), 
+            "-o".to_string(), 
+            format!("{}/out.gb", out_dir),
+            format!("{}/out.asm", out_dir),
+        ];
 
-        lcc_args.append(&mut asm_path.iter().map(|s| s.as_str()).collect());
+        lcc_args.append(&mut asm_path);
 
         let lcc_status = Command::new(format!("{}/bin/lcc", ext_dir))
             .args(lcc_args)

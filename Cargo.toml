@@ -7,6 +7,8 @@ readme = "README.md"
 description = """
 Compile Rust code to Nintendo GameBoy
 """
+keywords = ["gameboy", "retro", "cross-compiler"]
+repository = "https://github.com/zlfn/rust-gb"
 
 # rust-gb library
 [lib]
@@ -15,17 +17,19 @@ path = "src/lib/lib.rs"
 
 # rust-gb compiler
 [[bin]]
-name = "cargo-gb"
+name = "cargo-build-rom"
 path = "src/bin/build-rom/main.rs"
 required-features = ["compiler"]
 
 [dependencies]
-clap = { version = "4.5.17", features = ["derive"], optional = true }
+# Binary dependencies
+clap = { version = "4.5.17", features = ["derive", "cargo"], optional = true }
 colored = { version = "2.1.0", optional = true }
 project-root = { version = "0.2.2", optional = true }
 tree-sitter = { version = "0.23.0", optional = true }
 tree-sitter-c = { version = "0.23.0", optional = true }
 include_dir = { version = "0.7.4", optional = true }
+# Library dependencies
 document-features = "0.2"
 voladdress = "1.4.0"
 
@@ -36,6 +40,9 @@ voladdress = "1.4.0"
 ##
 ## This feature enables GameBoy Color only features.
 ## Such as VRAM bank or color palette.
+##
+## Since the compiler does not yet support compilation in to GameBoy Color ROM, 
+## this will not actually work.
 color = []
 
 ## Prototype feature
@@ -50,7 +57,14 @@ prototype = []
 ##
 ## This feature needed to enabled when you install Rust-GB compiler with `cargo install`.
 ## 
-## DO NOT enable this feature in your GameBoy ROM crate. It will cause compile error.
+## DO NOT enable this feature in your GameBoy ROM package. It will cause compile error.
 ## This is because the Rust-GB compiler cannot be compiled for ATMega328 target.
-compiler = ["clap", "colored", "project-root", "tree-sitter", "tree-sitter-c", "include_dir"]
+compiler = [
+	"clap", 
+	"colored", 
+	"project-root", 
+	"tree-sitter", 
+	"tree-sitter-c", 
+	"include_dir"
+]
 
