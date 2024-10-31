@@ -114,11 +114,6 @@ impl GbStream {
     ///
     /// Panics if coordinate parameter out of bounds.
     ///
-    /// # Safety
-    /// 
-    /// Because of the bound check, it is guaranteed to move the cursor to a
-    /// valid range.
-    ///
     /// # Examples
     ///
     /// ```
@@ -143,10 +138,6 @@ impl GbStream {
     /// # Caution
     ///
     /// It will clear GameBoy console and reset the cursor.
-    ///
-    /// # Safety
-    ///
-    /// It is safe because only predetermined default fonts are loaded.
     #[cfg(feature="prototype")]
     pub fn set_color(foreground: DmgColor, background: DmgColor) {
         unsafe { 
