@@ -3,13 +3,18 @@ name = "rust-gb"
 version = "0.1.0-alpha.0"
 edition = "2021"
 authors = ["zlfn <ung@zlfn.space>"]
-license = "MIT OR GPLv2+LE"
+license = "MIT AND GPL-2.0-with-GCC-exception"
 readme = "README.md"
 description = """
 Compile Rust code to Nintendo GameBoy
 """
 keywords = ["gameboy", "retro", "cross-compiler"]
 repository = "https://github.com/zlfn/rust-gb"
+exclude = [
+	"ext/*",
+	"media/*",
+	"examples/*"
+]
 
 # rust-gb library
 [lib]
