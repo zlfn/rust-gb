@@ -7,6 +7,7 @@ use core::{ffi::c_char, fmt::{Error, Write}};
 
 use crate::mmio::JOYP;
 
+#[allow(unused_imports)]
 use super::{drawing::{DmgColor, TILE_HEIGHT, TILE_WIDTH}, gbdk_c::{console::{cls, gotoxy}, font::{font_color, font_ibm, font_init, font_load, font_set, font_t}, stdio::putchar}};
 
 // Imports for docs
