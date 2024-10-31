@@ -4,7 +4,6 @@ use clap::{arg, command, Parser};
 
 use colored::Colorize;
 use include_dir::{include_dir, Dir};
-use project_root::get_project_root;
 use tree_sitter::{self, Query, QueryCursor};
 
 // External files
@@ -353,11 +352,20 @@ fn main() {
         }
     };
 
-    let root = get_project_root().unwrap();
-    let root = root.to_str().unwrap();
+    let root = Command::new("cargo")
+        .args([
+            "locate-project",
+            "--message-format",
+            "plain"
+        ])
+        .output()
+        .unwrap()
+        .stdout;
+    let root = String::from_utf8(root).unwrap();
+    let (root, _) = root.rsplit_once('/').unwrap();
 
-    let out_dir = create_out_dir(root);
-    let ext_dir = create_ext_dir(root);
+    let out_dir = create_out_dir(&root);
+    let ext_dir = create_ext_dir(&root);
 
     if build_from <= BuildChain::Rust {
         if !cargo_build(&out_dir).success() {

@@ -1,6 +1,6 @@
 [package]
 name = "rust-gb"
-version = "0.1.0-alpha.0"
+version = "0.1.0-alpha.1"
 edition = "2021"
 authors = ["zlfn <ung@zlfn.space>"]
 license = "MIT AND GPL-2.0-with-GCC-exception"
@@ -31,7 +31,6 @@ required-features = ["compiler"]
 # Binary dependencies
 clap = { version = "4.5.17", features = ["derive", "cargo"], optional = true }
 colored = { version = "2.1.0", optional = true }
-project-root = { version = "0.2.2", optional = true }
 tree-sitter = { version = "0.23.0", optional = true }
 tree-sitter-c = { version = "0.23.0", optional = true }
 include_dir = { version = "0.7.4", optional = true }
@@ -68,7 +67,6 @@ prototype = []
 compiler = [
 	"clap", 
 	"colored", 
-	"project-root", 
 	"tree-sitter", 
 	"tree-sitter-c", 
 	"include_dir"
