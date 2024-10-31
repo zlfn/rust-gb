@@ -7,9 +7,14 @@
 //! Install a Rust-GB compiler with `cargo install`.
 //! You must use Rust nightly version with you are playing with `Rust-GB` because it uses a lot of
 //! experimental and unstable features.
+//!
+//! In addition, due to limited size issues, external dependencies required by Rust-GB could not be
+//! uploded to crates.io, so you have to clone the repository to install a compiler.
 //! 
 //! ``` bash
-//! cargo install rust-gb --features=compiler
+//! git clone https://github.com/zlfn/rust-gb.git
+//! cd rust-gb
+//! cargo install --path . --features compiler
 //! ```
 //!
 //! `compiler` feature is required when installing the Rust-GB compiler.
