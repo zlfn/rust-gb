@@ -7,11 +7,7 @@
 
 use core::ffi::c_char;
 
-use gbdk::{gb::{drawing::{gotogxy, gprint, plot, DKGREY, LTGREY, SOLID}, gb::{waitpad, waitpadup}}, rand::{arand, initarand, rand}};
-use memory::ref_from_mem;
-
-mod gbdk;
-mod memory;
+use gb::{gbdk_c::{gb::{drawing::{gotogxy, gprint, plot, DKGREY, LTGREY, SOLID}, gb::{waitpad, waitpadup}}, rand::{arand, initarand, rand}, stdio::puts}, mmio::DIV};
 
 #[no_mangle]
 pub extern fn main() {
@@ -21,16 +17,16 @@ pub extern fn main() {
     unsafe {
         gprint("Getting seed\0".as_ptr() as *const c_char);
         gotogxy(0, 1);
-        gprint("Push any key (1)\0".as_ptr() as *const c_char);
+        puts("Push any key (1)\0".as_ptr() as *const c_char);
         waitpad(0xFF);
         waitpadup();
-        let a: u8 = *ref_from_mem(0xFF04 as *mut u8);
+        let a: u8 = DIV.read();
         let mut seed = a as u16;
         gotogxy(0, 2);
-        gprint("Push any key (2)\0".as_ptr() as *const c_char);
+        puts("Push any key (2)\0".as_ptr() as *const c_char);
         waitpad(0xFF);
         waitpadup();
-        let b: u8 = *ref_from_mem(0xFF04 as *mut u8);
+        let b: u8 = DIV.read();
         seed |= (b as u16) << 8;
         initarand(seed);
 

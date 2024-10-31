@@ -411,7 +411,6 @@ fn main() {
         }
 
         let c_path = get_c_paths(&root, &ext_dir);
-        println!("{:?}", c_path);
         for c_file in c_path {
             let (_, out_name) = c_file.rsplit_once('/').unwrap();
             let out_name = format!("{}/asm/{}.asm", out_dir, out_name);

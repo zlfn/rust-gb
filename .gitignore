@@ -1,2 +1,4 @@
 target/
 out/
+
+examples/**/ext/

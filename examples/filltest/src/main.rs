@@ -5,8 +5,7 @@
 
 use core::ffi::c_char;
 
-mod gbdk;
-use gbdk::drawing::{r#box, circle, color, getpix, gotogxy, gprint, line, plot_point, BLACK, DKGREY, LTGREY, M_FILL, M_NOFILL, SOLID, WHITE, XOR};
+use gb::gbdk_c::gb::drawing::{r#box, circle, color, getpix, gotogxy, gprint, line, plot_point, BLACK, DKGREY, LTGREY, M_FILL, M_NOFILL, SOLID, WHITE, XOR};
 
 fn linetest(x: u8, y: u8, w: u8) {
     let w = w as i8;
