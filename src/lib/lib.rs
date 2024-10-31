@@ -18,7 +18,15 @@
 //! > the future by packaging Rust-GB compiler for a platform-specific package manager (`winget`, `homebrew`, `pacman` etc.)
 //!
 //! ## Setup a project
+//! Rust-GB ROM project have to provide all the right default settings so `cargo build` will just work.
+//! Most recommended way to do this is cloning [`rust-gb-template`](https://github.com/zlfn/rust-gb-template/blob/0e131c6ef90a19140c37bcfd092af2ea8824b5ae/src/main.rs) 
+//! repository.
 //! 
+//! ```bash
+//!  git clone https://github.com/zlfn/rust-gb-template.git
+//!  ```
+//! 
+//! This repository contains minimum files to be compiled GameBoy ROM properly.
 //! 
 //! ## Compile your project
 //! ## Execute your ROM
