@@ -24,7 +24,7 @@ use voladdress::{Safe, Unsafe, VolAddress, VolBlock};
 ///
 /// If both buttons and d-pad is selected, then the low nibble reads d-pad *or* button is pressed.
 ///
-/// ### Safety
+/// # Safety
 /// After writing to [`JOYP`], if [`JOYP`] is read in the following instruction, the
 /// unexpected value will be read. Therefore, if you want it to work as intended, you have
 /// to give a brief delay.
@@ -203,11 +203,11 @@ pub const NR52: VolAddress<u8, Safe, Safe> =
 /// As CH3 plays, it reads wave RAM left to right, upper nibble first. That is, `$FF30`'s upper
 /// nibble, `$FF30`'s lower nibble, `$FF31`'s upper nibble, and so on.
 ///
-/// ### Warning
+/// # Warning
 /// When CH3 is started, the first sample read is the one at index 1, i.e. the lower nibble of the
 /// first byte, NOT the upper nibble.
 ///
-/// ### Safety
+/// # Safety
 /// Accessing wave RAM while CH3 is **active** (i.e. playing) causes accesses to misbehave:
 /// * On AGB, reads return `$FF`, and writes are ignored.
 /// * On monochrome consoles, wave RAM can only be accessed on the same cycle that CH3 does.

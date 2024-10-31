@@ -4,7 +4,9 @@
 //! LLVM-CBE and GBDK-2020.
 //!
 //! ## Install the compiler
-//! Install a Rust-GB compiler with `cargo install`
+//! Install a Rust-GB compiler with `cargo install`.
+//! You must use Rust nightly version with you are playing with `Rust-GB` because it uses a lot of
+//! experimental and unstable features.
 //! 
 //! ``` bash
 //! cargo install rust-gb --features=compiler
@@ -13,9 +15,18 @@
 //! `compiler` feature is required when installing the Rust-GB compiler.
 //! If not, binary will not be installed.
 //!
-//! > **Note:** Right now, you can't run the Rust-GB compiler other than Linux x64. This is because the
-//! > GameBoy compilation process requires some "external binaries". We're going to solve this problem in
-//! > the future by packaging Rust-GB compiler for a platform-specific package manager (`winget`, `homebrew`, `pacman` etc.)
+//! Also, note that `avr-gcc`, `avr-libc`, `sdcc`, `rust-src` are required. You need to install
+//! them to your system before running the compiler.
+//!
+//! ```bash
+//! # Example for Ubuntu
+//! sudo apt install gcc-avr avr-libc sdcc
+//! rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
+//! ```
+//! ### Note
+//! Right now, you can't run the Rust-GB compiler other than Linux x64. This is because the
+//! GameBoy compilation process requires some "external binaries". We're going to solve this problem in
+//! the future by packaging Rust-GB compiler for a platform-specific package manager (`winget`, `homebrew`, `pacman` etc.)
 //!
 //! ## Setup a project
 //! Rust-GB ROM project have to provide all the right default settings so `cargo build` will just work.
