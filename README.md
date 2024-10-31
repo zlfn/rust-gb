@@ -1,4 +1,7 @@
-![image](media/rust-gb-logo.jpg)
+<div align="center">
+  <img align="center" width=80% src="media/rust-gb-logo.jpg"/>
+</div>
+
 ---
 
 Compile Rust code to GBZ80 (Work in Progress)  
