@@ -3,4 +3,13 @@ name = "rand-rs"
 version = "0.1.0"
 edition = "2021"
 
+[dependencies]
+rust-gb = { path = "../.." }
+
+[[bin]]
+name = "rom"
+path = "src/main.rs"
+test = false
+doctest = false
+bench = false
 
