@@ -5,9 +5,9 @@
 
 ---
 
-![Crates.io Version](https://img.shields.io/crates/v/rust-gb?style=for-the-badge&logo=rust&color=dea584&link=https%3A%2F%2Fdocs.rs%2Frust-gb%2Flatest%2Fgb%2F)
-![docs.rs](https://img.shields.io/docsrs/rust-gb?style=for-the-badge&logo=docsdotrs&color=%23000000&link=https%3A%2F%2Fdocs.rs%2Frust-gb%2Flatest%2Fgb%2F)
-![Crates.io License](https://img.shields.io/crates/l/rust-gb?style=for-the-badge&logo=opensourceinitiative&logoColor=white&color=3DA639)
+[![Crates.io Version](https://img.shields.io/crates/v/rust-gb?style=for-the-badge&logo=rust&color=dea584&link=https%3A%2F%2Fdocs.rs%2Frust-gb%2Flatest%2Fgb%2F)](https://crates.io/crates/rust-gb)
+[![docs.rs](https://img.shields.io/docsrs/rust-gb?style=for-the-badge&logo=docsdotrs&color=%23000000&link=https%3A%2F%2Fdocs.rs%2Frust-gb%2Flatest%2Fgb%2F)](https://docs.rs/rust-gb/latest/gb/)
+[![Crates.io License](https://img.shields.io/crates/l/rust-gb?style=for-the-badge&logo=opensourceinitiative&logoColor=white&color=3DA639)](https://github.com/zlfn/rust-gb/blob/main/LICENSE)
 
 
 Compile Rust code to GBZ80 (Work in Progress)  
