@@ -13,6 +13,7 @@
 //! 
 //! ``` bash
 //! git clone https://github.com/zlfn/rust-gb.git
+//! git checkout tags/v0.1.0-alpha.2
 //! cd rust-gb
 //! cargo install --path . --features compiler
 //! ```
