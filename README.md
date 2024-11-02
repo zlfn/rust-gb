@@ -1,8 +1,14 @@
 <div align="center">
   <img align="center" width=80% src="media/rust-gb-logo.jpg"/>
+  <br/>
 </div>
 
 ---
+
+![Crates.io Version](https://img.shields.io/crates/v/rust-gb?style=for-the-badge&logo=rust&color=dea584&link=https%3A%2F%2Fdocs.rs%2Frust-gb%2Flatest%2Fgb%2F)
+![docs.rs](https://img.shields.io/docsrs/rust-gb?style=for-the-badge&logo=docsdotrs&color=%23000000&link=https%3A%2F%2Fdocs.rs%2Frust-gb%2Flatest%2Fgb%2F)
+![Crates.io License](https://img.shields.io/crates/l/rust-gb?style=for-the-badge&logo=opensourceinitiative&logoColor=white&color=3DA639)
+
 
 Compile Rust code to GBZ80 (Work in Progress)  
 You can find ROM builds of examples in [release](https://github.com/zlfn/rust-gb/releases/tag/v0.0.1-alpha)
