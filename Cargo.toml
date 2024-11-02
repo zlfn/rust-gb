@@ -1,6 +1,6 @@
 [package]
 name = "rust-gb"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 edition = "2021"
 authors = ["zlfn <ung@zlfn.space>"]
 license = "MIT AND GPL-2.0-with-GCC-exception"
