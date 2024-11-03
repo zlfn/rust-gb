@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rust-gb = { path = "../.." }
+rust-gb = "0.1.0-alpha"
 
 [[bin]]
 name = "rom"
