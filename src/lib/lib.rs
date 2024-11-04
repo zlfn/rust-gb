@@ -75,13 +75,11 @@
 #![feature(doc_cfg)]
 
 pub mod io;
-
+pub mod util;
 pub mod mmio;
-
 pub mod drawing;
 
 #[cfg(feature = "prototype")]
 pub mod memory;
-
 pub mod gbdk_c;
 

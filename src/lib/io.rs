@@ -3,7 +3,7 @@
 //! This modules contains a helper for simple input and output. you can print
 //! text or read joypad input as bytes.
 
-use core::{ffi::c_char, fmt::{Error, Write}};
+use core::{ffi::c_char, fmt::{Error, Write}, future::{Future, Ready}, task::Poll};
 
 use crate::mmio::JOYP;
 
@@ -300,6 +300,23 @@ impl Joypad {
     /// Check if Down of d-pad is pressed.
     pub fn down(&self) -> bool {
         self.0 & (JoypadKey::Down as u8) != 0
+    }
+
+    /// Waits until any key pressed.
+    pub fn wait_until_press() -> Self {
+        let mut current = Joypad::read();
+        while u8::from(current) == 0 {
+            current = Joypad::read();
+        }
+        return current;
+    }
+
+    /// Waits until all key released.
+    pub fn wait_until_release() {
+        let mut current = Joypad::read();
+        while u8::from(current) != 0 {
+            current = Joypad::read();
+        }
     }
 }
 
