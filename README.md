@@ -26,7 +26,7 @@ I referred to [z80-babel](https://github.com/MartinezTorres/z80_babel) for steps
 In the long run, I hope to write LLVM backend for z80 (sm83), and include it in Rust's Tier 3 list. This will dramatically simplify the build chain.
 
 ## Why use Rust instead of C or ASM?
-1. Rust provides higher-level and better grammer than C.
+1. Rust provides higher-level and better grammar than C.
 2. Rust's memory stability and strict types help you avoid to write incorrect code (even on a small device).
 3. Putting everything aside, it's fun!
 
