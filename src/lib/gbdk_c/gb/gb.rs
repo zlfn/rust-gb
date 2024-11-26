@@ -64,8 +64,8 @@ extern "C" {
     // joypad_init
     // joypad_ex
     
-    // enable_interrupts()
-    // disable_interrupts()
+    pub fn enable_interrupts();
+    pub fn disable_interrupts();
 
     #[link_name="set_interrupts __preserves_regs(b, c, d, e, h, l)"]
     pub fn set_interrupts(flags: u8);
