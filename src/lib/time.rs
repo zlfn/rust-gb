@@ -25,7 +25,7 @@ pub enum TimerClock {
 /// Provide features similar to `std::time::Instant` using timer intterupt of GameBoy.
 ///
 /// You must enable timer interrupt with the [`Instant::init()`] method before use,
-/// and modifying timer interrupt releated memory while enabling [`Instant`] will result in
+/// and modifying timer interrupt related memory while enabling [`Instant`] will result in
 /// inaccurate time clock for [`Instant`]
 /// 
 /// There is an error of around 180 seconds per hour (precision 5%).
