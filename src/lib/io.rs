@@ -3,7 +3,7 @@
 //! This modules contains a helper for simple input and output. you can print
 //! text or read joypad input as bytes.
 
-use core::{ffi::c_char, fmt::{Error, Write}, future::{Future, Ready}, task::Poll};
+use core::{ffi::c_char, fmt::{Error, Write}};
 
 use crate::mmio::JOYP;
 
