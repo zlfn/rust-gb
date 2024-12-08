@@ -11,7 +11,7 @@
 
 
 Compile Rust code to GBZ80 (Work in Progress)  
-You can find ROM builds of examples in [release](https://github.com/zlfn/rust-gb/releases/tag/v0.0.1-alpha)
+You can find ROM builds of examples in [release](https://github.com/zlfn/rust-gb/releases/tag/v0.0.1-alpha). Documentation can be found [here](https://docs.rs/rust-gb/latest/gb/).
 
 ## How is this possible?
 GameBoy is not a possible target of Rust (even its not in [Tier 3](https://doc.rust-lang.org/nightly/rustc/platform-support.html)), and there is currently no suitable (stable) LLVM backend for the CPU in GameBoy. Therefore, the Rust code is compiled using the following process.
