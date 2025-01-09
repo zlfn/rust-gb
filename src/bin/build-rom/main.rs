@@ -1,6 +1,7 @@
 use core::str;
 use std::{fs::{self, File}, io::{ErrorKind, Write}, os::unix::fs::PermissionsExt, process::{self, Command, ExitStatus}, str::FromStr};
 use clap::{arg, command, Parser};
+use streaming_iterator::StreamingIterator;
 
 use colored::Colorize;
 use include_dir::{include_dir, Dir};
@@ -165,7 +166,8 @@ fn parse_declarator_attributes(code: &mut String, code_bytes: &[u8]) {
 
     let mut diff: i32 = 0;
 
-    for qm in cursor.matches(&query, tree.root_node(), code_bytes) {
+    let mut matches = cursor.matches(&query, tree.root_node(), code_bytes);
+    while let Some(qm) = matches.next() {
         let declarator_node = qm.captures[0].node;
         let identifier_node = qm.captures[1].node;
         let declarator = declarator_node.utf8_text(&code_bytes).unwrap();
@@ -211,7 +213,8 @@ fn parse_call_expression_attributes(code: &mut String, code_bytes: &[u8]) {
 
     let mut diff: i32 = 0;
 
-    for qm in cursor.matches(&query, tree.root_node(), code_bytes) {
+    let mut matches = cursor.matches(&query, tree.root_node(), code_bytes);
+    while let Some(qm) = matches.next() {
         let identifier_node = qm.captures[0].node;
         let identifier = identifier_node.utf8_text(&code_bytes).unwrap();
 
