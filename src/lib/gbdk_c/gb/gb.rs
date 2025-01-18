@@ -1,5 +1,5 @@
 #[allow(non_camel_case_types)]
-type int_handler = extern fn();
+type int_handler = extern "C" fn();
 
 pub const SYSTEM_60HZ: u8 = 0x00;
 pub const SYSTEM_50HZ: u8 = 0x01;
@@ -33,17 +33,17 @@ extern "C" {
     pub fn remove_SIO(h: int_handler);
     pub fn remove_JOY(h: int_handler);
 
-    #[link_name="add_VBL __critical"]
+    #[link_name = "add_VBL __critical"]
     pub fn add_VBL(h: int_handler);
-    #[link_name="add_LCD __critical"]
+    #[link_name = "add_LCD __critical"]
     pub fn add_LCD(h: int_handler);
-    #[link_name="add_TIM __critical"]
+    #[link_name = "add_TIM __critical"]
     pub fn add_TIM(h: int_handler);
-    #[link_name="add_low_priority_TIM __critical"]
+    #[link_name = "add_low_priority_TIM __critical"]
     pub fn add_low_priority_TIM(h: int_handler);
-    #[link_name="add_SIO __critical"]
+    #[link_name = "add_SIO __critical"]
     pub fn add_SIO(h: int_handler);
-    #[link_name="add_JOY __critical"]
+    #[link_name = "add_JOY __critical"]
     pub fn add_JOY(h: int_handler);
 
     pub fn nowait_int_handler();
@@ -51,31 +51,31 @@ extern "C" {
 
     pub fn mode(mode: u8);
 
-    #[link_name="delay"]
+    #[link_name = "delay"]
     pub fn delay(delay: u16);
 
-    #[link_name="joypad __preserves_regs(b, c, h, l)"]
+    #[link_name = "joypad __preserves_regs(b, c, h, l)"]
     pub fn joypad() -> u8;
-    #[link_name="waitpad __preserves_regs(b, c, h, l)"]
+    #[link_name = "waitpad __preserves_regs(b, c, h, l)"]
     pub fn waitpad(mask: u8) -> u8;
-    #[link_name="waitpadup __preserves_regs(a, b, c, d, e, h, l)"]
+    #[link_name = "waitpadup __preserves_regs(a, b, c, d, e, h, l)"]
     pub fn waitpadup();
 
     // joypad_init
     // joypad_ex
-    
+
     pub fn enable_interrupts();
     pub fn disable_interrupts();
 
-    #[link_name="set_interrupts __preserves_regs(b, c, d, e, h, l)"]
+    #[link_name = "set_interrupts __preserves_regs(b, c, d, e, h, l)"]
     pub fn set_interrupts(flags: u8);
 
     pub fn void();
 
-    #[link_name="vsync __preserves_regs(b, c, d, e, h, l)"]
+    #[link_name = "vsync __preserves_regs(b, c, d, e, h, l)"]
     pub fn vsync();
 
-    #[deprecated(since="gbdk-2020", note="please use `vsync` instead")]
-    #[link_name="wait_vbl_done __preserves_regs(b, c, d, e, h, l)"]
+    #[deprecated(since = "gbdk-2020", note = "please use `vsync` instead")]
+    #[link_name = "wait_vbl_done __preserves_regs(b, c, d, e, h, l)"]
     pub fn wait_vbl_done();
 }

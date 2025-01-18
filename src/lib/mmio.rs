@@ -28,16 +28,13 @@ use voladdress::{Safe, Unsafe, VolAddress, VolBlock};
 /// After writing to [`JOYP`], if [`JOYP`] is read in the following instruction, the
 /// unexpected value will be read. Therefore, if you want it to work as intended, you have
 /// to give a brief delay.
-pub const JOYP: VolAddress<u8, Safe, Unsafe> = 
-    unsafe { VolAddress::new(0xFF00) };
+pub const JOYP: VolAddress<u8, Safe, Unsafe> = unsafe { VolAddress::new(0xFF00) };
 
 /// [Serial transfer data](https://gbdev.io/pandocs/Serial_Data_Transfer_(Link_Cable).html#ff01--sb-serial-transfer-data)
-pub const SB: VolAddress<u8, Safe, Safe> =
-    unsafe { VolAddress::new(0xFF01) };
+pub const SB: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF01) };
 
 /// [Serial transfer control](https://gbdev.io/pandocs/Serial_Data_Transfer_(Link_Cable).html#ff02--sc-serial-transfer-control)
-pub const SC: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF02) };
+pub const SC: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF02) };
 
 /// [Divider](https://gbdev.io/pandocs/Timer_and_Divider_Registers.html#ff04--div-divider-register)
 ///
@@ -48,16 +45,14 @@ pub const SC: VolAddress<u8, Safe, Safe> =
 ///
 /// Note: This divider is affected by CGB double speed mode, and will increment at 32768Hz in
 /// double speed.
-pub const DIV: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF04) };
+pub const DIV: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF04) };
 
 /// [Timer counter](https://gbdev.io/pandocs/Timer_and_Divider_Registers.html#ff05--tima-timer-counter)
 ///
 /// This timer is incremented at the clock frequency specified by the [`TAC`] register.
 /// When the value overflows, it is reset to the value specified in [`TMA`] and an interrupt is
 /// requested.
-pub const TIMA: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF05) };
+pub const TIMA: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF05) };
 
 /// [Timer modulo](https://gbdev.io/pandocs/Timer_and_Divider_Registers.html#ff06--tma-timer-modulo)
 ///
@@ -69,8 +64,7 @@ pub const TIMA: VolAddress<u8, Safe, Safe> =
 ///
 /// If a TMA write is executed on the same M-cycle as the content of [`TMA`] is transferred to
 /// [`TIMA`] due to a timer overflow, the old value is transferred to [`TIMA`]
-pub const TMA: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF06) };
+pub const TMA: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF06) };
 
 /// [Timer control](https://gbdev.io/pandocs/Timer_and_Divider_Registers.html#ff07--tac-timer-control)
 ///
@@ -94,8 +88,7 @@ pub const TMA: VolAddress<u8, Safe, Safe> =
 ///
 /// Note that writing to this register may increase [`TIMA`] once!
 /// For more information, please refer [GB Pan Docs](https://gbdev.io/pandocs/Timer_and_Divider_Registers.html#ff07--tac-timer-control)
-pub const TAC: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF07) };
+pub const TAC: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF07) };
 
 /// [Interrupt flag](https://gbdev.io/pandocs/Interrupts.html#ff0f--if-interrupt-flag)
 ///
@@ -121,80 +114,61 @@ pub const TAC: VolAddress<u8, Safe, Safe> =
 /// necessary to write to the [`IF`] register. However, the user still do that in order to manually
 /// request (or discard) interrupts. Just like real interrupts, a manually requeseted interrupt
 /// isn't serviced unless/until `IME` and [`IE`] allow it.
-pub const IF: VolAddress<u8, Safe, Safe> =
-    unsafe { VolAddress::new(0xFF0F) };
+pub const IF: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF0F) };
 
 /// [Sound channel 1 sweep](https://gbdev.io/pandocs/Audio_Registers.html#ff10--nr10-channel-1-sweep)
-pub const NR10: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF10) };
+pub const NR10: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF10) };
 
 /// [Sound channel 1 length timer & duty cycle](https://gbdev.io/pandocs/Audio_Registers.html#ff11--nr11-channel-1-length-timer--duty-cycle)
-pub const NR11: VolAddress<u8, Unsafe, Safe> = 
-    unsafe { VolAddress::new(0xFF11) };
+pub const NR11: VolAddress<u8, Unsafe, Safe> = unsafe { VolAddress::new(0xFF11) };
 
 /// [Sound channel 1 volume & envelope](https://gbdev.io/pandocs/Audio_Registers.html#ff12--nr12-channel-1-volume--envelope)
-pub const NR12: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF12) };
+pub const NR12: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF12) };
 
 /// [Sound channel 1 period low](https://gbdev.io/pandocs/Audio_Registers.html#ff13--nr13-channel-1-period-low-write-only)
-pub const NR13: VolAddress<u8, (), Safe> = 
-    unsafe { VolAddress::new(0xFF13) };
+pub const NR13: VolAddress<u8, (), Safe> = unsafe { VolAddress::new(0xFF13) };
 
 /// [Sound channel 1 period high & control](https://gbdev.io/pandocs/Audio_Registers.html#ff14--nr14-channel-1-period-high--control)
-pub const NR14: VolAddress<u8, Unsafe, Safe> = 
-    unsafe { VolAddress::new(0xFF14) };
+pub const NR14: VolAddress<u8, Unsafe, Safe> = unsafe { VolAddress::new(0xFF14) };
 
 /// [Sound channel 2 length timer & duty cycle](https://gbdev.io/pandocs/Audio_Registers.html#sound-channel-2--pulse)
-pub const NR21: VolAddress<u8, Unsafe, Safe> = 
-    unsafe { VolAddress::new(0xFF16) };
+pub const NR21: VolAddress<u8, Unsafe, Safe> = unsafe { VolAddress::new(0xFF16) };
 
 /// [Sound channel 2 volume & envelope](https://gbdev.io/pandocs/Audio_Registers.html#sound-channel-2--pulse)
-pub const NR22: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF17) };
+pub const NR22: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF17) };
 
 /// [Sound channel 2 period low](https://gbdev.io/pandocs/Audio_Registers.html#sound-channel-2--pulse)
-pub const NR23: VolAddress<u8, (), Safe> = 
-    unsafe { VolAddress::new(0xFF18) };
+pub const NR23: VolAddress<u8, (), Safe> = unsafe { VolAddress::new(0xFF18) };
 
 /// [Sound channel 2 period high & control](https://gbdev.io/pandocs/Audio_Registers.html#sound-channel-2--pulse)
-pub const NR24: VolAddress<u8, Unsafe, Safe> =
-    unsafe { VolAddress::new(0xFF19) };
+pub const NR24: VolAddress<u8, Unsafe, Safe> = unsafe { VolAddress::new(0xFF19) };
 
 /// [Sound channel 3 DAC enable](https://gbdev.io/pandocs/Audio_Registers.html#ff1a--nr30-channel-3-dac-enable)
-pub const NR30: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF1A) };
+pub const NR30: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF1A) };
 
 /// [Sound channel 3 length timer](https://gbdev.io/pandocs/Audio_Registers.html#ff1b--nr31-channel-3-length-timer-write-only)
-pub const NR31: VolAddress<u8, (), Safe> = 
-    unsafe { VolAddress::new(0xFF1B) };
+pub const NR31: VolAddress<u8, (), Safe> = unsafe { VolAddress::new(0xFF1B) };
 
 /// [Sound channel 3 output level](https://gbdev.io/pandocs/Audio_Registers.html#ff1c--nr32-channel-3-output-level)
-pub const NR32: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF1C) };
+pub const NR32: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF1C) };
 
 /// [Sound channel 3 period low](https://gbdev.io/pandocs/Audio_Registers.html#ff1d--nr33-channel-3-period-low-write-only)
-pub const NR33: VolAddress<u8, (), Safe> =
-    unsafe { VolAddress::new(0xFF1D) };
+pub const NR33: VolAddress<u8, (), Safe> = unsafe { VolAddress::new(0xFF1D) };
 
 /// [Sound channel 3 period high & control](https://gbdev.io/pandocs/Audio_Registers.html#ff1e--nr34-channel-3-period-high--control)
-pub const NR34: VolAddress<u8, Unsafe, Safe> = 
-    unsafe { VolAddress::new(0xFF1E) };
+pub const NR34: VolAddress<u8, Unsafe, Safe> = unsafe { VolAddress::new(0xFF1E) };
 
 /// [Sound channel 4 length timer](https://gbdev.io/pandocs/Audio_Registers.html#ff20--nr41-channel-4-length-timer-write-only)
-pub const NR41: VolAddress<u8, (), Safe> = 
-    unsafe { VolAddress::new(0xFF20) };
+pub const NR41: VolAddress<u8, (), Safe> = unsafe { VolAddress::new(0xFF20) };
 
 /// [Master volume & VIN panning](https://gbdev.io/pandocs/Audio_Registers.html#ff24--nr50-master-volume--vin-panning)
-pub const NR50: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF24) };
+pub const NR50: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF24) };
 
 /// [Sound panning](https://gbdev.io/pandocs/Audio_Registers.html#ff25--nr51-sound-panning)
-pub const NR51: VolAddress<u8, Safe, Safe> =
-    unsafe { VolAddress::new(0xFF25) };
+pub const NR51: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF25) };
 
 /// [Sound on/off](https://gbdev.io/pandocs/Audio_Registers.html#ff26--nr52-audio-master-control)
-pub const NR52: VolAddress<u8, Safe, Safe> =
-    unsafe { VolAddress::new(0xFF26) };
+pub const NR52: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF26) };
 
 /// [Storage for one of the sound channel's waveform](https://gbdev.io/pandocs/Audio_Registers.html#ff30ff3f--wave-pattern-ram)
 ///
@@ -222,160 +196,131 @@ pub const NR52: VolAddress<u8, Safe, Safe> =
 /// The way it works is that wave RAM is a 16-byte memory buffer, and whie it's playing, CH3 has
 /// priority over the CPU when choosing which of those 16 bytes is accessed. So, from the CPU's
 /// point of view, wave RAM reads out the same byte, reagardless of the address.
-pub const WAVE_RAM: VolBlock<u8, Unsafe, Unsafe, 16> = 
-    unsafe { VolBlock::new(0xFF30) };
+pub const WAVE_RAM: VolBlock<u8, Unsafe, Unsafe, 16> = unsafe { VolBlock::new(0xFF30) };
 
 /// [LCD control](https://gbdev.io/pandocs/LCDC.html#ff40--lcdc-lcd-control)
-pub const LCDC: VolAddress<u8, Safe, Unsafe> = 
-    unsafe { VolAddress::new(0xFF40) };
+pub const LCDC: VolAddress<u8, Safe, Unsafe> = unsafe { VolAddress::new(0xFF40) };
 
 /// [LCD status](https://gbdev.io/pandocs/STAT.html#ff41--stat-lcd-status)
-pub const STAT: VolAddress<u8, Safe, Unsafe> = 
-    unsafe { VolAddress::new(0xFF41) };
+pub const STAT: VolAddress<u8, Safe, Unsafe> = unsafe { VolAddress::new(0xFF41) };
 
 /// [Viewport Y position](https://gbdev.io/pandocs/Scrolling.html#ff42ff43--scy-scx-background-viewport-y-position-x-position)
-pub const SCY: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF42) };
+pub const SCY: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF42) };
 
 /// [Viewport X position](https://gbdev.io/pandocs/Scrolling.html#ff42ff43--scy-scx-background-viewport-y-position-x-position)
-pub const SCX: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF43) };
+pub const SCX: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF43) };
 
 /// [LCD Y coordinate](https://gbdev.io/pandocs/STAT.html#ff44--ly-lcd-y-coordinate-read-only)
-pub const LY: VolAddress<u8, Safe, ()> = 
-    unsafe { VolAddress::new(0xFF44) };
+pub const LY: VolAddress<u8, Safe, ()> = unsafe { VolAddress::new(0xFF44) };
 
 /// [LY compare](https://gbdev.io/pandocs/STAT.html#ff45--lyc-ly-compare)
-pub const LYC: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF45) };
+pub const LYC: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF45) };
 
 /// [OAM DMA source address & start](https://gbdev.io/pandocs/OAM_DMA_Transfer.html#ff46--dma-oam-dma-source-address--start)
-pub const DMA: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF46) };
+pub const DMA: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF46) };
 
 /// [BG palette data](https://gbdev.io/pandocs/Palettes.html#ff47--bgp-non-cgb-mode-only-bg-palette-data)
-pub const BGP: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF47) };
+pub const BGP: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF47) };
 
 /// [OBJ palette 0 data](https://gbdev.io/pandocs/Palettes.html#ff48ff49--obp0-obp1-non-cgb-mode-only-obj-palette-0-1-data)
-pub const OBP0: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF48) };
+pub const OBP0: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF48) };
 
 /// [OBJ palette 1 data](https://gbdev.io/pandocs/Palettes.html#ff48ff49--obp0-obp1-non-cgb-mode-only-obj-palette-0-1-data)
-pub const OBP1: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF49) };
+pub const OBP1: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF49) };
 
 /// [Window Y position](https://gbdev.io/pandocs/Scrolling.html#ff4aff4b--wy-wx-window-y-position-x-position-plus-7)
-pub const WY: VolAddress<u8, Safe, Unsafe> = 
-    unsafe { VolAddress::new(0xFF4A) };
+pub const WY: VolAddress<u8, Safe, Unsafe> = unsafe { VolAddress::new(0xFF4A) };
 
 /// [Window X position plus 7](https://gbdev.io/pandocs/Scrolling.html#ff4aff4b--wy-wx-window-y-position-x-position-plus-7)
-pub const WX: VolAddress<u8, Safe, Unsafe> = 
-    unsafe { VolAddress::new(0xFF4B) };
+pub const WX: VolAddress<u8, Safe, Unsafe> = unsafe { VolAddress::new(0xFF4B) };
 
 /// [Prepare speed switch](https://gbdev.io/pandocs/CGB_Registers.html#ff4d--key1-cgb-mode-only-prepare-speed-switch)
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const KEY1: VolAddress<u8, Safe, Unsafe> =
-    unsafe { VolAddress::new(0xFF4D) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const KEY1: VolAddress<u8, Safe, Unsafe> = unsafe { VolAddress::new(0xFF4D) };
 
 /// [VRAM bank](https://gbdev.io/pandocs/CGB_Registers.html#ff4f--vbk-cgb-mode-only-vram-bank)
 ///
 /// This register can be written to change VRAM banks. Only bit 0 matters, all other bits are
 /// ignored.
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const VBK: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF4F) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const VBK: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF4F) };
 
 /// [VRAM DMA source high](https://gbdev.io/pandocs/CGB_Registers.html#ff51ff52--hdma1-hdma2-cgb-mode-only-vram-dma-source-high-low-write-only)
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const HDMA1: VolAddress<u8, (), Safe> = 
-    unsafe { VolAddress::new(0xFF51) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const HDMA1: VolAddress<u8, (), Safe> = unsafe { VolAddress::new(0xFF51) };
 
 /// [VRAM DMA source low](https://gbdev.io/pandocs/CGB_Registers.html#ff51ff52--hdma1-hdma2-cgb-mode-only-vram-dma-source-high-low-write-only)
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const HDMA2: VolAddress<u8, (), Safe> = 
-    unsafe { VolAddress::new(0xFF52) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const HDMA2: VolAddress<u8, (), Safe> = unsafe { VolAddress::new(0xFF52) };
 
 /// [VRAM DMA destination high](https://gbdev.io/pandocs/CGB_Registers.html#ff53ff54--hdma3-hdma4-cgb-mode-only-vram-dma-destination-high-low-write-only)
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const HDMA3: VolAddress<u8, (), Safe> = 
-    unsafe { VolAddress::new(0xFF53) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const HDMA3: VolAddress<u8, (), Safe> = unsafe { VolAddress::new(0xFF53) };
 
 /// [VRAM DMA destination low](https://gbdev.io/pandocs/CGB_Registers.html#ff53ff54--hdma3-hdma4-cgb-mode-only-vram-dma-destination-high-low-write-only)
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const HDMA4: VolAddress<u8, (), Safe> = 
-    unsafe { VolAddress::new(0xFF54) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const HDMA4: VolAddress<u8, (), Safe> = unsafe { VolAddress::new(0xFF54) };
 
 /// [VRAM DMA length/mode/start](https://gbdev.io/pandocs/CGB_Registers.html#ff55--hdma5-cgb-mode-only-vram-dma-lengthmodestart)
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const HDMA5: VolAddress<u8, Safe, Unsafe> = 
-    unsafe { VolAddress::new(0xFF55) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const HDMA5: VolAddress<u8, Safe, Unsafe> = unsafe { VolAddress::new(0xFF55) };
 
 /// [Infrared communications port](https://gbdev.io/pandocs/CGB_Registers.html#ff56--rp-cgb-mode-only-infrared-communications-port)
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const RP: VolAddress<u8, Safe, Unsafe> = 
-    unsafe { VolAddress::new(0xFF56) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const RP: VolAddress<u8, Safe, Unsafe> = unsafe { VolAddress::new(0xFF56) };
 
 /// [Background color palette specification](https://gbdev.io/pandocs/Palettes.html#ff68--bcpsbgpi-cgb-mode-only-background-color-palette-specification--background-palette-index)
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const BCPS: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF68) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const BCPS: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF68) };
 
 /// [Background color palette data](https://gbdev.io/pandocs/Palettes.html#ff69--bcpdbgpd-cgb-mode-only-background-color-palette-data--background-palette-data)
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const BCPD: VolAddress<u8, Unsafe, Unsafe> = 
-    unsafe { VolAddress::new(0xFF69) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const BCPD: VolAddress<u8, Unsafe, Unsafe> = unsafe { VolAddress::new(0xFF69) };
 
 /// [OBJ color palette specification](https://gbdev.io/pandocs/Palettes.html#ff6aff6b--ocpsobpi-ocpdobpd-cgb-mode-only-obj-color-palette-specification--obj-palette-index-obj-color-palette-data--obj-palette-data)
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const OCPS: VolAddress<u8, Unsafe, Unsafe> = 
-    unsafe { VolAddress::new(0xFF6A) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const OCPS: VolAddress<u8, Unsafe, Unsafe> = unsafe { VolAddress::new(0xFF6A) };
 
 /// [OBJ color palette data](https://gbdev.io/pandocs/Palettes.html#ff6aff6b--ocpsobpi-ocpdobpd-cgb-mode-only-obj-color-palette-specification--obj-palette-index-obj-color-palette-data--obj-palette-data)
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const OCPD: VolAddress<u8, Unsafe, Unsafe> = 
-    unsafe { VolAddress::new(0xFF6B) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const OCPD: VolAddress<u8, Unsafe, Unsafe> = unsafe { VolAddress::new(0xFF6B) };
 
 /// [Object priority mode](https://gbdev.io/pandocs/CGB_Registers.html#ff6c--opri-cgb-mode-only-object-priority-mode)
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const OPRI: VolAddress<u8, Unsafe, Unsafe> = 
-    unsafe { VolAddress::new(0xFF6C) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const OPRI: VolAddress<u8, Unsafe, Unsafe> = unsafe { VolAddress::new(0xFF6C) };
 
 /// [WRAM bank](https://gbdev.io/pandocs/CGB_Registers.html#ff70--svbk-cgb-mode-only-wram-bank)
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const SVBK: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFF70) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const SVBK: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF70) };
 
 /// [Audio digital outputs 1 & 2](https://gbdev.io/pandocs/Audio_details.html#ff76--pcm12-cgb-mode-only-digital-outputs-1--2-read-only)
 ///
 /// The low nibble is a copy of a sound channel 1's digital output, the high nibble is a copy of
 /// sound channel 2's
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const PCM12: VolAddress<u8, Safe, ()> = 
-    unsafe { VolAddress::new(0xFF76) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const PCM12: VolAddress<u8, Safe, ()> = unsafe { VolAddress::new(0xFF76) };
 
 /// [Audio digital outputs 3 & 4](https://gbdev.io/pandocs/Audio_details.html#ff77--pcm34-cgb-mode-only-digital-outputs-3--4-read-only)
 ///
 /// Same with [`PCM12`], but with channels 3 and 4.
-#[cfg(any(feature="color", doc))]
-#[doc(cfg(feature="color"))]
-pub const PCM34: VolAddress<u8, Safe, ()> = 
-    unsafe { VolAddress::new(0xFF77) };
+#[cfg(any(feature = "color", doc))]
+#[doc(cfg(feature = "color"))]
+pub const PCM34: VolAddress<u8, Safe, ()> = unsafe { VolAddress::new(0xFF77) };
 
 /// [Interrupt enable](https://gbdev.io/pandocs/Interrupts.html#ffff--ie-interrupt-enable)
 ///
@@ -390,5 +335,4 @@ pub const PCM34: VolAddress<u8, Safe, ()> =
 /// [`IF`])
 /// * **Joypad** (Read/Write) : Controls whether the Joypad interrupt handler may be called (see
 /// [`IF`])
-pub const IE: VolAddress<u8, Safe, Safe> = 
-    unsafe { VolAddress::new(0xFFFF) };
+pub const IE: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFFFF) };

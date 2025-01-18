@@ -3,12 +3,22 @@
 //! This modules contains a helper for simple input and output. you can print
 //! text or read joypad input as bytes.
 
-use core::{ffi::c_char, fmt::{Error, Write}};
+use core::{
+    ffi::c_char,
+    fmt::{Error, Write},
+};
 
 use crate::mmio::JOYP;
 
 #[allow(unused_imports)]
-use super::{drawing::{DmgColor, TILE_HEIGHT, TILE_WIDTH}, gbdk_c::{console::{cls, gotoxy}, font::{font_color, font_ibm, font_init, font_load, font_set, font_t}, stdio::putchar}};
+use super::{
+    drawing::{DmgColor, TILE_HEIGHT, TILE_WIDTH},
+    gbdk_c::{
+        console::{cls, gotoxy},
+        font::{font_color, font_ibm, font_init, font_load, font_set, font_t},
+        stdio::putchar,
+    },
+};
 
 // Imports for docs
 #[allow(unused_imports)]
@@ -27,7 +37,7 @@ use crate::gbdk_c;
 ///
 /// In addition, compilation will fail if formatting is attempted for floating points
 /// and integers over 32bits. Attempts to use `Debug` trait (`{:?}`) will also fail.
-/// 
+///
 /// # Examples
 ///
 /// ```
@@ -94,7 +104,7 @@ macro_rules! print {
 /// write!(w, "Hello, World!");
 /// ```
 pub struct GbStream {
-    private: ()
+    private: (),
 }
 
 impl GbStream {
@@ -105,7 +115,9 @@ impl GbStream {
 
     /// Clear GameBoy console.
     pub fn clear() {
-        unsafe { cls();}
+        unsafe {
+            cls();
+        }
     }
 
     /// Set cursor of [`GbStream`].
@@ -130,7 +142,7 @@ impl GbStream {
             panic!("Cursor y outbounded");
         }
 
-        unsafe {gotoxy(x, y)};
+        unsafe { gotoxy(x, y) };
     }
 
     /// Set a default font and custom color.
@@ -138,9 +150,9 @@ impl GbStream {
     /// # Caution
     ///
     /// It will clear GameBoy console and reset the cursor.
-    #[cfg(feature="prototype")]
+    #[cfg(feature = "prototype")]
     pub fn set_color(foreground: DmgColor, background: DmgColor) {
-        unsafe { 
+        unsafe {
             cls();
             font_init();
             font_color(foreground as u8, background as u8);
@@ -158,12 +170,12 @@ impl GbStream {
     /// # Safety
     ///
     /// If an invalid font address is entered, it causes an Undefined Behavior.
-    #[cfg(feature="prototype")]
+    #[cfg(feature = "prototype")]
     pub unsafe fn set_font_and_color(font: font_t, foreground: DmgColor, background: DmgColor) {
-        unsafe { 
+        unsafe {
             cls();
             font_init();
-            font_color(foreground as u8, background as u8) 
+            font_color(foreground as u8, background as u8)
         }
         let font = unsafe { font_load(font) };
         unsafe { font_set(font) };
@@ -201,7 +213,7 @@ enum JoypadMode {
     None = 0x30,
     DPad = 0x20,
     Button = 0x10,
-    All = 0x00
+    All = 0x00,
 }
 
 /// Joypad key enum.
@@ -218,7 +230,7 @@ pub enum JoypadKey {
     A = 0x10,
     B = 0x20,
     Select = 0x40,
-    Start = 0x80
+    Start = 0x80,
 }
 
 /// Joypad input struct.
@@ -244,14 +256,14 @@ pub struct Joypad(u8);
 
 impl Joypad {
     fn change_mode(mode: JoypadMode) {
-        unsafe {JOYP.write(mode as u8)};
+        unsafe { JOYP.write(mode as u8) };
         // 1 instruction delay is required after writing JOYP
         JOYP.read();
     }
 
     /// Get all buttons status.
     ///
-    /// Internally, write and read twice in the [`JOYP`] register, and returns 
+    /// Internally, write and read twice in the [`JOYP`] register, and returns
     /// [`Joypad`] tuple struct with bitwise OR of [`JoypadKey`] values.
     pub fn read() -> Self {
         Joypad::change_mode(JoypadMode::Button);

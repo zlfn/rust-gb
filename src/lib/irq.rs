@@ -2,7 +2,9 @@ use core::{mem::transmute, ops::BitOr};
 
 use crate::gbdk_c;
 
-pub struct VBlank { private: () }
+pub struct VBlank {
+    private: (),
+}
 
 #[repr(u8)]
 #[derive(Clone, Copy)]
@@ -14,20 +16,19 @@ pub enum Interrupt {
     Joypad = 0x10,
 }
 
-
 impl Interrupt {
-    pub unsafe fn add(self, int: unsafe extern fn()) -> Self {
+    pub unsafe fn add(self, int: unsafe extern "C" fn()) -> Self {
         let int = unsafe { transmute(int) };
         match self {
-            Self::VBlank => unsafe {gbdk_c::gb::gb::add_VBL(int)},
-            Self::LCD => unsafe {gbdk_c::gb::gb::add_LCD(int)},
-            Self::Timer => unsafe {gbdk_c::gb::gb::add_TIM(int)},
-            Self::Serial => unsafe {gbdk_c::gb::gb::add_SIO(int)},
-            Self::Joypad => unsafe {gbdk_c::gb::gb::add_JOY(int)},
+            Self::VBlank => unsafe { gbdk_c::gb::gb::add_VBL(int) },
+            Self::LCD => unsafe { gbdk_c::gb::gb::add_LCD(int) },
+            Self::Timer => unsafe { gbdk_c::gb::gb::add_TIM(int) },
+            Self::Serial => unsafe { gbdk_c::gb::gb::add_SIO(int) },
+            Self::Joypad => unsafe { gbdk_c::gb::gb::add_JOY(int) },
         }
         return self;
     }
-    
+
     pub unsafe fn enable() {
         unsafe { gbdk_c::gb::gb::enable_interrupts() };
     }
@@ -38,11 +39,11 @@ impl Interrupt {
 
     pub fn wait_vblank() -> VBlank {
         unsafe { gbdk_c::gb::gb::vsync() };
-        return VBlank { private: () }
+        return VBlank { private: () };
     }
 
     pub unsafe fn set(&self) {
-        unsafe {gbdk_c::gb::gb::set_interrupts(*self as u8)};
+        unsafe { gbdk_c::gb::gb::set_interrupts(*self as u8) };
     }
 }
 
@@ -57,7 +58,7 @@ impl From<InterruptSet> for u8 {
 
 impl InterruptSet {
     pub unsafe fn set(&self) {
-        unsafe {gbdk_c::gb::gb::set_interrupts(u8::from(*self))};
+        unsafe { gbdk_c::gb::gb::set_interrupts(u8::from(*self)) };
     }
 }
 

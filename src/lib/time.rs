@@ -6,7 +6,7 @@ use crate::{irq::Interrupt, mmio};
 static mut ENABLE_TIMER: bool = false;
 static mut SYSTEM_TIMER: u32 = 0;
 
-unsafe extern fn increase_system_timer() {
+unsafe extern "C" fn increase_system_timer() {
     SYSTEM_TIMER += 1;
 }
 
@@ -14,9 +14,9 @@ unsafe extern fn increase_system_timer() {
 #[derive(Clone, Copy)]
 pub enum TimerClock {
     MCycle256 = 0x00, // 4096 Hz
-    MCycle4 = 0x01,  // 262144 Hz
-    MCycle16 = 0x10, // 65536 Hz
-    MCycle64 = 0x11, // 16384 Hz
+    MCycle4 = 0x01,   // 262144 Hz
+    MCycle16 = 0x10,  // 65536 Hz
+    MCycle64 = 0x11,  // 16384 Hz
 }
 
 /// A measurement of a monotonically nondecreasing clock.
@@ -27,7 +27,7 @@ pub enum TimerClock {
 /// You must enable timer interrupt with the [`Instant::init()`] method before use,
 /// and modifying timer interrupt related memory while enabling [`Instant`] will result in
 /// inaccurate time clock for [`Instant`]
-/// 
+///
 /// There is an error of around 180 seconds per hour (precision 5%).
 /// Therefore, it is not recommended to measure a long time with this feature.
 /// The RTC (Real Time Clock) feature, which can be used for long time measurements,
@@ -47,7 +47,7 @@ impl Instant {
     }
 
     pub fn now() -> Self {
-        unsafe { 
+        unsafe {
             if !ENABLE_TIMER {
                 panic!("Instant is not initalized");
             }
@@ -59,28 +59,24 @@ impl Instant {
     pub fn checked_duration_since(&self, earlier: Instant) -> Option<Duration> {
         if self.0 < earlier.0 {
             None
-        }
-        else {
+        } else {
             let delta_freq = self.0 - earlier.0;
-            
+
             // Calculate miliseconds from SYSTEM_TIMER change
             Some(Duration::from_millis(
-                    (delta_freq / Self::FREQUENCY * 1000).into()
-                ))
+                (delta_freq / Self::FREQUENCY * 1000).into(),
+            ))
         }
-    } 
+    }
 
     pub fn duration_since(&self, earlier: Instant) -> Duration {
         if self.0 < earlier.0 {
             panic!("duration_since get later instance");
-        }
-        else {
+        } else {
             let delta_freq = self.0 - earlier.0;
-            
+
             // Calculate miliseconds from SYSTEM_TIMER change
-            Duration::from_millis(
-                    (delta_freq / Self::FREQUENCY * 1000) as u64
-                )
+            Duration::from_millis((delta_freq / Self::FREQUENCY * 1000) as u64)
         }
     }
 
@@ -117,7 +113,8 @@ impl Instant {
 impl Add<Duration> for Instant {
     type Output = Instant;
     fn add(self, rhs: Duration) -> Self::Output {
-        self.checked_add(rhs).expect("overflow when adding duration to instant")
+        self.checked_add(rhs)
+            .expect("overflow when adding duration to instant")
     }
 }
 
@@ -130,7 +127,8 @@ impl AddAssign<Duration> for Instant {
 impl Sub<Duration> for Instant {
     type Output = Instant;
     fn sub(self, rhs: Duration) -> Self::Output {
-        self.checked_sub(rhs).expect("overflow when subtracting duration from instant")
+        self.checked_sub(rhs)
+            .expect("overflow when subtracting duration from instant")
     }
 }
 

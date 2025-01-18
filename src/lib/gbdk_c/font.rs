@@ -15,12 +15,12 @@ extern "C" {
 
     pub fn font_init();
 
-    #[link_name="font_load __sdcccall(0)"]
+    #[link_name = "font_load __sdcccall(0)"]
     pub fn font_load(font: font_t) -> font_t;
 
-    #[link_name="font_set __sdcccall(0)"]
+    #[link_name = "font_set __sdcccall(0)"]
     pub fn font_set(font: font_t) -> font_t;
 
-    #[link_name="font_color __sdcccall(0)"]
+    #[link_name = "font_color __sdcccall(0)"]
     pub fn font_color(forecolor: u8, backcolor: u8);
 }

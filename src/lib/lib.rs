@@ -10,7 +10,7 @@
 //!
 //! In addition, due to limited size issues, external dependencies required by Rust-GB could not be
 //! uploded to crates.io, so you have to clone the repository to install a compiler.
-//! 
+//!
 //! ``` bash
 //! git clone https://github.com/zlfn/rust-gb.git
 //! git checkout tags/v0.1.0-alpha.2
@@ -36,15 +36,15 @@
 //!
 //! ## Setup a project
 //! Rust-GB ROM project have to provide all the right default settings so `cargo build` will just work.
-//! Most recommended way to do this is cloning [`rust-gb-template`](https://github.com/zlfn/rust-gb-template) 
+//! Most recommended way to do this is cloning [`rust-gb-template`](https://github.com/zlfn/rust-gb-template)
 //! repository.
-//! 
+//!
 //! ```bash
 //!  git clone https://github.com/zlfn/rust-gb-template.git
 //!  ```
-//! 
+//!
 //! This repository contains minimum files to be compiled GameBoy ROM properly.
-//! 
+//!
 //! ## Compile your project
 //! By executing the `cargo build-rom` command inside you GameBoy ROM project, you can compile the
 //! Rust code into GameBoy ROM.
@@ -66,7 +66,6 @@
 //! major problem, any GameBoy emulator should be able to run the `out.gb` file.
 #![doc = document_features::document_features!()]
 #![doc(html_logo_url = "https://github.com/zlfn/rust-gb/blob/main/media/ferris-gb.png?raw=true")]
-
 #![no_std]
 #![no_main]
 #![allow(dead_code)]
@@ -74,15 +73,14 @@
 #![feature(format_args_nl)]
 #![feature(doc_cfg)]
 
+pub mod drawing;
 pub mod io;
 pub mod mmio;
-pub mod drawing;
 
+pub mod gbdk_c;
 #[cfg(feature = "prototype")]
 pub mod irq;
 #[cfg(feature = "prototype")]
-pub mod time;
-#[cfg(feature = "prototype")]
 pub mod memory;
-pub mod gbdk_c;
-
+#[cfg(feature = "prototype")]
+pub mod time;
