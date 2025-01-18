@@ -33,15 +33,17 @@ clap = { version = "4.5.17", features = ["derive", "cargo"], optional = true }
 colored = { version = "3.0.0", optional = true }
 tree-sitter = { version = "0.24.6", optional = true }
 tree-sitter-c = { version = "0.23.4", optional = true }
+thiserror = { version = "2.0.11", optional = true }
 include_dir = { version = "0.7.4", optional = true }
-ast-grep-core = "0.33.0"
-ast-grep-language = "0.33.0"
+ast-grep-core = { version = "0.33.0", optional = true }
+ast-grep-language = { version = "0.33.0", optional = true }
 # Library dependencies
 document-features = "0.2"
 voladdress = "1.4.0"
 streaming-iterator = "0.1.9"
 
 [features]
+default = ["compiler"]
 #! ### Library features
 
 ## GameBoy Color feature
@@ -72,6 +74,9 @@ compiler = [
 	"colored", 
 	"tree-sitter", 
 	"tree-sitter-c", 
-	"include_dir"
+	"thiserror",
+	"include_dir",
+	"ast-grep-core",
+	"ast-grep-language",
 ]
 

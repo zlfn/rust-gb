@@ -1,5 +1,5 @@
 //! All Points Addressable (APA) mode drawing library.
-//! 
+//!
 //! This provies wrapper of `drawing.h` routines from GBDK.
 //!
 //! # Caution
@@ -17,9 +17,15 @@
 //! unexpected issues. Most of expected issues are wrapped in Rust-GB, but it is
 //! your own risk to use this module.
 
-use core::{ffi::c_char, fmt::{Error, Write}};
+use core::{
+    ffi::c_char,
+    fmt::{Error, Write},
+};
 
-use super::gbdk_c::gb::{drawing::{self, r#box, circle, line, plot_point, M_FILL, M_NOFILL}, gb::{mode, M_DRAWING}};
+use super::gbdk_c::gb::{
+    drawing::{self, circle, line, plot_point, r#box, M_FILL, M_NOFILL},
+    gb::{mode, M_DRAWING},
+};
 
 pub const SCREEN_WIDTH: u8 = drawing::GRAPHICS_WIDTH;
 pub const SCREEN_HEIGHT: u8 = drawing::GRAPHICS_WIDTH;
@@ -44,7 +50,7 @@ pub enum DrawingMode {
     Xor = drawing::XOR,
 
     /// 0x03, Performs a logical AND
-    And = drawing::AND
+    And = drawing::AND,
 }
 
 impl From<u8> for DrawingMode {
@@ -54,13 +60,13 @@ impl From<u8> for DrawingMode {
             drawing::OR => Self::Or,
             drawing::XOR => Self::Xor,
             drawing::AND => Self::And,
-            _ => panic!("DrawingMode from u8 outbounded\0")
+            _ => panic!("DrawingMode from u8 outbounded\0"),
         }
     }
 }
 
 /// Color set of original GameBoy.
-/// 
+///
 /// The constant value follows the value of GBDK `drawing.h`
 #[repr(u8)]
 #[derive(PartialEq, Clone, Copy)]
@@ -85,7 +91,7 @@ impl From<u8> for DmgColor {
             drawing::LTGREY => Self::LightGrey,
             drawing::DKGREY => Self::DarkGrey,
             drawing::BLACK => Self::Black,
-            _ => panic!("DmgColor from u8 outbounded\0")
+            _ => panic!("DmgColor from u8 outbounded\0"),
         }
     }
 }
@@ -94,7 +100,7 @@ impl From<u8> for DmgColor {
 ///
 /// Corresponds to the `color` function of GBDK.
 ///
-/// Specify a color combination similar to the builder pattern, and apply it 
+/// Specify a color combination similar to the builder pattern, and apply it
 /// with a method `apply()`.
 ///
 /// # Examples
@@ -121,9 +127,9 @@ impl Default for DrawingStyle {
     /// Same as when GameBoy starts.
     fn default() -> Self {
         DrawingStyle {
-            foreground: DmgColor::Black, 
-            background: DmgColor::White, 
-            drawing_mode: DrawingMode::Solid
+            foreground: DmgColor::Black,
+            background: DmgColor::White,
+            drawing_mode: DrawingMode::Solid,
         }
     }
 }
@@ -134,9 +140,9 @@ impl DrawingStyle {
     /// Black drawings on a white background.
     pub fn reversed() -> Self {
         DrawingStyle {
-            foreground: DmgColor::White, 
-            background: DmgColor::Black, 
-            drawing_mode: DrawingMode::Solid
+            foreground: DmgColor::White,
+            background: DmgColor::Black,
+            drawing_mode: DrawingMode::Solid,
         }
     }
 
@@ -160,7 +166,7 @@ impl DrawingStyle {
 
     /// Apply drawing style.
     ///
-    /// DrawingStream needed as parameter to ensure GameBoy is in `APA` mode. 
+    /// DrawingStream needed as parameter to ensure GameBoy is in `APA` mode.
     pub fn apply(&self, stream: &DrawingStream) {
         stream.set_style(*self);
     }
@@ -175,7 +181,7 @@ impl DrawingStyle {
 /// many side effects, For example, if you try to use `DrawingStream` inside a
 /// VBL interrupt, it will have unexpected result. For more detail, please refer
 /// [GBDK Docs](https://gbdk-2020.github.io/gbdk-2020/docs/api/drawing_8h.html#aa8abfd58ea514228abd69d8f6330e91d)
-/// 
+///
 /// 2. Unable to change line with `\n`, this means, when you want to make a new
 /// line, you should use the [`DrawingStream::cursor`] function.
 ///
@@ -188,7 +194,7 @@ impl DrawingStyle {
 /// write!(s, "Hello, APA!");
 /// ```
 pub struct DrawingStream {
-    private: ()
+    private: (),
 }
 
 impl DrawingStream {
@@ -215,7 +221,7 @@ impl DrawingStream {
             drawing::color(
                 style.foreground as u8,
                 style.background as u8,
-                style.drawing_mode as u8
+                style.drawing_mode as u8,
             )
         }
     }
@@ -227,7 +233,7 @@ impl DrawingStream {
     /// Panics if coordinate parameter out of bounds.
     ///
     /// # Safety
-    /// 
+    ///
     /// Because of the bound check, it is guaranteed to move the cursor to a
     /// valid range.
     ///
@@ -240,18 +246,18 @@ impl DrawingStream {
     ///
     /// ```
     pub fn cursor(&self, x: u8, y: u8) {
-            if x >= TILE_WIDTH {
-                panic!("Cursor x outbounded");
-            }
+        if x >= TILE_WIDTH {
+            panic!("Cursor x outbounded");
+        }
 
-            if y >= TILE_HEIGHT {
-                panic!("Cursor y outbounded");
-            }
+        if y >= TILE_HEIGHT {
+            panic!("Cursor y outbounded");
+        }
 
-            unsafe {drawing::gotogxy(x, y)}
+        unsafe { drawing::gotogxy(x, y) }
     }
 
-    fn panic_screen_bound(x: u8, y: u8)  {
+    fn panic_screen_bound(x: u8, y: u8) {
         if x >= SCREEN_WIDTH || y >= SCREEN_HEIGHT {
             panic!("DrawingStream coordinate out of bounds");
         }
@@ -260,7 +266,7 @@ impl DrawingStream {
     /// Draw a point to screen.
     ///
     /// # Panics
-    /// 
+    ///
     /// Panics if coordinates out of bounds.
     pub fn draw_point(&self, (x, y): (u8, u8)) {
         Self::panic_screen_bound(x, y);
@@ -271,7 +277,7 @@ impl DrawingStream {
     /// Draw a line to screen.
     ///
     /// # Panics
-    /// 
+    ///
     /// Panics if coordinates out of bounds.
     pub fn draw_line(&self, (x1, y1): (u8, u8), (x2, y2): (u8, u8)) {
         Self::panic_screen_bound(x1, y1);
@@ -283,7 +289,7 @@ impl DrawingStream {
     /// Draw a box to screen.
     ///
     /// # Panics
-    /// 
+    ///
     /// Panics if coordinates out of bounds.
     pub fn draw_box(&self, (x1, y1): (u8, u8), (x2, y2): (u8, u8), fill: bool) {
         Self::panic_screen_bound(x1, y1);
@@ -299,7 +305,7 @@ impl DrawingStream {
     /// Draw a circle to screen.
     ///
     /// # Panics
-    /// 
+    ///
     /// Panics if coordinates out of bounds.
     pub fn draw_circle(&self, (x, y): (u8, u8), radius: u8, fill: bool) {
         Self::panic_screen_bound(x, y);
@@ -337,4 +343,3 @@ impl Write for DrawingStream {
         Ok(())
     }
 }
-
