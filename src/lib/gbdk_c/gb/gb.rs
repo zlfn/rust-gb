@@ -75,6 +75,7 @@ extern "C" {
     #[link_name = "vsync __preserves_regs(b, c, d, e, h, l)"]
     pub fn vsync();
 
+    #[allow(clippy::deprecated_semver)]
     #[deprecated(since = "gbdk-2020", note = "please use `vsync` instead")]
     #[link_name = "wait_vbl_done __preserves_regs(b, c, d, e, h, l)"]
     pub fn wait_vbl_done();

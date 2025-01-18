@@ -13,11 +13,11 @@ use voladdress::{Safe, Unsafe, VolAddress, VolBlock};
 /// <table class="bit-descrs"><thead><tr><th></th><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th></tr></thead><tbody><tr><td><strong>P1</strong></td><td colspan="2" class="unused-field"></td><td colspan="1">Select buttons</td><td colspan="1">Select d-pad</td><td colspan="1">Start / Down</td><td colspan="1">Select / Up</td><td colspan="1">B / Left</td><td colspan="1">A / Right</td></tr></tbody></table>
 ///
 /// * **Select buttons**: If this bit is `0`, then buttons (SsBA) can be read from the lower
-/// nibble.
+///   nibble.
 /// * **Select d-pad** : If this bit is `0`, then directional keys can be read from the lower
-/// nibble.
+///   nibble.
 /// * The lower nibble is *Read-only*. Note that, rather unconventionally for GameBoy, a button
-/// being pressed is seen as the corresponding bit being `0`, not `1`.
+///   being pressed is seen as the corresponding bit being `0`, not `1`.
 ///
 /// If neigher buttons nor d-pad is selected (`$30` was written), then the low nibble reads `$F`
 /// (all buttons released).
@@ -71,7 +71,7 @@ pub const TMA: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF06) };
 /// <table class="bit-descrs"><thead><tr><th></th><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th></tr></thead><tbody><tr><td><strong>TAC</strong></td><td colspan="5" class="unused-field"></td><td colspan="1">Enable</td><td colspan="2">Clock select</td></tr></tbody></table>
 ///
 /// - **Enable**: Controls whether `TIMA` is incremented.
-///  Note that `DIV` is **always** counting, regardless of this bit.
+///   Note that `DIV` is **always** counting, regardless of this bit.
 /// - **Clock select**: Controls the frequency at which `TIMA` is incremented, as follows:
 ///  
 ///  <div class="table-wrapper"><table>
@@ -185,10 +185,10 @@ pub const NR52: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF26) };
 /// Accessing wave RAM while CH3 is **active** (i.e. playing) causes accesses to misbehave:
 /// * On AGB, reads return `$FF`, and writes are ignored.
 /// * On monochrome consoles, wave RAM can only be accessed on the same cycle that CH3 does.
-/// Otherwise, reads return `$FF`, and writes are ignored.
+///   Otherwise, reads return `$FF`, and writes are ignored.
 /// * On other consoles, the byte accessed will be the on CH3 is currently reading; that is, if Ch3
-/// is currently reading one of the first two samples, the CPU will really access `$FF30`,
-/// regardless of the address being used.
+///   is currently reading one of the first two samples, the CPU will really access `$FF30`,
+///   regardless of the address being used.
 ///
 /// Wave RAM can be accessed normally even if the DAC is on, as long as the channel is not active.
 /// This is especially relevant on GBA whose mixer behaves as if DACs are always enabled.
@@ -327,12 +327,12 @@ pub const PCM34: VolAddress<u8, Safe, ()> = unsafe { VolAddress::new(0xFF77) };
 /// <table class="bit-descrs"><thead><tr><th></th><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th></tr></thead><tbody><tr><td><strong>IE</strong></td><td colspan="3" class="unused-field"></td><td colspan="1">Joypad</td><td colspan="1">Serial</td><td colspan="1">Timer</td><td colspan="1">LCD</td><td colspan="1">VBlank</td></tr></tbody></table>
 ///
 /// * **VBlank** (Read/Write) : Controls whether the VBlank interrupt handler may be called (see
-/// [`IF`]).
+///   [`IF`]).
 /// * **LCD** (Read/Write) : Controls whether the LCD interrupt handler may be called (see [`IF`])
 /// * **Timer** (Read/Write) : Controls whether the Timer interrupt handler may be calle (see
-/// [`IF`])
+///   [`IF`])
 /// * **Serial** (Read/Write) : Controls whether the Serial interrupt handler may be called (see
-/// [`IF`])
+///   [`IF`])
 /// * **Joypad** (Read/Write) : Controls whether the Joypad interrupt handler may be called (see
-/// [`IF`])
+///   [`IF`])
 pub const IE: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFFFF) };
