@@ -320,7 +320,7 @@ impl Joypad {
         while u8::from(current) == 0 {
             current = Joypad::read();
         }
-        return current;
+        current
     }
 
     /// Waits until all key released.

@@ -178,12 +178,12 @@ impl DrawingStyle {
 /// significant differences.
 ///
 /// 1. `DrawingStream` uses `APA` mode drawing library of GBDK. this causes
-/// many side effects, For example, if you try to use `DrawingStream` inside a
-/// VBL interrupt, it will have unexpected result. For more detail, please refer
-/// [GBDK Docs](https://gbdk-2020.github.io/gbdk-2020/docs/api/drawing_8h.html#aa8abfd58ea514228abd69d8f6330e91d)
+///    many side effects, For example, if you try to use `DrawingStream` inside a
+///    VBL interrupt, it will have unexpected result. For more detail, please refer
+///    [GBDK Docs](https://gbdk-2020.github.io/gbdk-2020/docs/api/drawing_8h.html#aa8abfd58ea514228abd69d8f6330e91d)
 ///
 /// 2. Unable to change line with `\n`, this means, when you want to make a new
-/// line, you should use the [`DrawingStream::cursor`] function.
+///    line, you should use the [`DrawingStream::cursor`] function.
 ///
 /// 3. `DrawingStream` can also draw shapes in addition to texts.
 ///
