@@ -1,6 +1,8 @@
 use cargo::Cargo;
 use clap::{arg, command, Parser};
+use console::style;
 use core::str;
+use indicatif::{ProgressBar, ProgressStyle};
 use lcc::Lcc;
 use llvm::{LlvmCbe, LlvmLink};
 use std::{
@@ -8,6 +10,7 @@ use std::{
     os::unix::fs::PermissionsExt,
     process::{self, Command, ExitStatus},
     str::FromStr,
+    time::Duration,
 };
 
 use colored::Colorize;
@@ -61,9 +64,9 @@ impl FromStr for BuildChain {
 }
 
 pub struct WorkingDirectory {
-    root: String,
-    ext: String,
-    out: String,
+    pub root: String,
+    pub ext: String,
+    pub out: String,
 }
 
 impl WorkingDirectory {
@@ -170,7 +173,7 @@ pub enum BuildStepError {
 }
 
 pub trait BuildStep {
-    fn run(dir: &WorkingDirectory) -> Result<(), BuildStepError>;
+    fn run(dir: &WorkingDirectory, bar: &ProgressBar) -> Result<(), BuildStepError>;
 }
 
 fn main() {
@@ -178,7 +181,11 @@ fn main() {
     let build_from = match BuildChain::from_str(&build_rom.from) {
         Ok(from) => from,
         Err(_) => {
-            println!("{}", "[rust-gb] build from flag parse failed".red());
+            println!(
+                "{} {}",
+                style("[Failed]").bold().dim(),
+                "Build from flag parse failed".red(),
+            );
             process::exit(1)
         }
     };
@@ -192,29 +199,35 @@ fn main() {
     let (root, _) = root.rsplit_once('/').unwrap();
 
     let work_dir = WorkingDirectory::init(root);
+    let bar_style = ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {msg}")
+        .unwrap()
+        .tick_chars("⣾⣽⣻⢿⡿⣟⣯⣷");
 
     if build_from <= BuildChain::Rust {
-        if !Cargo::run(&work_dir).is_ok() {
-            println!("{}", "[cargo] Rust -> LLVM-IR compile failed".red());
-            process::exit(1);
-        } else {
-            println!("{}", "[cargo] Rust -> LLVM-IR compile succeeded".green());
+        let bar = ProgressBar::new_spinner();
+        bar.set_style(bar_style.clone());
+        bar.set_prefix("[1/6]");
+        bar.enable_steady_tick(Duration::from_millis(100));
+        if Cargo::run(&work_dir, &bar).is_err() {
+            process::exit(1)
         }
     }
 
     if build_from <= BuildChain::LLVM {
-        if !LlvmLink::run(&work_dir).is_ok() {
-            println!("{}", "[llvm-link] LLVM-IR linking failed".red());
+        let bar = ProgressBar::new_spinner();
+        bar.set_style(bar_style.clone());
+        bar.set_prefix("[2/6]");
+        bar.enable_steady_tick(Duration::from_millis(100));
+        if LlvmLink::run(&work_dir, &bar).is_err() {
             process::exit(1);
-        } else {
-            println!("{}", "[llvm-link] LLVM-IR linking succeeded".green());
         }
 
-        if !LlvmCbe::run(&work_dir).is_ok() {
-            println!("{}", "[llvm-cbe] LLVM-IR -> C compile failed".red());
+        let bar = ProgressBar::new_spinner();
+        bar.set_style(bar_style.clone());
+        bar.set_prefix("[3/6]");
+        bar.enable_steady_tick(Duration::from_millis(100));
+        if LlvmCbe::run(&work_dir, &bar).is_err() {
             process::exit(1);
-        } else {
-            println!("{}", "[llvm-cbe] LLVM-IR -> C compile succeeded".green());
         }
 
         //C postprocessing for SDCC
@@ -224,14 +237,12 @@ fn main() {
         )
         .unwrap();
 
-        if !Treesitter::run(&work_dir).is_ok() {
-            println!("{}", "[treesitter] C postprocess for SDCC failed".red());
+        let bar = ProgressBar::new_spinner();
+        bar.set_style(bar_style.clone());
+        bar.set_prefix("[4/6]");
+        bar.enable_steady_tick(Duration::from_millis(100));
+        if Treesitter::run(&work_dir, &bar).is_err() {
             process::exit(1);
-        } else {
-            println!(
-                "{}",
-                "[treesitter] C postprocess for SDCC succeeded".green()
-            );
         }
 
         /*Command::new("sed")
@@ -249,22 +260,24 @@ fn main() {
     }
 
     if build_from <= BuildChain::C {
-        if !Sdcc::run(&work_dir).is_ok() {
-            println!("{}", "[sdcc] C -> ASM compile failed".red());
+        let bar = ProgressBar::new_spinner();
+        bar.set_style(bar_style.clone());
+        bar.set_prefix("[5/6]");
+        bar.enable_steady_tick(Duration::from_millis(100));
+        if Sdcc::run(&work_dir, &bar).is_err() {
             process::exit(1);
-        } else {
-            println!("{}", "[sdcc] C -> ASM compile succeeded".green());
         }
     }
 
     if build_from <= BuildChain::ASM {
-        if !Lcc::run(&work_dir).is_ok() {
-            println!("{}", "[lcc] GBDK link failed".red());
+        let bar = ProgressBar::new_spinner();
+        bar.set_style(bar_style.clone());
+        bar.set_prefix("[6/6]");
+        bar.enable_steady_tick(Duration::from_millis(100));
+        if Lcc::run(&work_dir, &bar).is_err() {
             process::exit(1);
-        } else {
-            println!("{}", "[lcc] GBDK link succeeded".green());
         }
     }
 
-    println!("{}", "GB ROM build succeeded".green());
+    println!("{}", "GB ROM Build Succeeded".green());
 }

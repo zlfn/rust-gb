@@ -1,12 +1,15 @@
 use std::process::Command;
 
+use colored::Colorize;
+use indicatif::ProgressBar;
+
 use crate::{BuildStep, BuildStepError};
 
 pub struct Sdcc {}
 
 impl Sdcc {
-    pub fn compile(c_path: &str, asm_path: &str) -> Result<(), BuildStepError> {
-        if let Ok(status) = Command::new("sdcc")
+    pub fn compile(c_path: &str, asm_path: &str, bar: &ProgressBar) -> Result<(), BuildStepError> {
+        if let Ok(output) = Command::new("sdcc")
             .args([
                 "-S",
                 "-linc",
@@ -40,14 +43,15 @@ impl Sdcc {
                 "-o",
                 asm_path,
             ])
-            .status()
+            .output()
         {
-            if status.success() {
+            if output.status.success() {
                 return Ok(());
             } else {
+                bar.println(String::from_utf8_lossy(&output.stderr));
                 return Err(BuildStepError::ChildProcessFailed(
                     "sdcc".to_string(),
-                    status,
+                    output.status,
                 ));
             }
         } else {
@@ -57,18 +61,27 @@ impl Sdcc {
 }
 
 impl BuildStep for Sdcc {
-    fn run(dir: &crate::WorkingDirectory) -> Result<(), BuildStepError> {
+    fn run(dir: &crate::WorkingDirectory, bar: &ProgressBar) -> Result<(), BuildStepError> {
+        bar.set_message("C -> ASM Compiling...");
         let c_file = format!("{}/out.c", dir.out);
         let asm_file = format!("{}/out.asm", dir.out);
 
-        Self::compile(&c_file, &asm_file)?;
+        if let Err(err) = Self::compile(&c_file, &asm_file, &bar) {
+            bar.finish_with_message(format!("{}", "C -> ASM Compiling Failed".red()));
+            return Err(err);
+        }
 
         let c_path = dir.get_c_paths();
         for c_file in c_path {
             let (_, out_name) = c_file.rsplit_once('/').unwrap();
             let out_name = format!("{}/asm/{}.asm", dir.out, out_name);
-            Self::compile(&c_file, out_name.as_str())?;
+            if let Err(err) = Self::compile(&c_file, out_name.as_str(), &bar) {
+                bar.finish_with_message(format!("{}", "C -> ASM Compiling Failed".red()));
+                return Err(err);
+            }
         }
+
+        bar.finish_with_message(format!("{}", "C -> ASM Compiling Succeeded".green()));
         Ok(())
     }
 }
