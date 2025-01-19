@@ -4,6 +4,8 @@ use std::{
     process::Command,
 };
 
+use colored::Colorize;
+use indicatif::ProgressBar;
 use streaming_iterator::StreamingIterator;
 use tree_sitter::{Query, QueryCursor};
 
@@ -12,7 +14,8 @@ use crate::{BuildStep, BuildStepError};
 pub struct Treesitter {}
 
 impl BuildStep for Treesitter {
-    fn run(dir: &crate::WorkingDirectory) -> Result<(), BuildStepError> {
+    fn run(dir: &crate::WorkingDirectory, bar: &ProgressBar) -> Result<(), BuildStepError> {
+        bar.set_message("Treesitter Running...");
         let c_path = format!("{}/out.c", dir.out);
 
         let mut code = fs::read_to_string(&c_path)?;
@@ -29,23 +32,28 @@ impl BuildStep for Treesitter {
 
         //Remove All Global Variable Declarations (Because it is mostly duplicated with Global Variable Definitions)
         //TODO: It can cause problems, so it needs to be replaced with a more sophisticated logic
-        if let Ok(status) = Command::new("sed")
+        if let Ok(output) = Command::new("sed")
             .args([
                 "/.*Global Variable Declarations.*/,/.*Function Declarations.*/{/^\\//!d;}",
                 "-i",
                 c_path.as_str(),
             ])
-            .status()
+            .output()
         {
-            if status.success() {
+            if output.status.success() {
+                bar.finish_with_message(format!("{}", "Treesitter Run Succeeded".green()));
                 return Ok(());
             } else {
+                bar.println(String::from_utf8_lossy(&output.stderr));
+                bar.finish_with_message(format!("{}", "Treesitter Run Failed".red()));
                 return Err(BuildStepError::ChildProcessFailed(
                     "sed".to_string(),
-                    status,
+                    output.status,
                 ));
             }
         } else {
+            bar.println("sed execution failed");
+            bar.finish_with_message(format!("{}", "Treesitter Run Failed".red()));
             Err(BuildStepError::ChildExecutionFailed("sed".to_string()))
         }
     }

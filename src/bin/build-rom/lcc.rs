@@ -1,11 +1,15 @@
-use std::process::Command;
+use std::process::{Command, Stdio};
+
+use colored::Colorize;
+use indicatif::ProgressBar;
 
 use crate::{BuildStep, BuildStepError};
 
 pub struct Lcc {}
 
 impl BuildStep for Lcc {
-    fn run(dir: &crate::WorkingDirectory) -> Result<(), crate::BuildStepError> {
+    fn run(dir: &crate::WorkingDirectory, bar: &ProgressBar) -> Result<(), crate::BuildStepError> {
+        bar.set_message("GB ROM Linking...");
         let mut asm_path = dir.get_asm_paths();
 
         let mut lcc_args: Vec<String> = vec![
@@ -17,18 +21,26 @@ impl BuildStep for Lcc {
 
         lcc_args.append(&mut asm_path);
 
-        let status = Command::new(format!("{}/bin/lcc", dir.ext))
+        if let Ok(output) = Command::new(format!("{}/bin/lcc", dir.ext))
             .args(lcc_args)
-            .status()
-            .map_err(|_| BuildStepError::ChildExecutionFailed("lcc".to_string()))?;
-
-        if status.success() {
-            return Ok(());
+            .stderr(Stdio::null())
+            .stdout(Stdio::null())
+            .output()
+        {
+            if output.status.success() {
+                bar.finish_with_message(format!("{}", "GB ROM Linking Succeeded".green()));
+                return Ok(());
+            } else {
+                bar.println(String::from_utf8_lossy(&output.stderr));
+                bar.finish_with_message(format!("{}", "GB ROM Linking Failed".red()));
+                return Err(BuildStepError::ChildProcessFailed(
+                    "lcc".to_string(),
+                    output.status,
+                ));
+            }
         } else {
-            return Err(BuildStepError::ChildProcessFailed(
-                "lcc".to_string(),
-                status,
-            ));
+            bar.println("lcc executing failed");
+            return Err(BuildStepError::ChildExecutionFailed("lcc".to_string()));
         }
     }
 }

@@ -31,10 +31,12 @@ required-features = ["compiler"]
 # Binary dependencies
 clap = { version = "4.5.17", features = ["derive", "cargo"], optional = true }
 colored = { version = "3.0.0", optional = true }
+console = { version = "0.15.10", optional = true }
 tree-sitter = { version = "0.24.6", optional = true }
 tree-sitter-c = { version = "0.23.4", optional = true }
 thiserror = { version = "2.0.11", optional = true }
 include_dir = { version = "0.7.4", optional = true }
+indicatif = { version = "0.17.9", optional = true }
 ast-grep-core = { version = "0.33.0", optional = true }
 ast-grep-language = { version = "0.33.0", optional = true }
 # Library dependencies
@@ -71,10 +73,12 @@ prototype = []
 compiler = [
 	"clap", 
 	"colored", 
+	"console",
 	"tree-sitter", 
 	"tree-sitter-c", 
 	"thiserror",
 	"include_dir",
+	"indicatif",
 	"ast-grep-core",
 	"ast-grep-language",
 ]
