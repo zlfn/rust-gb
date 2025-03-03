@@ -16,7 +16,6 @@ impl BuildStep for Lcc {
             "-msm83:gb".to_string(),
             "-o".to_string(),
             format!("{}/out.gb", dir.out),
-            format!("{}/out.asm", dir.out),
         ];
 
         lcc_args.append(&mut asm_path);
