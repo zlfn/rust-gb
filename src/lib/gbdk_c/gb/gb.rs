@@ -1,5 +1,5 @@
 #[allow(non_camel_case_types)]
-type int_handler = extern "C" fn();
+type int_handler = unsafe extern "C" fn();
 
 pub const SYSTEM_60HZ: u8 = 0x00;
 pub const SYSTEM_50HZ: u8 = 0x01;

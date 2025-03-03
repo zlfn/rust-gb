@@ -1,14 +1,8 @@
-use core::{mem::transmute, ops::BitOr};
-
 use crate::gbdk_c;
-
-pub struct VBlank {
-    private: (),
-}
 
 #[repr(u8)]
 #[derive(Clone, Copy)]
-pub enum Interrupt {
+pub enum InterruptKind {
     VBlank = 0x01,
     LCD = 0x02,
     Timer = 0x04,
@@ -16,76 +10,45 @@ pub enum Interrupt {
     Joypad = 0x10,
 }
 
+#[derive(Clone, Copy)]
+pub struct Interrupt {
+    pub kind: InterruptKind,
+    pub handler: unsafe extern "C" fn(),
+}
+
 impl Interrupt {
-    pub unsafe fn add(self, int: unsafe extern "C" fn()) -> Self {
-        let int = unsafe { transmute(int) };
-        match self {
-            Self::VBlank => unsafe { gbdk_c::gb::gb::add_VBL(int) },
-            Self::LCD => unsafe { gbdk_c::gb::gb::add_LCD(int) },
-            Self::Timer => unsafe { gbdk_c::gb::gb::add_TIM(int) },
-            Self::Serial => unsafe { gbdk_c::gb::gb::add_SIO(int) },
-            Self::Joypad => unsafe { gbdk_c::gb::gb::add_JOY(int) },
+    unsafe fn register(&self) {
+        match self.kind {
+            InterruptKind::VBlank => unsafe { gbdk_c::gb::gb::add_VBL(self.handler) },
+            InterruptKind::LCD => unsafe { gbdk_c::gb::gb::add_LCD(self.handler) },
+            InterruptKind::Timer => unsafe { gbdk_c::gb::gb::add_TIM(self.handler) },
+            InterruptKind::Serial => unsafe { gbdk_c::gb::gb::add_SIO(self.handler) },
+            InterruptKind::Joypad => unsafe { gbdk_c::gb::gb::add_JOY(self.handler) },
         }
-        return self;
-    }
-
-    pub unsafe fn enable() {
-        unsafe { gbdk_c::gb::gb::enable_interrupts() };
-    }
-
-    pub unsafe fn disable() {
-        unsafe { gbdk_c::gb::gb::disable_interrupts() };
-    }
-
-    pub fn wait_vblank() -> VBlank {
-        unsafe { gbdk_c::gb::gb::vsync() };
-        return VBlank { private: () };
-    }
-
-    pub unsafe fn set(&self) {
-        unsafe { gbdk_c::gb::gb::set_interrupts(*self as u8) };
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
-pub struct InterruptSet(u8);
-
-impl From<InterruptSet> for u8 {
-    fn from(value: InterruptSet) -> Self {
-        value.0
-    }
+pub struct InterruptBuilder {
+    int_flag: u8,
 }
 
-impl InterruptSet {
-    pub unsafe fn set(&self) {
-        unsafe { gbdk_c::gb::gb::set_interrupts(u8::from(*self)) };
+impl InterruptBuilder {
+    pub fn new() -> Self {
+        Self { int_flag: 0x0 }
     }
-}
 
-impl BitOr<Self> for Interrupt {
-    type Output = InterruptSet;
-    fn bitor(self, rhs: Self) -> Self::Output {
-        InterruptSet(self as u8 | rhs as u8)
+    pub unsafe fn register_irq(&mut self, int: Interrupt) -> &mut Self {
+        int.register();
+        self.int_flag |= int.kind as u8;
+        self
     }
-}
 
-impl BitOr<InterruptSet> for Interrupt {
-    type Output = InterruptSet;
-    fn bitor(self, rhs: InterruptSet) -> Self::Output {
-        InterruptSet(self as u8 | u8::from(rhs))
+    pub unsafe fn enable(&self) {
+        gbdk_c::gb::gb::set_interrupts(self.int_flag);
+        gbdk_c::gb::gb::enable_interrupts();
     }
-}
 
-impl BitOr<Interrupt> for InterruptSet {
-    type Output = InterruptSet;
-    fn bitor(self, rhs: Interrupt) -> Self::Output {
-        InterruptSet(u8::from(self) | rhs as u8)
-    }
-}
-
-impl BitOr<InterruptSet> for InterruptSet {
-    type Output = InterruptSet;
-    fn bitor(self, rhs: InterruptSet) -> Self::Output {
-        InterruptSet(u8::from(self) | u8::from(rhs))
+    pub unsafe fn disable(&self) {
+        gbdk_c::gb::gb::disable_interrupts();
     }
 }

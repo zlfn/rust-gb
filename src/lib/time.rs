@@ -10,6 +10,10 @@ unsafe extern "C" fn increase_system_timer() {
     SYSTEM_TIMER += 1;
 }
 
+extern "C" {
+    fn halt();
+}
+
 #[repr(u8)]
 #[derive(Clone, Copy)]
 pub enum TimerClock {
@@ -43,7 +47,10 @@ impl Instant {
         // Make SYSTEM_TIMER increase in 16Hz (Slowest as possible)
         Self::enable_timer(TimerClock::MCycle256, 0);
         ENABLE_TIMER = true;
-        Interrupt::Timer.add(increase_system_timer)
+        Interrupt {
+            kind: crate::irq::InterruptKind::Timer,
+            handler: increase_system_timer,
+        }
     }
 
     pub fn now() -> Self {
@@ -64,7 +71,7 @@ impl Instant {
 
             // Calculate miliseconds from SYSTEM_TIMER change
             Some(Duration::from_millis(
-                (delta_freq / Self::FREQUENCY * 1000).into(),
+                (delta_freq * 1000 / Self::FREQUENCY).into(),
             ))
         }
     }
@@ -76,7 +83,7 @@ impl Instant {
             let delta_freq = self.0 - earlier.0;
 
             // Calculate miliseconds from SYSTEM_TIMER change
-            Duration::from_millis((delta_freq / Self::FREQUENCY * 1000) as u64)
+            Duration::from_millis((delta_freq * 1000 / Self::FREQUENCY) as u64)
         }
     }
 
@@ -157,5 +164,7 @@ pub fn sleep_ms(ms: u32) {
 
 /// Sleep until given [`Instant`]
 pub fn sleep_until(deadline: Instant) {
-    while !Instant::now().saturating_duration_since(deadline).is_zero() {}
+    while !deadline.saturating_duration_since(Instant::now()).is_zero() {
+        unsafe { halt() }
+    }
 }
