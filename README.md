@@ -47,7 +47,8 @@ PRs are always welcome too!
 * rust (nightly)
 * avr-gcc
 * avr-libc
-* sdcc
+* sdcc (4.4.0)
+* ast-grep
 
 This project is still a work in progress, and I haven't tested it outside of my development environment.
 
