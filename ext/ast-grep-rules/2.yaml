@@ -1,0 +1,18 @@
+# Bypass: https://sourceforge.net/p/sdcc/bugs/3121/
+# Where: SDCC 4.4.0 #14620
+# 
+# Before:
+# struct struct_name variable_name = function();
+#
+# After:
+# struct struct_name variable_name;
+# variable_name = function();
+#
+language: C
+id: rust-gb-2
+rule:
+  pattern: struct $A $B = $$$C
+  kind: declaration
+fix:
+  struct $A $B;
+  $B = $$$C;

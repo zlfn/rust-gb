@@ -21,13 +21,14 @@
 //! `compiler` feature is required when installing the Rust-GB compiler.
 //! If not, binary will not be installed.
 //!
-//! Also, note that `avr-gcc`, `avr-libc`, `sdcc`, `rust-src` are required. You need to install
+//! Also, note that `avr-gcc`, `avr-libc`, `sdcc`, `rust-src`, `ast-grep` are required. You need to install
 //! them to your system before running the compiler.
 //!
 //! ```bash
 //! # Example for Ubuntu
 //! sudo apt install gcc-avr avr-libc sdcc
 //! rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
+//! cargo install ast-grep --locked
 //! ```
 //! ### Note
 //! Right now, you can't run the Rust-GB compiler other than Linux x64. This is because the

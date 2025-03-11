@@ -1,3 +1,4 @@
+use ast_grep::AstGrep;
 use cargo::Cargo;
 use clap::{arg, command, Parser};
 use console::style;
@@ -18,6 +19,7 @@ use include_dir::{include_dir, Dir};
 use sdcc::Sdcc;
 use treesitter::Treesitter;
 
+mod ast_grep;
 mod cargo;
 mod lcc;
 mod llvm;
@@ -206,7 +208,7 @@ fn main() {
     if build_from <= BuildChain::Rust {
         let bar = ProgressBar::new_spinner();
         bar.set_style(bar_style.clone());
-        bar.set_prefix("[1/6]");
+        bar.set_prefix("[1/7]");
         bar.enable_steady_tick(Duration::from_millis(100));
         if Cargo::run(&work_dir, &bar).is_err() {
             process::exit(1)
@@ -216,7 +218,7 @@ fn main() {
     if build_from <= BuildChain::LLVM {
         let bar = ProgressBar::new_spinner();
         bar.set_style(bar_style.clone());
-        bar.set_prefix("[2/6]");
+        bar.set_prefix("[2/7]");
         bar.enable_steady_tick(Duration::from_millis(100));
         if LlvmLink::run(&work_dir, &bar).is_err() {
             process::exit(1);
@@ -224,7 +226,7 @@ fn main() {
 
         let bar = ProgressBar::new_spinner();
         bar.set_style(bar_style.clone());
-        bar.set_prefix("[3/6]");
+        bar.set_prefix("[3/7]");
         bar.enable_steady_tick(Duration::from_millis(100));
         if LlvmCbe::run(&work_dir, &bar).is_err() {
             process::exit(1);
@@ -239,9 +241,17 @@ fn main() {
 
         let bar = ProgressBar::new_spinner();
         bar.set_style(bar_style.clone());
-        bar.set_prefix("[4/6]");
+        bar.set_prefix("[4/7]");
         bar.enable_steady_tick(Duration::from_millis(100));
         if Treesitter::run(&work_dir, &bar).is_err() {
+            process::exit(1);
+        }
+
+        let bar = ProgressBar::new_spinner();
+        bar.set_style(bar_style.clone());
+        bar.set_prefix("[5/7]");
+        bar.enable_steady_tick(Duration::from_millis(100));
+        if AstGrep::run(&work_dir, &bar).is_err() {
             process::exit(1);
         }
 
@@ -262,7 +272,7 @@ fn main() {
     if build_from <= BuildChain::C {
         let bar = ProgressBar::new_spinner();
         bar.set_style(bar_style.clone());
-        bar.set_prefix("[5/6]");
+        bar.set_prefix("[6/7]");
         bar.enable_steady_tick(Duration::from_millis(100));
         if Sdcc::run(&work_dir, &bar).is_err() {
             process::exit(1);
@@ -272,7 +282,7 @@ fn main() {
     if build_from <= BuildChain::ASM {
         let bar = ProgressBar::new_spinner();
         bar.set_style(bar_style.clone());
-        bar.set_prefix("[6/6]");
+        bar.set_prefix("[7/7]");
         bar.enable_steady_tick(Duration::from_millis(100));
         if Lcc::run(&work_dir, &bar).is_err() {
             process::exit(1);
