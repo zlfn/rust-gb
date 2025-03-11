@@ -1,4 +1,4 @@
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 use colored::Colorize;
 use indicatif::ProgressBar;
@@ -16,14 +16,13 @@ impl BuildStep for Lcc {
             "-msm83:gb".to_string(),
             "-o".to_string(),
             format!("{}/out.gb", dir.out),
+            format!("{}/out.asm", dir.out),
         ];
 
         lcc_args.append(&mut asm_path);
 
         if let Ok(output) = Command::new(format!("{}/bin/lcc", dir.ext))
             .args(lcc_args)
-            .stderr(Stdio::null())
-            .stdout(Stdio::null())
             .output()
         {
             if output.status.success() {
