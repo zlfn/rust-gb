@@ -4,18 +4,18 @@
 # Where: SDCC 4.5.0 #15240
 #
 # Before:
-# struct struct_name funcion1() {
+# static struct struct_name funcion1() {
 #   return function2();
 # }
 #
 # After:
-# struct struct_name function1() {
+# static struct struct_name function1() {
 #   struct struct_name _return = function2();
 #   return _return;
 # }
 #
 language: C
-id: rust-gb-1
+id: static-struct-return
 rule:
   pattern: return $$$A;
   kind: return_statement
@@ -23,7 +23,7 @@ rule:
     kind: compound_statement
     inside:
       kind: function_definition
-      pattern: struct $B $$$ {$$$}
+      pattern: static struct $B $$$ {$$$}
 fix:
   struct $B _return = $$$A;
   return _return;

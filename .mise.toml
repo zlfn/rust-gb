@@ -1,2 +1,2 @@
 [tools]
-rust = "nightly"
+rust = "latest"

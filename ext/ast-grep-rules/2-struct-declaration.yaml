@@ -9,7 +9,7 @@
 # variable_name = function();
 #
 language: C
-id: rust-gb-2
+id: struct-declaration
 rule:
   pattern: struct $A $B = $$$C
   kind: declaration

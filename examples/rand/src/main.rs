@@ -2,15 +2,13 @@
 #![no_main]
 #![allow(dead_code)]
 #![feature(asm_experimental_arch)]
-#![feature(panic_info_message)]
-#![feature(strict_provenance)]
 
 use core::ffi::c_char;
 
 use gb::{gbdk_c::{gb::{drawing::{gotogxy, gprint, plot, DKGREY, LTGREY, SOLID}, gb::{waitpad, waitpadup}}, rand::{arand, initarand, rand}, stdio::puts}, mmio::DIV};
 
 #[no_mangle]
-pub extern fn main() {
+pub extern "C" fn main() {
     let mut accu: [u8; 80] = [0; 80];
     let mut accua: [u8; 80] = [0; 80];
 
@@ -56,6 +54,6 @@ pub extern fn main() {
 #[allow(unconditional_recursion)]
 #[panic_handler]
 #[cfg(not(test))]
-fn panic_handler_phony(info: &core::panic::PanicInfo) -> ! {
+fn panic_handler_phony(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }

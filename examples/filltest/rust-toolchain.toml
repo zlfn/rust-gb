@@ -1,0 +1,3 @@
+[toolchain]
+channel = "nightly-2025-02-13"
+targets = ["avr-unknown-gnu-atmega328"]

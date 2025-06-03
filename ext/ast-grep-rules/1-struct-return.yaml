@@ -1,0 +1,29 @@
+# Bypass:
+# Avoid SIGSEGV issues when returning a return value of function that
+# returns struct in SDCC Z80 build.
+# Where: SDCC 4.5.0 #15240
+#
+# Before:
+# struct struct_name funcion1() {
+#   return function2();
+# }
+#
+# After:
+# struct struct_name function1() {
+#   struct struct_name _return = function2();
+#   return _return;
+# }
+#
+language: C
+id: struct-return
+rule:
+  pattern: return $$$A;
+  kind: return_statement
+  inside:
+    kind: compound_statement
+    inside:
+      kind: function_definition
+      pattern: struct $B $$$ {$$$}
+fix:
+  struct $B _return = $$$A;
+  return _return;

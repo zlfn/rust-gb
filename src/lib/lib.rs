@@ -13,7 +13,7 @@
 //!
 //! ``` bash
 //! git clone https://github.com/zlfn/rust-gb.git
-//! git checkout tags/v0.1.0-alpha.2
+//! git checkout tags/v0.1.0-alpha.3
 //! cd rust-gb
 //! cargo install --path . --features compiler
 //! ```
@@ -70,9 +70,6 @@
 #![no_std]
 #![no_main]
 #![allow(dead_code)]
-#![feature(strict_provenance)]
-#![feature(format_args_nl)]
-#![feature(doc_cfg)]
 
 pub mod drawing;
 pub mod io;
