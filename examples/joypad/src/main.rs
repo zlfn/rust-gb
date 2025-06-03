@@ -15,7 +15,7 @@ fn detect_once(condition: bool, message: &str, pressed: &mut bool) {
 }
 
 #[no_mangle]
-pub extern fn main() {
+pub extern "C" fn main() {
     println!("Press Any Button");
     let mut pressed: [bool; 8] = [false; 8];
     loop {

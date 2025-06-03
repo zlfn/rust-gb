@@ -27,7 +27,7 @@ fn linetest(x: u8, y: u8, w: u8) {
 }
 
 #[no_mangle]
-pub extern fn main() {
+pub extern "C" fn main() {
     let mut c: c_char = 0;
     unsafe {
         for a in 0..16 {
