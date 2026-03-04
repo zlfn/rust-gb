@@ -15,12 +15,9 @@ You can find ROM builds of examples in [release](https://github.com/zlfn/rust-gb
 
 > **Project Status**  
 >
-> I'm currently working on a [Cranelift-Z80](https://github.com/zlfn/cranelift-z80) backend that compiles code
-> to Z80(SM83) Assembly without using LLVM, LLVM-CBE or SDCC.
->
-> Cranelift is a experimental compiler backend for Rust developed by the [Bytecode Alliance](https://bytecodealliance.org/), and can be used as an alternative to LLVM.
-> 
-> If you're interested in this new backend project, feel free to contact me ㅡ we could make a great team!
+> I am currently developing [LLVM-Z80](https://github.com/zlfn/llvm-z80) (which includes SM83 as a subtarget), leveraging generative AI to boost productivity.  
+> As for Cranelift, the project is currently on hold due to [issues with subregister allocation](https://github.com/bytecodealliance/regalloc2/issues/247); I plan to resume once [regalloc3](https://github.com/Amanieu/regalloc3) is released.  
+> I expect to have a stable Rust-to-Z80 compiler ready within the next few months :)
 
 ## How is this possible?
 GameBoy is not a possible target of Rust (even its not in [Tier 3](https://doc.rust-lang.org/nightly/rustc/platform-support.html)), and there is currently no suitable (stable) LLVM backend for the CPU in GameBoy. Therefore, the Rust code is compiled using the following process.
