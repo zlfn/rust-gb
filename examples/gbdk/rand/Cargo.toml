@@ -1,0 +1,13 @@
+[package]
+name = "gbdk-rand"
+version = "0.1.0"
+edition = "2024"
+autobins = false
+
+[lib]
+name = "gbdk_rand"
+path = "src/main.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+gbdk-sys = { path = "../../../crates/gbdk-sys" }

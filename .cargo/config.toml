@@ -1,0 +1,4 @@
+[env]
+# LLVM_Z80_BIN is provided per-developer via .env at the workspace root
+# (copy .env.example to .env; see crates/gbdk-sys/build.rs).
+GB_BANK_PACK = { value = "target/release/gb-bank-pack", relative = true, force = false }

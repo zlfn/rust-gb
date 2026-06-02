@@ -1,0 +1,17 @@
+[package]
+name = "bank-test"
+version = "0.1.0"
+edition = "2024"
+autobins = false
+
+[lib]
+name = "bank_test"
+path = "src/main.rs"
+crate-type = ["staticlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+gbdk-sys = { path = "../../crates/gbdk-sys" }
+gb-bank = { path = "../../crates/bank/gb-bank" }

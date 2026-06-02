@@ -1,0 +1,8 @@
+[package]
+name = "gb-bank"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gb-bank-type = { path = "../gb-bank-type" }
+gb-bank-macros = { path = "../gb-bank-macros" }

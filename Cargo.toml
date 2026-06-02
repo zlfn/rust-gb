@@ -1,0 +1,43 @@
+[workspace]
+members = [
+    "crates/gbdk-sys",
+    "crates/utils/gb-header-fix",
+    "crates/bank/gb-bank-type",
+    "crates/bank/gb-bank-pack",
+    "crates/bank/gb-bank-macros",
+    "crates/bank/gb-bank",
+    "examples/slideshow",
+    "examples/bank-test",
+    "examples/gbdk/filltest",
+    "examples/gbdk/rand",
+    "examples/gbdk/paint",
+    "examples/gbdk/apa-image",
+    "examples/gbdk/colorbar",
+    "examples/gbdk/dscan",
+    "examples/gbdk/galaxy",
+    "examples/gbdk/dtmf",
+    "examples/gbdk/gbtype",
+    "examples/gbdk/rpn",
+    "examples/gbdk/lcd-isr-wobble",
+    "examples/gbdk/comm",
+    "examples/gbdk/sgb-pong",
+]
+# `cargo build` at the workspace root builds only the host-side library and tool
+# crates. The Game Boy examples need the z80 toolchain and are built through their
+# own Makefile, so they are kept out of the default set.
+default-members = [
+    "crates/utils/gb-header-fix",
+    "crates/bank/gb-bank-type",
+    "crates/bank/gb-bank-pack",
+    "crates/bank/gb-bank-macros",
+    "crates/bank/gb-bank",
+]
+resolver = "3"
+
+[workspace.lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ['cfg(rust_analyzer)']
+
+[profile.release]
+opt-level = "s"
+lto = false

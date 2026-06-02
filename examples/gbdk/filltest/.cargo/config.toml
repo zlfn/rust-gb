@@ -1,0 +1,2 @@
+[build]
+target = "sm83-nintendo-none-elf"

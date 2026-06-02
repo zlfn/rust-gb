@@ -1,0 +1,16 @@
+[package]
+name = "gb-image-fx"
+version = "0.1.0"
+edition = "2024"
+description = "Convert images to Game Boy / Game Boy Color tile data"
+
+[[bin]]
+name = "gb-image-fx"
+path = "src/main.rs"
+
+[dependencies]
+image = "0.25"
+pico-args = "0.5"
+palette = "0.7"
+
+[workspace]

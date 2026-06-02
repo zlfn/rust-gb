@@ -1,0 +1,14 @@
+target/
+out/
+
+# Local environment / editor config (machine-specific)
+.env
+.nvim.lua
+.mise.toml
+
+examples/**/ext/
+
+
+# Added by cargo
+
+/target

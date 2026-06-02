@@ -1,0 +1,9 @@
+/* gbdk.ld — GBDK fixed-address sections for ld.lld
+ * Use with: ld.lld -T gb.ld -T gbdk.ld ...
+ */
+
+SECTIONS {
+    _DRAW_HEADER0 (0x0070) : { KEEP(*(_DRAW_HEADER0)) } > ROM
+    _DRAW_HEADER1 (0x00F4) : { KEEP(*(_DRAW_HEADER1)) } > ROM
+    _FONT_HEADER0 (0x00F8) : { KEEP(*(_FONT_HEADER0)) } > ROM
+}
