@@ -1,7 +1,7 @@
 //! Bank Pack: ROM banking test suite on the new `gb-bank` API.
 //! A: run tests, D-PAD: swap tiles.
 //!
-//! The resident `main` is `#[bank::zero]`, so `.drive()` / `.with()` thread its
+//! The resident `main` is `#[bank::zero]`, so `.drive()` / `.there()` thread its
 //! ambient token automatically. Every banked module is its own bank group.
 
 #![no_std]
@@ -145,7 +145,7 @@ fn main() {
         msg(b"A:test D-PAD:tiles ");
 
         // Load tile data into VRAM while its bank is mapped (preserves text).
-        tiles_a::DATA.with(|t| set_bkg_data(0, 8, t.as_ptr()));
+        tiles_a::DATA.there(|t| set_bkg_data(0, 8, t.as_ptr()));
 
         let mut prev: u8 = 0;
         let mut acc: u8 = 0x10;
@@ -249,15 +249,15 @@ fn main() {
                     far!(dispatch::mul).erase(),
                     far!(resident_inc).erase(),
                 ];
-                if check(&mut n, table[0].call(v), v.wrapping_add(0x11)) {
+                if check(&mut n, table[0].invoke(v), v.wrapping_add(0x11)) {
                     pass += 1;
                 }
-                if check(&mut n, table[3].call(v), v.wrapping_add(1)) {
+                if check(&mut n, table[3].invoke(v), v.wrapping_add(1)) {
                     pass += 1;
                 }
 
                 // 10. Banked data
-                if check(&mut n, tiles_a::DATA.with(|t| t[0]), 0xFF) {
+                if check(&mut n, tiles_a::DATA.there(|t| t[0]), 0xFF) {
                     pass += 1;
                 }
 
@@ -299,22 +299,22 @@ fn main() {
 
             // D-PAD: swap tile data (glyphs change, text stays).
             if pressed & J_LEFT != 0 {
-                tiles_a::DATA.with(|t| set_bkg_data(0, 8, t.as_ptr()));
+                tiles_a::DATA.there(|t| set_bkg_data(0, 8, t.as_ptr()));
                 gotoxy(0, 16);
                 msg(b"tiles_a            ");
             }
             if pressed & J_UP != 0 {
-                tiles_b::DATA.with(|t| set_bkg_data(0, 8, t.as_ptr()));
+                tiles_b::DATA.there(|t| set_bkg_data(0, 8, t.as_ptr()));
                 gotoxy(0, 16);
                 msg(b"tiles_b            ");
             }
             if pressed & J_RIGHT != 0 {
-                tiles_c::DATA.with(|t| set_bkg_data(0, 8, t.as_ptr()));
+                tiles_c::DATA.there(|t| set_bkg_data(0, 8, t.as_ptr()));
                 gotoxy(0, 16);
                 msg(b"tiles_c            ");
             }
             if pressed & J_DOWN != 0 {
-                tiles_d::DATA.with(|t| set_bkg_data(0, 8, t.as_ptr()));
+                tiles_d::DATA.there(|t| set_bkg_data(0, 8, t.as_ptr()));
                 gotoxy(0, 16);
                 msg(b"tiles_d            ");
             }

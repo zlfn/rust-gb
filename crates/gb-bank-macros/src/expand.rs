@@ -28,7 +28,7 @@ struct Rewrite {
     tok: Ident,
     /// The ambient [`Anchor`](gb_bank::Anchor) ident, present only in a *resident*
     /// body (`#[bank::main]` / `#[bank::zero]`). `None` in a `#[bank]` body, where
-    /// `scope` / `with` are a compile error: their closure would run across a bank
+    /// `scope` / `there` are a compile error: their closure would run across a bank
     /// switch with the banked body's own code unmapped. This single field is the
     /// resident-vs-banked flag *and* the anchor to thread.
     anchor: Option<Ident>,
@@ -52,7 +52,7 @@ impl Rewrite {
         }
     }
 
-    /// The shared `&Bank<_>` expression to thread (for [`Far::get`], a read).
+    /// The shared `&Bank<_>` expression to thread (for [`Far::local`], a read).
     fn bank_arg_shared(&self) -> Expr {
         let tok = &self.tok;
         if self.reborrow {
@@ -70,14 +70,14 @@ impl Rewrite {
     }
 }
 
-/// The diagnostic shown when a `#[bank]` function reaches for `scope` / `with`.
-const BANKED_CLOSURE_MSG: &str = "`scope` / `with` run a closure across a bank \
+/// The diagnostic shown when a `#[bank]` function reaches for `scope` / `there`.
+const BANKED_CLOSURE_MSG: &str = "`scope` / `there` run a closure across a bank \
 switch, which a `#[bank]` function cannot survive: its own code lives in a \
-switchable bank and is unmapped while the closure runs. Use `.get` for same-bank \
-data, `.near` / `.drive` / `.call` for calls, or move the closure into a \
+switchable bank and is unmapped while the closure runs. Use `.local` for same-bank \
+data, `.near` / `.drive` / `.invoke` for calls, or move the closure into a \
 `#[bank::zero]` (bank 0) helper.";
 
-/// If `e` is a `scope` or `with` call (the closure-across-a-switch operations), the
+/// If `e` is a `scope` or `there` call (the closure-across-a-switch operations), the
 /// span to point a diagnostic at. Used to reject them in a banked body. Matches
 /// *any* arity, not just the sugar forms, so the explicit `scope(anchor, outer, f)`
 /// (which a banked body could otherwise reach with a smuggled `Anchor`) is rejected
@@ -86,7 +86,7 @@ data, `.near` / `.drive` / `.call` for calls, or move the closure into a \
 fn banked_closure_op_span(e: &Expr) -> Option<Span> {
     match e {
         Expr::Call(call) if is_scope_call(&call.func) => Some(call.func.span()),
-        Expr::MethodCall(mc) if mc.method == "with" => Some(mc.method.span()),
+        Expr::MethodCall(mc) if mc.method == "there" => Some(mc.method.span()),
         _ => None,
     }
 }
@@ -99,7 +99,7 @@ fn compile_error_expr(span: Span, msg: &str) -> Expr {
 
 impl VisitMut for Rewrite {
     fn visit_expr_mut(&mut self, e: &mut Expr) {
-        // In a banked body (`anchor` is `None`), `scope` / `with` cannot be threaded
+        // In a banked body (`anchor` is `None`), `scope` / `there` cannot be threaded
         // (their closure would run across a switch unmapped). Replace them with a
         // clear diagnostic in place, before any recursion.
         if self.anchor.is_none() {
@@ -113,7 +113,7 @@ impl VisitMut for Rewrite {
         // the duration of its body, so nested sugar threads the *innermost* token
         // rather than the outer one. This is both correct (the inner switch restores
         // `b`'s bank, not the outer one) and what keeps the borrow checker enforcing
-        // safety: the inner scope reborrows `b` mutably, so a `get` borrow taken from
+        // safety: the inner scope reborrows `b` mutably, so a `local` borrow taken from
         // `b` cannot be held across it. Handle it before the generic recursion so the
         // body is visited under the rebound token.
         if let Expr::Call(call) = e {
@@ -158,14 +158,14 @@ impl VisitMut for Rewrite {
                     mc.args.push(self.bank_arg());
                     self.used = true;
                 }
-                // `far.get()` -> `far.get(&__bank)` (a shared borrow: same-bank read).
-                "get" if mc.args.is_empty() => {
+                // `far.local()` -> `far.local(&__bank)` (a shared borrow: same-bank read).
+                "local" if mc.args.is_empty() => {
                     mc.args.push(self.bank_arg_shared());
                     self.used = true;
                 }
-                // `far.call(a, b)` -> `far.call(&mut __bank, (a, b))` (FarCall::call):
+                // `far.invoke(a, b)` -> `far.invoke(&mut __bank, (a, b))` (FarCall::invoke):
                 // inject the token, then fold the call's own args into the tuple.
-                "call" => {
+                "invoke" => {
                     let args = std::mem::take(&mut mc.args);
                     mc.args.push(self.bank_arg());
                     mc.args.push(if args.is_empty() {
@@ -175,9 +175,9 @@ impl VisitMut for Rewrite {
                     });
                     self.used = true;
                 }
-                // `data.with(f)` -> `data.with(__anchor, &mut __bank, f)` (FarWith::with).
+                // `data.there(f)` -> `data.there(__anchor, &mut __bank, f)` (FarWith::there).
                 // Banked bodies were rejected above, so `anchor` is `Some` here.
-                "with" => {
+                "there" => {
                     mc.args.insert(0, self.bank_arg());
                     mc.args.insert(0, self.anchor_expr());
                     self.used = true;
@@ -221,7 +221,7 @@ fn closure_token_ident(closure: &syn::ExprClosure) -> Option<Ident> {
 
 /// Rewrite `block` in place and, only where actually used, prepend the ambient
 /// token binding for `group` and (for a resident body) the `Anchor`. `resident`
-/// gates `scope` / `with`: a banked body (`false`) gets no `Anchor` and rejects
+/// gates `scope` / `there`: a banked body (`false`) gets no `Anchor` and rejects
 /// them. Bindings are emitted only if touched, so they never trip unused-var lints.
 fn transform_body(block: &mut syn::Block, group: &TokenStream, resident: bool) {
     let tok = token();
@@ -251,7 +251,7 @@ fn transform_body(block: &mut syn::Block, group: &TokenStream, resident: bool) {
 /// Rewrite onto the ambient token, but inject *no* token: it is already an
 /// in-scope binding (a function parameter). Used by `#[bank::zero]`, whose
 /// `FixedFn::run` receives the caller's token as a param. The body is resident, so
-/// `scope` / `with` are allowed; the `Anchor` is minted when one is threaded.
+/// `scope` / `there` are allowed; the `Anchor` is minted when one is threaded.
 fn rewrite_only(block: &mut syn::Block) {
     let anchor_id = anchor();
     let mut rw = Rewrite {
@@ -461,7 +461,7 @@ fn bank_fn(mut func: ItemFn) -> TokenStream {
     let far_name = Ident::new(&format!("__far_{}", name), Span::call_site());
 
     // Public surface: a real fn returning `impl Warp`, so `f(args)` has full
-    // signature help and `.call()` drives it.
+    // signature help and `.invoke()` drives it.
     quote! {
         #[doc(hidden)]
         #[inline(never)]
@@ -697,7 +697,7 @@ pub fn resident(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// must thread whatever token its caller holds (and restore that bank). The body
 /// is encoded as a [`FixedFn`] impl on a per-function marker (the generic lives on
 /// `run`'s `__C`), and the public name becomes a `fn -> impl Warp` invoked as
-/// `helper(args).call()`.
+/// `helper(args).invoke()`.
 /// A `PhantomData<..>` that uses every type and lifetime parameter, so the marker
 /// struct is not rejected for unused generics (E0392).
 fn phantom_data(generics: &syn::Generics) -> TokenStream {
@@ -796,7 +796,7 @@ fn resident_fn(func: ItemFn) -> TokenStream {
             ) -> #output #block
         }
 
-        // Public surface: a real fn returning `impl Warp`, driven with `.call()`,
+        // Public surface: a real fn returning `impl Warp`, driven with `.invoke()`,
         // which threads the caller's token into `run` (no bank switch).
         #[inline]
         #vis fn #name #ig (#inputs) -> impl ::gb_bank::Warp<Output = #output> #wc {
@@ -1055,7 +1055,7 @@ mod tests {
     /// A nested `scope` must thread the *inner* closure's token, not the ambient
     /// resident one: the inner scope and the calls inside it bind to `b`/`c`, never
     /// to `__bank`. This is what keeps the bank restore correct and lets the borrow
-    /// checker forbid holding a `get` borrow across the inner switch.
+    /// checker forbid holding a `local` borrow across the inner switch.
     #[test]
     fn nested_scope_threads_innermost_token() {
         let item = quote! {
@@ -1081,7 +1081,7 @@ mod tests {
         assert!(out.contains("Anchor :: assume"), "anchor minted:\n{out}");
     }
 
-    /// In a banked body `scope` / `with` are rejected with the diagnostic, since the
+    /// In a banked body `scope` / `there` are rejected with the diagnostic, since the
     /// closure would run across a switch with the banked code unmapped.
     #[test]
     fn banked_scope_and_with_are_rejected() {
@@ -1092,7 +1092,7 @@ mod tests {
         assert!(out.contains("compile_error"), "banked scope not rejected:\n{out}");
 
         let with_item = quote! {
-            pub fn probe() -> u8 { DATA.with(|d| d[0]) }
+            pub fn probe() -> u8 { DATA.there(|d| d[0]) }
         };
         let out = bank_attr(quote!(), with_item).to_string();
         assert!(out.contains("compile_error"), "banked with not rejected:\n{out}");

@@ -40,7 +40,7 @@
 //! fn main_loop(anchor: Anchor, bank: &mut Bank<GroupZero>) {
 //!     // Enter Sound's bank for a block; `b` witnesses that it is mapped.
 //!     scope(anchor, bank, |b: &mut Bank<Sound>| {
-//!         let tempo = *b.get(&TEMPO);   // read banked data, no extra switch
+//!         let tempo = *b.local(&TEMPO);   // read banked data, no extra switch
 //!         // ... use `tempo` while still inside Sound's bank ...
 //!     });
 //!     // Sound's bank is restored to the caller's on the way out.
@@ -164,10 +164,10 @@ impl Group for GroupZero {
 /// A witness that group `G`'s bank is currently mapped.
 ///
 /// This is the GhostCell-style permission token: a zero-sized value whose type
-/// `G` is the brand. Borrowing it shared ([`get`](Far::get)) yields references
+/// `G` is the brand. Borrowing it shared ([`local`](Far::local)) yields references
 /// into the bank; borrowing it `&mut` (a switch via [`scope`]) is what changes
 /// the mapping. Because you cannot do both at once, a reference obtained from
-/// `get` can never be live across a switch; the conflict is a borrow error.
+/// `local` can never be live across a switch; the conflict is a borrow error.
 ///
 /// The token is `!Send` and only mintable through [`assume`](Bank::assume) (or,
 /// safely, the closure argument of [`scope`]).
@@ -178,7 +178,7 @@ impl Group for GroupZero {
 /// # use gb_bank::*;
 /// # struct Sound; impl Group for Sound { const FIXED: bool = false; fn bank() -> u8 { 2 } }
 /// fn play(b: &mut Bank<Sound>) {
-///     let note = *b.get(&MELODY);   // `b` proves Sound is mapped
+///     let note = *b.local(&MELODY);   // `b` proves Sound is mapped
 ///     // ...
 /// }
 /// ```
@@ -200,12 +200,12 @@ impl<G: Group> Bank<G> {
     ///
     /// This is the escape hatch for hand-rolled control: after a raw
     /// [`switch_bank`] or inline asm, call `assume` to re-enter the safe
-    /// [`get`](Far::get) / [`scope`] API.
+    /// [`local`](Far::local) / [`scope`] API.
     ///
     /// # Safety
     ///
     /// Group `G`'s bank must actually be mapped at the call site; otherwise every
-    /// subsequent `get`/call through this token reads the wrong bank.
+    /// subsequent `local`/call through this token reads the wrong bank.
     #[inline(always)]
     pub const unsafe fn assume() -> Self {
         Bank {
@@ -217,13 +217,13 @@ impl<G: Group> Bank<G> {
 }
 
 /// Proof that the holder runs in bank 0 (the always-mapped region), and
-/// so may run a closure across a bank switch via [`scope`] / [`with`](FarWith::with).
+/// so may run a closure across a bank switch via [`scope`] / [`there`](FarWith::there).
 ///
 /// Those operations lend a closure across a switch; the closure's *code* must stay
 /// mapped while it runs, which only holds for code in bank 0. An `Anchor` is that
 /// guarantee, as a zero-sized [`Copy`] capability. The `#[bank::main]` and
 /// `#[bank::zero]` macros mint one at the top of every body (their code is
-/// in bank 0); a `#[bank]` function gets none, so it cannot reach `scope` / `with`,
+/// in bank 0); a `#[bank]` function gets none, so it cannot reach `scope` / `there`,
 /// which would otherwise run a banked closure the switch unmaps.
 ///
 /// Being `Copy`, it threads into nested scopes without borrow friction.
@@ -266,7 +266,7 @@ impl Anchor {
 /// # use gb_bank::*;
 /// # struct Sound; impl Group for Sound { const FIXED: bool = false; fn bank() -> u8 { 2 } }
 /// fn run(anchor: Anchor, bank: &mut Bank<GroupZero>) {
-///     let first = scope(anchor, bank, |b: &mut Bank<Sound>| *b.get(&MELODY).first().unwrap());
+///     let first = scope(anchor, bank, |b: &mut Bank<Sound>| *b.local(&MELODY).first().unwrap());
 ///     // back in the caller's bank here
 /// }
 /// ```
@@ -277,7 +277,7 @@ impl Anchor {
 /// # use gb_bank::*;
 /// # struct G; impl Group for G { const FIXED: bool = false; fn bank() -> u8 { 1 } }
 /// fn leak<'a>(anchor: Anchor, bank: &mut Bank<GroupZero>, data: &'a Far<u8, G>) -> &'a u8 {
-///     scope(anchor, bank, |g| g.get(data)) // ERROR: the ref borrows the inner token
+///     scope(anchor, bank, |g| g.local(data)) // ERROR: the ref borrows the inner token
 /// }
 /// ```
 #[inline]
@@ -290,12 +290,12 @@ pub fn scope<C: Group, G: Group, R>(
 }
 
 /// The bank-switch primitive behind [`scope`] and the one-shot [`Warp::drive`] /
-/// [`FarCall::call`]: switch to `G`, run `f`, restore `C`, eliding when `G` is
+/// [`FarCall::invoke`]: switch to `G`, run `f`, restore `C`, eliding when `G` is
 /// [`FIXED`](Group::FIXED) or `C == G`.
 ///
 /// Unlike [`scope`] it takes no [`Anchor`], so it stays crate-internal: its callers
-/// either thread an `Anchor` through (`scope` / [`with`](FarWith::with), whose `f`
-/// is a user closure) or run no user closure at all (`drive` / `call` invoke the
+/// either thread an `Anchor` through (`scope` / [`there`](FarWith::there), whose `f`
+/// is a user closure) or run no user closure at all (`drive` / `invoke` invoke the
 /// banked function itself from a bank-0 `#[inline(never)]` trampoline, safe from
 /// any bank).
 #[inline]
@@ -402,32 +402,32 @@ mod tests {
     }
 
     #[test]
-    fn get_reads_same_group_data() {
+    fn local_reads_same_group_data() {
         static DATA: [u8; 3] = [10, 20, 30];
         let far: Far<[u8; 3], GroupZero> = unsafe { Far::new(&DATA) };
         let b = root();
-        assert_eq!(far.get(&b), &[10, 20, 30]);
+        assert_eq!(far.local(&b), &[10, 20, 30]);
     }
 
     #[test]
-    fn far_call_runs_in_target_bank() {
+    fn far_invoke_runs_in_target_bank() {
         reset();
         fn double(x: u8) -> u8 {
             x.wrapping_mul(2)
         }
         let far: Far<fn(u8) -> u8, G1> = unsafe { Far::new(double as *const _) };
         let mut b = root();
-        assert_eq!(far.call(&mut b, (21,)), 42);
+        assert_eq!(far.invoke(&mut b, (21,)), 42);
         assert_eq!(switches(), 1); // into G1; no restore (root is fixed)
     }
 
     #[test]
-    fn far_with_borrows_then_restores() {
+    fn far_there_borrows_then_restores() {
         static DATA: u8 = 99;
         let far: Far<u8, G2> = unsafe { Far::new(&DATA) };
         let mut b = root();
         let v = scope(anchor(), &mut b, |g1: &mut Bank<G1>| {
-            let v = far.with(anchor(), g1, |&d| d);
+            let v = far.there(anchor(), g1, |&d| d);
             assert_eq!(current_bank(), 1); // restored to the G1 caller
             v
         });
@@ -446,8 +446,8 @@ mod tests {
         let b: Far<fn(u8) -> u8, G2> = unsafe { Far::new(add2 as *const _) };
         let table = [a.erase(), b.erase()];
         let mut root = root();
-        assert_eq!(table[0].call(&mut root, (10,)), 11);
-        assert_eq!(table[1].call(&mut root, (10,)), 12);
+        assert_eq!(table[0].invoke(&mut root, (10,)), 11);
+        assert_eq!(table[1].invoke(&mut root, (10,)), 12);
     }
 
     // Driving a `Warp` with an explicit token (as in `scope(.., |b| w.drive(b))`):

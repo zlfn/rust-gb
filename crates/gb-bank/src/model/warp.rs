@@ -87,7 +87,7 @@ pub trait Warp {
     /// [`scope`](crate::scope). Because it takes a `Bank<Self::Group>`, it pins the token's
     /// group: a run of `near` calls share one [`scope`](crate::scope), and `scope` over them
     /// infers the token's group with no annotation. (For data, see
-    /// [`get`](crate::Far::get).)
+    /// [`local`](crate::Far::local).)
     fn near(self, here: &mut Bank<Self::Group>) -> Self::Output;
 
     /// Run the call from any bank, leaving the caller's bank `C` as it was: the
@@ -161,7 +161,7 @@ where
 {
     type Output = <T::Output as Warp>::Output;
     #[inline]
-    fn call<C: Group>(&self, outer: &mut Bank<C>, args: Args) -> Self::Output {
+    fn invoke<C: Group>(&self, outer: &mut Bank<C>, args: Args) -> Self::Output {
         Fn::call(self, args).drive(outer)
     }
 }

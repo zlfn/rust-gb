@@ -20,8 +20,8 @@ use super::{scope, switch_bank, switch_run, Anchor, Bank, Group, GroupZero};
 /// dereferenced without a [`Bank<G>`] token. `T` may be data (e.g. `[u8; N]`) or
 /// a function pointer (`fn(..) -> R`).
 ///
-/// Use [`get`](Far::get) / [`with`](FarWith::with) for data and
-/// [`call`](FarCall::call) for functions, or [`erase`](Far::erase) to drop the
+/// Use [`local`](Far::local) / [`there`](FarWith::there) for data and
+/// [`invoke`](FarCall::invoke) for functions, or [`erase`](Far::erase) to drop the
 /// static group for dynamic dispatch.
 ///
 /// # Examples
@@ -33,7 +33,7 @@ use super::{scope, switch_bank, switch_run, Anchor, Bank, Group, GroupZero};
 /// // const TILES: Far<[u8; 256], Sprites> = ..;
 ///
 /// fn first_tile(anchor: Anchor, bank: &mut Bank<GroupZero>, tiles: &Far<[u8; 256], Sprites>) -> u8 {
-///     tiles.with(anchor, bank, |t| t[0])   // switch into Sprites, read, switch back
+///     tiles.there(anchor, bank, |t| t[0])   // switch into Sprites, read, switch back
 /// }
 /// ```
 pub struct Far<T: ?Sized, G: Group> {
@@ -50,7 +50,7 @@ impl<T: ?Sized, G: Group> Far<T, G> {
     ///
     /// For data, `ptr` must be the address of the `T` in group `G`'s bank window.
     /// For a function `T = fn(..)`, `ptr` is the function's own address (e.g.
-    /// `real_fn as *const _`), which [`call`](FarCall::call) reinterprets as the
+    /// `real_fn as *const _`), which [`invoke`](FarCall::invoke) reinterprets as the
     /// fn pointer.
     #[doc(hidden)]
     #[inline(always)]
@@ -86,18 +86,18 @@ impl<T: ?Sized, G: Group> Far<T, G> {
     /// The same-bank read. `here` proves `G` is mapped, so the data is addressable;
     /// the reference borrows `here`, and a switch needs the token `&mut`, so it
     /// cannot be held across a switch away from the bank. (The cross-bank borrow is
-    /// [`with`](FarWith::with).) A token of the wrong group is a type error:
+    /// [`there`](FarWith::there).) A token of the wrong group is a type error:
     ///
     /// ```compile_fail
     /// # use gb_bank::*;
     /// # struct G1; impl Group for G1 { const FIXED: bool = false; fn bank() -> u8 { 1 } }
     /// # struct G2; impl Group for G2 { const FIXED: bool = false; fn bank() -> u8 { 2 } }
     /// fn wrong(b: &Bank<G1>, far: &Far<u8, G2>) -> u8 {
-    ///     *far.get(b) // ERROR: a G2 far needs a G2 token, not G1
+    ///     *far.local(b) // ERROR: a G2 far needs a G2 token, not G1
     /// }
     /// ```
     #[inline(always)]
-    pub fn get<'a>(&self, _here: &'a Bank<G>) -> &'a T {
+    pub fn local<'a>(&self, _here: &'a Bank<G>) -> &'a T {
         unsafe { &*self.ptr }
     }
 }
@@ -154,7 +154,7 @@ impl<T: ?Sized, G: Group> Clone for Far<T, G> {
 /// # use gb_bank::*;
 /// fn run_each(bank: &mut Bank<GroupZero>, behaviours: &[DynFar<fn(u8)>], state: u8) {
 ///     for b in behaviours {
-///         b.call(bank, (state,));   // switch to each one's bank, run, restore
+///         b.invoke(bank, (state,));   // switch to each one's bank, run, restore
 ///     }
 /// }
 /// ```
@@ -190,15 +190,15 @@ impl<T: ?Sized> Clone for DynFar<T> {
 /// A far pointer that can be *called* across a bank boundary.
 ///
 /// Implemented by [`Far`] and [`DynFar`] over function pointers, this is the
-/// unified call interface: [`call`](FarCall::call) switches into the target
+/// unified call interface: [`invoke`](FarCall::invoke) switches into the target
 /// bank, invokes the function with `args`, and restores the caller's bank `C`.
-/// The `#[bank]` macro rewrites `recv.call(args)` onto it.
+/// The `#[bank]` macro rewrites `recv.invoke(args)` onto it.
 pub trait FarCall<Args: Tuple> {
     /// The function's return type.
     type Output;
 
     /// Switch into the far function's bank, call it with `args`, restore `C`.
-    fn call<C: Group>(&self, outer: &mut Bank<C>, args: Args) -> Self::Output;
+    fn invoke<C: Group>(&self, outer: &mut Bank<C>, args: Args) -> Self::Output;
 }
 
 impl<F: Copy + Fn<Args>, G: Group, Args: Tuple> FarCall<Args> for Far<F, G> {
@@ -207,7 +207,7 @@ impl<F: Copy + Fn<Args>, G: Group, Args: Tuple> FarCall<Args> for Far<F, G> {
     // one-shot cross-bank call is safe even from a banked caller (whose own code is
     // switched out of the window during the call).
     #[inline(never)]
-    fn call<C: Group>(&self, outer: &mut Bank<C>, args: Args) -> F::Output {
+    fn invoke<C: Group>(&self, outer: &mut Bank<C>, args: Args) -> F::Output {
         switch_run(outer, |_b: &mut Bank<G>| {
             // `ptr` is the function's address; reinterpret it as the fn pointer.
             let f: F = unsafe { core::mem::transmute_copy(&self.ptr) };
@@ -220,7 +220,7 @@ impl<F: Copy + Fn<Args>, Args: Tuple> FarCall<Args> for DynFar<F> {
     type Output = F::Output;
     // `inline(never)`: bank-0 trampoline, see `Far`'s impl above.
     #[inline(never)]
-    fn call<C: Group>(&self, _outer: &mut Bank<C>, args: Args) -> F::Output {
+    fn invoke<C: Group>(&self, _outer: &mut Bank<C>, args: Args) -> F::Output {
         unsafe { switch_bank(self.bank) };
         // `ptr` is the function's address; reinterpret it as the fn pointer.
         let f: F = unsafe { core::mem::transmute_copy(&self.ptr) };
@@ -235,27 +235,27 @@ impl<F: Copy + Fn<Args>, Args: Tuple> FarCall<Args> for DynFar<F> {
 /// Borrowing a far pointer's *data* across a bank boundary.
 ///
 /// Switches into the data's bank, lends `&T` to `f`, then restores the caller `C`:
-/// the cross-bank counterpart of [`Far::get`]. Implemented by [`Far`] (switch via
-/// [`scope`], then [`get`](Far::get)) and [`DynFar`] (switch to its runtime bank).
+/// the cross-bank counterpart of [`Far::local`]. Implemented by [`Far`] (switch via
+/// [`scope`], then [`local`](Far::local)) and [`DynFar`] (switch to its runtime bank).
 pub trait FarWith<T: ?Sized> {
     /// Switch into the data's bank, lend `&T` to `f`, restore `C`.
     ///
     /// `anchor` proves the caller is in bank 0: `f` runs across a bank switch, so its
     /// code must stay mapped. A `#[bank]` function holds no [`Anchor`] and so cannot
-    /// call this (use [`get`](Far::get) for same-bank data instead).
-    fn with<C: Group, R>(&self, anchor: Anchor, outer: &mut Bank<C>, f: impl FnOnce(&T) -> R) -> R;
+    /// call this (use [`local`](Far::local) for same-bank data instead).
+    fn there<C: Group, R>(&self, anchor: Anchor, outer: &mut Bank<C>, f: impl FnOnce(&T) -> R) -> R;
 }
 
 impl<T: ?Sized, G: Group> FarWith<T> for Far<T, G> {
     #[inline]
-    fn with<C: Group, R>(&self, anchor: Anchor, outer: &mut Bank<C>, f: impl FnOnce(&T) -> R) -> R {
-        scope(anchor, outer, |b: &mut Bank<G>| f(self.get(b)))
+    fn there<C: Group, R>(&self, anchor: Anchor, outer: &mut Bank<C>, f: impl FnOnce(&T) -> R) -> R {
+        scope(anchor, outer, |b: &mut Bank<G>| f(self.local(b)))
     }
 }
 
 impl<T: ?Sized> FarWith<T> for DynFar<T> {
     #[inline]
-    fn with<C: Group, R>(&self, _anchor: Anchor, _outer: &mut Bank<C>, f: impl FnOnce(&T) -> R) -> R {
+    fn there<C: Group, R>(&self, _anchor: Anchor, _outer: &mut Bank<C>, f: impl FnOnce(&T) -> R) -> R {
         unsafe { switch_bank(self.bank) };
         let r = f(unsafe { &*self.ptr });
         if !C::FIXED {

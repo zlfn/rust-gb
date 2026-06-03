@@ -25,7 +25,7 @@
 //!
 //!     #[bank]
 //!     pub fn play(i: u8) -> u8 {
-//!         NOTES.get()[i as usize] // read banked data (same bank, no switch)
+//!         NOTES.local()[i as usize] // read banked data (same bank, no switch)
 //!     }
 //! }
 //!
@@ -66,15 +66,15 @@
 //! that with an [`Anchor`]: a zero-sized, [`Copy`] witness "this code is in bank 0".
 //! `#[bank::main]` / `#[bank::zero]` bodies hold one; a `#[bank]` function does not,
 //! so it cannot open a [`scope`] (its body would be switched out from under the
-//! closure), it uses [`get`](Far::get) / [`near`](Warp::near) for same-bank work and
-//! [`drive`](Warp::drive) / [`call`](FarCall::call) for cross-bank calls instead.
+//! closure), it uses [`local`](Far::local) / [`near`](Warp::near) for same-bank work and
+//! [`drive`](Warp::drive) / [`invoke`](FarCall::invoke) for cross-bank calls instead.
 //!
 //! ```ignore
 //! # use gb_bank::*;
 //! # struct Sound; impl Group for Sound { const FIXED: bool = false; fn bank() -> u8 { 2 } }
 //! fn mix(anchor: Anchor, bank: &mut Bank<GroupZero>) -> u8 {
 //!     scope(anchor, bank, |b: &mut Bank<Sound>| {
-//!         let a = *NOTES.get(b);    // read banked data with the scope's token
+//!         let a = *NOTES.local(b);    // read banked data with the scope's token
 //!         a.wrapping_add(1)         // no further switch inside the block
 //!     })
 //! }
@@ -85,7 +85,7 @@
 //! A [`Far<T, G>`](Far) points to a `T` living in group `G`'s bank. The pointer
 //! itself is just an address plus the brand `G` (a plain value, not the banked
 //! data it points at), so it is [`Copy`] and can be stored and passed around freely,
-//! but it cannot be read without a [`Bank<G>`](Bank): [`get`](Far::get) returns
+//! but it cannot be read without a [`Bank<G>`](Bank): [`local`](Far::local) returns
 //! `&T` only by borrowing the token.
 //!
 //! Splitting the address (always safe to hold) from the access (needs the token)
@@ -109,22 +109,22 @@
 //!
 //! ## Cross-bank vs same-bank
 //!
-//! [`drive`](Warp::drive) (run a [`Warp`]) and [`call`](FarCall::call) (call a far
+//! [`drive`](Warp::drive) (run a [`Warp`]) and [`invoke`](FarCall::invoke) (call a far
 //! function) are *cross-bank*: each switches into the target bank, runs the one
 //! function, and switches back. They run no caller closure across the switch, so they
 //! are safe from *any* body, banked or bank-0 (they compile to a bank-0
 //! trampoline). A run of them into the same bank re-switches each time.
 //!
-//! [`with`](FarWith::with) (borrow far data) and [`scope`] are also cross-bank, but
+//! [`there`](FarWith::there) (borrow far data) and [`scope`] are also cross-bank, but
 //! they run *your* closure while the other bank is mapped, so they need an [`Anchor`]
 //! and are available only in a bank-0 (`#[bank::main]` / `#[bank::zero]`) body.
 //!
 //! The *same-bank* operations take a token already in the target bank, so they never
-//! switch: [`near`](Warp::near) for a call, [`get`](Far::get) for data. By taking a
+//! switch: [`near`](Warp::near) for a call, [`local`](Far::local) for data. By taking a
 //! `Bank<G>` of the exact group they also pin that group, and they work from any body.
 //!
 //! So to batch work in one bank, open a [`scope`] into it (from a bank-0 body) and
-//! use `near` / `get` inside, sharing the single switch [`scope`] performed:
+//! use `near` / `local` inside, sharing the single switch [`scope`] performed:
 //!
 //! ```ignore
 //! # use gb_bank::*;
@@ -153,7 +153,7 @@
 //!         far!(enemy::ai).erase(),     // lives in some bank
 //!         far!(hud_tick).erase(),      // bank-0 #[bank::zero] helper
 //!     ];
-//!     table[i].call(bank, (state,))    // switch to its bank, run, restore
+//!     table[i].invoke(bank, (state,))    // switch to its bank, run, restore
 //! }
 //! ```
 //!
@@ -217,17 +217,27 @@
 //! |---|---|---|
 //! | `enemy::ai(s).drive()` | `enemy::ai(s).drive(&mut __bank)` | any body |
 //! | `enemy::ai(s).near()` | `enemy::ai(s).near(&mut __bank)` | any body |
-//! | `table[i].call(s)` | `table[i].call(&mut __bank, (s,))` | any body |
-//! | `NOTES.get()` | `NOTES.get(&__bank)` | any body |
-//! | `NOTES.with(\|t\| ..)` | `NOTES.with(__anchor, &mut __bank, \|t\| ..)` | bank 0 only |
+//! | `table[i].invoke(s)` | `table[i].invoke(&mut __bank, (s,))` | any body |
+//! | `NOTES.local()` | `NOTES.local(&__bank)` | any body |
+//! | `NOTES.there(\|t\| ..)` | `NOTES.there(__anchor, &mut __bank, \|t\| ..)` | bank 0 only |
 //! | `scope(\|b\| ..)` | `scope(__anchor, &mut __bank, \|b\| ..)` | bank 0 only |
 //!
-//! `with` / `scope` in a `#[bank]` body are a compile error (no [`Anchor`] there),
-//! with a message pointing you to `get` / `near`. A [`scope`] rebinds the ambient
+//! `there` / `scope` in a `#[bank]` body are a compile error (no [`Anchor`] there),
+//! with a message pointing you to `local` / `near`. A [`scope`] rebinds the ambient
 //! token to its own closure parameter `b`, so a nested `scope` or a `.drive()` /
-//! `.near()` / `.get()` *inside* it threads `b` (the innermost bank), not the outer
+//! `.near()` / `.local()` *inside* it threads `b` (the innermost bank), not the outer
 //! token; the `Anchor`, being [`Copy`], flows in automatically. The ambient `__bank`
 //! is hidden and cannot be named, but the token `b` that [`scope`] binds can.
+//!
+//! ### Threading is by method name, not type
+//!
+//! The rewrite runs before type checking, so it matches on the method *name* alone:
+//! it threads the token into *every* `.drive()` / `.near()` / `.local()` /
+//! `.invoke()` / `.there(..)` (and `scope(..)`) in the body, regardless of the
+//! receiver's type. The names are deliberately uncommon to avoid colliding with an
+//! unrelated method of the same name. If one does collide, call that method through
+//! fully-qualified syntax: `Type::method(recv, args)` is a path call, not method-call
+//! sugar, so the macro leaves it untouched.
 //!
 //! # Panics, unwinding, and interrupts
 //!

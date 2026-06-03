@@ -17,7 +17,7 @@ static SINE_TABLE: [u8; 64] = [
 pub fn sin8(angle: u8) -> u8 {
     let idx = (angle & 0x3F) as usize;
     // Same-bank data, so read it directly with `.get` (no closure, no switch).
-    let t = SINE_TABLE.get();
+    let t = SINE_TABLE.local();
     match angle >> 6 {
         0 => t[idx],
         1 => t[63 - idx],

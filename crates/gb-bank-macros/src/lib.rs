@@ -90,7 +90,7 @@ pub fn bank_inherit(input: TokenStream) -> TokenStream {
 ///   that trait then supplies the bodies.
 ///
 /// Inside any banked body the ambient bank token is injected, and `.drive` (run a
-/// `Warp`), `.call` (a far dispatch), and `.with` (borrow far data) are threaded
+/// `Warp`), `.invoke` (a far dispatch), and `.there` (borrow far data) are threaded
 /// onto it automatically.
 ///
 /// # Examples
@@ -102,7 +102,7 @@ pub fn bank_inherit(input: TokenStream) -> TokenStream {
 ///
 /// #[bank]
 /// pub fn play(note: u8) -> u8 {
-///     let base = TABLE.with(|t| t[0]);   // borrow banked data
+///     let base = TABLE.there(|t| t[0]);   // borrow banked data
 ///     note.wrapping_add(base)
 /// }
 ///
@@ -186,7 +186,7 @@ pub fn bank_zero(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///     far!(enemy::ai).erase(),
 /// ];
 /// for entry in &table {
-///     entry.call(bank, (level,));   // switch to each one's bank, run, restore
+///     entry.invoke(bank, (level,));   // switch to each one's bank, run, restore
 /// }
 /// # }
 /// ```
