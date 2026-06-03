@@ -1,0 +1,20 @@
+[package]
+name = "cargo-gb"
+version = "0.1.0"
+edition = "2024"
+description = "cargo gb: build Game Boy ROMs from Rust (rust-z80 toolchain)"
+
+[[bin]]
+name = "cargo-gb"
+path = "src/main.rs"
+
+[dependencies]
+gb-bank-pack = { path = "../gb-bank-pack" }
+gb-header-fix = { path = "../gb-header-fix" }
+cargo_metadata = "0.18"
+object = "0.36"
+anstyle = "1"
+anstream = "0.6"
+indicatif = "0.17"
+textwrap = { version = "0.16", features = ["terminal_size"] }
+pico-args = "0.5"

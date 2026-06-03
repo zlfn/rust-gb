@@ -1,5 +1,5 @@
 # Host-side build tools for rust-gb. Separate workspace: these run on the host
 # (stable toolchain), unlike the Game Boy crates which target SM83.
 [workspace]
-members = ["gb-header-fix", "gb-bank-pack", "gb-image-fx"]
+members = ["gb-header-fix", "gb-bank-pack", "gb-image-fx", "cargo-gb"]
 resolver = "3"
