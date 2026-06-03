@@ -1,15 +1,15 @@
 //! Compile-time-safe ROM bank switching for the Game Boy.
 //!
-//! `gb-bank` is the user-facing front end of the banking toolchain. It re-exports
-//! the runtime types from [`gb_bank_type`] together with the macros that turn
-//! ordinary functions and statics into bank-safe ones.
+//! `gb-bank` is the user-facing front end of the banking toolchain. It provides
+//! the runtime types together with the macros that turn ordinary functions and
+//! statics into bank-safe ones.
 //!
 //! # Overview
 //!
 //! A Game Boy cartridge maps one 16 KiB ROM **bank** at a time into the
 //! `0x4000..0x8000` window; anything in another bank is unaddressable until it is
 //! switched in. This crate makes that switching safe at compile time by tracking,
-//! in the type system, which bank is mapped (see [`gb_bank_type`] for the model).
+//! in the type system, which bank is mapped (see [`Bank`] and [`scope`] below).
 //!
 //! You normally write:
 //!
@@ -70,7 +70,7 @@
 //! [`drive`](Warp::drive) / [`call`](FarCall::call) for cross-bank calls instead.
 //!
 //! ```ignore
-//! # use gb_bank_type::*;
+//! # use gb_bank::*;
 //! # struct Sound; impl Group for Sound { const FIXED: bool = false; fn bank() -> u8 { 2 } }
 //! fn mix(anchor: Anchor, bank: &mut Bank<GroupZero>) -> u8 {
 //!     scope(anchor, bank, |b: &mut Bank<Sound>| {
@@ -228,10 +228,30 @@
 //! `.near()` / `.get()` *inside* it threads `b` (the innermost bank), not the outer
 //! token; the `Anchor`, being [`Copy`], flows in automatically. The ambient `__bank`
 //! is hidden and cannot be named, but the token `b` that [`scope`] binds can.
+//!
+//! # Panics, unwinding, and interrupts
+//!
+//! The bank restore in [`scope`] (and the [`Far`] call / borrow paths) runs *after*
+//! the closure returns, so an unwinding panic would skip it and leave the wrong
+//! bank mapped. This is sound on the Game Boy because the target aborts on panic
+//! (there is no unwinder), so a panic never resumes into a stale-bank token. These
+//! types are not designed to be unwind-safe on a hosted, unwinding target.
+//!
+//! The safety model also assumes nothing changes the mapped bank *behind the
+//! token's back*. An interrupt handler that switches banks (e.g. to read banked
+//! data) must save [`current_bank`] on entry and restore it before returning, so the
+//! interrupted code resumes with the bank its live token still claims is mapped. An
+//! ISR that is not bank-transparent breaks the invariant, just like a raw
+//! [`switch_bank`] not paired with a matching restore.
 
-#![no_std]
+#![cfg_attr(not(test), no_std)]
+#![feature(negative_impls, with_negative_coherence, auto_traits)]
+#![feature(fn_traits, unboxed_closures, tuple_trait, const_trait_impl, const_cmp)]
 
-pub use gb_bank_type::*;
+// The runtime model (bank tokens, far pointers, the scope/switch primitives) lives
+// in a private module and is re-exported flat; the facade below adds the macros.
+mod model;
+pub use model::*;
 
 // `#[bank]` lives in the macro namespace; `bank::{main, module, zero}` in the
 // module namespace. The two `bank`s coexist (different namespaces).

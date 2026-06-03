@@ -15,3 +15,7 @@ cgb = []
 voladdress = "1.4.0"
 bitflags = "2"
 bitfield-struct = "0.13.0"
+
+# Build docs with all features so docs.rs shows the CGB-only API.
+[package.metadata.docs.rs]
+all-features = true

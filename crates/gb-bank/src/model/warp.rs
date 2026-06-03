@@ -10,7 +10,7 @@
 
 use core::marker::{PhantomData, Tuple};
 
-use crate::{DynFar, Bank, Far, FarCall, Group, GroupZero, switch_run};
+use super::{DynFar, Bank, Far, FarCall, Group, GroupZero, switch_run};
 
 /// A value safe to carry across a [`Warp`] (bank-switch) boundary: it embeds no
 /// pointer to banked code that the switch would unmap.

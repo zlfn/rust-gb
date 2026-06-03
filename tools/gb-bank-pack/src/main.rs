@@ -148,7 +148,7 @@ fn parse_header_for_mbc(path: &std::path::Path) -> Option<(u16, bool)> {
 
 /// Generate bank support assembly: the `_current_bank` software shadow.
 ///
-/// gb-bank-type declares `extern { static mut _current_bank }`, which the SM83
+/// gb-bank declares `extern { static mut _current_bank }`, which the SM83
 /// target emits as `__current_bank` (it prefixes one `_`). This is the banking
 /// runtime's own shadow, independent of any GBDK bank variable.
 fn generate_bank_asm() -> String {

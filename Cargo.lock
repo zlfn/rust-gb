@@ -42,7 +42,6 @@ name = "gb-bank"
 version = "0.1.0"
 dependencies = [
  "gb-bank-macros",
- "gb-bank-type",
 ]
 
 [[package]]
@@ -53,10 +52,6 @@ dependencies = [
  "quote",
  "syn",
 ]
-
-[[package]]
-name = "gb-bank-type"
-version = "0.1.0"
 
 [[package]]
 name = "gb-rt"

@@ -2,7 +2,7 @@
 //!
 //! These are re-exported by the [`gb-bank`] facade and are meant to be used
 //! through it (`use gb_bank::*;`). They turn ordinary-looking functions and
-//! statics into bank-safe ones built on `gb-bank-type`:
+//! statics into bank-safe ones built on `gb-bank`:
 //!
 //! - [`macro@bank_module`] (`bank::module!()`) declares a module as a bank group.
 //! - [`macro@bank`] (`#[bank]`) marks a function or static as living in that bank.

@@ -5,7 +5,6 @@ members = [
     "crates/gb-rt",
     "crates/gb-rt-macros",
     "crates/gbdk-sys",
-    "crates/gb-bank-type",
     "crates/gb-bank-macros",
     "crates/gb-bank",
     "crates/gb",
@@ -29,7 +28,6 @@ members = [
 # `cargo build` at the root builds the host-buildable library crates. The
 # examples need the z80 toolchain and are built through their Makefile.
 default-members = [
-    "crates/gb-bank-type",
     "crates/gb-bank-macros",
     "crates/gb-bank",
 ]
