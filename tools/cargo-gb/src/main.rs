@@ -152,19 +152,15 @@ fn build() -> Result<(), String> {
             eprintln!("warning: {w}");
         }
     }
-    ui::status("Finished", &format!("{}.gb   {size_kb} KB", proj.name));
     match &summary {
-        Some(s) => {
-            println!();
-            ui::bank_bars(info.as_ref().map(|i| i.used), &s.banks, s.bank_size);
-        }
+        Some(s) => ui::bank_bars(info.as_ref().map(|i| i.used), &s.banks, s.bank_size),
         None => {
             if let Some(i) = &info {
-                println!();
                 ui::rom_bar(i.used, i.limit);
             }
         }
     }
+    ui::status("Finished", &format!("{}.gb   {size_kb} KB", proj.name));
     Ok(())
 }
 

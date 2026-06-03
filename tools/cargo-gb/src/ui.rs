@@ -38,34 +38,51 @@ pub fn spinner(verb: &str, msg: &str) -> ProgressBar {
 pub fn bank_bars(bank0_used: Option<usize>, banks: &[gb_bank_pack::BankInfo], bank_size: usize) {
     let width = textwrap::termwidth();
     if let Some(used) = bank0_used {
-        fill_bar("bank 0", used, bank_size, &[], width);
+        fill_bar("BANK 0", used, bank_size, &[], width);
     }
     for b in banks {
-        fill_bar(&format!("bank {}", b.bank), b.used, bank_size, &b.modules, width);
+        fill_bar(&format!("BANK {}", b.bank), b.used, bank_size, &b.modules, width);
     }
 }
 
 /// A single fill bar for a non-banked ROM's fixed region.
 pub fn rom_bar(used: usize, limit: usize) {
-    fill_bar("rom", used, limit, &[], textwrap::termwidth());
+    fill_bar("ROM", used, limit, &[], textwrap::termwidth());
 }
 
+/// A fill bar row. The label is bold-green and right-aligned to 12, matching the
+/// status verbs, then a 20-cell bar, the byte usage, and any modules (wrapped
+/// under the bar when the list is long).
 fn fill_bar(label: &str, used: usize, size: usize, modules: &[String], width: usize) {
+    let g = green_bold();
     let filled = if size == 0 {
         0
     } else {
         (used * 20).div_ceil(size).min(20)
     };
     let bar: String = "█".repeat(filled) + &"░".repeat(20 - filled);
-    let prefix = format!("   {label:<8} {bar} {used:>6}/{size}   ");
+    let nums = format!("{used:>6}/{size}");
 
+    let visible_prefix = format!("{label:>12} {bar} {nums}   ");
+    let colored_prefix = format!(
+        "{}{label:>12}{} {bar} {nums}   ",
+        g.render(),
+        g.render_reset()
+    );
+
+    let mut out = anstream::stdout();
     if modules.is_empty() {
-        println!("{}", prefix.trim_end());
+        let _ = writeln!(out, "{}", colored_prefix.trim_end());
         return;
     }
-    let pad = " ".repeat(prefix.chars().count());
-    let opts = textwrap::Options::new(width)
-        .initial_indent(&prefix)
-        .subsequent_indent(&pad);
-    println!("{}", textwrap::fill(&modules.join(", "), opts));
+    let prefix_w = visible_prefix.chars().count();
+    let avail = width.saturating_sub(prefix_w).max(12);
+    let pad = " ".repeat(prefix_w);
+    for (i, line) in textwrap::wrap(&modules.join(", "), avail).iter().enumerate() {
+        if i == 0 {
+            let _ = writeln!(out, "{colored_prefix}{line}");
+        } else {
+            let _ = writeln!(out, "{pad}{line}");
+        }
+    }
 }
