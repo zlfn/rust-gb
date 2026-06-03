@@ -32,27 +32,35 @@ pub fn spinner(verb: &str, msg: &str) -> ProgressBar {
     pb
 }
 
-/// Render the per-bank fill bars. Each bank shows a 20-cell bar, its byte usage,
-/// and the modules placed in it, wrapping a long module list under the bar.
-pub fn bank_bars(banks: &[gb_bank_pack::BankInfo], bank_size: usize) {
+/// Render the per-bank fill bars. Bank 0 (the resident region) leads with just
+/// its usage; each banked bank also lists the modules placed in it, wrapping a
+/// long module list under the bar.
+pub fn bank_bars(bank0_used: Option<usize>, banks: &[gb_bank_pack::BankInfo], bank_size: usize) {
     let width = textwrap::termwidth();
-    for b in banks {
-        let filled = if bank_size == 0 {
-            0
-        } else {
-            (b.used * 20).div_ceil(bank_size).min(20)
-        };
-        let bar: String = "█".repeat(filled) + &"░".repeat(20 - filled);
-        let prefix = format!("   bank {:<3} {bar} {:>6}/{}   ", b.bank, b.used, bank_size);
-
-        if b.modules.is_empty() {
-            println!("{}", prefix.trim_end());
-            continue;
-        }
-        let pad = " ".repeat(prefix.chars().count());
-        let opts = textwrap::Options::new(width)
-            .initial_indent(&prefix)
-            .subsequent_indent(&pad);
-        println!("{}", textwrap::fill(&b.modules.join(", "), opts));
+    if let Some(used) = bank0_used {
+        print_bank(0, used, bank_size, &[], width);
     }
+    for b in banks {
+        print_bank(b.bank, b.used, bank_size, &b.modules, width);
+    }
+}
+
+fn print_bank(bank: u8, used: usize, bank_size: usize, modules: &[String], width: usize) {
+    let filled = if bank_size == 0 {
+        0
+    } else {
+        (used * 20).div_ceil(bank_size).min(20)
+    };
+    let bar: String = "█".repeat(filled) + &"░".repeat(20 - filled);
+    let prefix = format!("   bank {bank:<3} {bar} {used:>6}/{bank_size}   ");
+
+    if modules.is_empty() {
+        println!("{}", prefix.trim_end());
+        return;
+    }
+    let pad = " ".repeat(prefix.chars().count());
+    let opts = textwrap::Options::new(width)
+        .initial_indent(&prefix)
+        .subsequent_indent(&pad);
+    println!("{}", textwrap::fill(&modules.join(", "), opts));
 }
