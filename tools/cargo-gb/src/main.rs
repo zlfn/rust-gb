@@ -153,7 +153,10 @@ fn build() -> Result<(), String> {
         }
     }
     match &summary {
-        Some(s) => ui::bank_bars(info.as_ref().map(|i| i.used), &s.banks, s.bank_size),
+        Some(s) => {
+            ui::status("Packed", &format!("{} bank(s)", s.banks.len()));
+            ui::bank_bars(info.as_ref().map(|i| i.used), &s.banks, s.bank_size);
+        }
         None => {
             if let Some(i) = &info {
                 ui::rom_bar(i.used, i.limit);

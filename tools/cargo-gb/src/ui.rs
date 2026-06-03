@@ -10,6 +10,10 @@ fn green_bold() -> Style {
     Style::new().fg_color(Some(AnsiColor::Green.into())).bold()
 }
 
+fn cyan_bold() -> Style {
+    Style::new().fg_color(Some(AnsiColor::Cyan.into())).bold()
+}
+
 /// Print a right-aligned bold-green verb followed by a message (cargo's style).
 pub fn status(verb: &str, msg: &str) {
     let g = green_bold();
@@ -54,7 +58,7 @@ pub fn rom_bar(used: usize, limit: usize) {
 /// status verbs, then a 20-cell bar, the byte usage, and any modules (wrapped
 /// under the bar when the list is long).
 fn fill_bar(label: &str, used: usize, size: usize, modules: &[String], width: usize) {
-    let g = green_bold();
+    let g = cyan_bold();
     let filled = if size == 0 {
         0
     } else {
