@@ -166,6 +166,7 @@ fn build() -> Result<PathBuf, String> {
             ui::bank_bars(info.as_ref().map(|i| i.used), &s.banks, s.bank_size);
         }
         None => {
+            ui::status("Packed", "1 bank");
             if let Some(i) = &info {
                 ui::rom_bar(i.used, i.limit);
             }
