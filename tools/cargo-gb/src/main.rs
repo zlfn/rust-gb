@@ -28,7 +28,7 @@ fn main() {
 
 fn dispatch(cmd: &str) -> Result<(), String> {
     match cmd {
-        "build" => build(),
+        "build" => build().map(|_| ()),
         "run" => run_rom(),
         "clean" => clean(),
         other => Err(format!("unknown command '{other}' (expected build, run, or clean)")),
@@ -36,13 +36,11 @@ fn dispatch(cmd: &str) -> Result<(), String> {
 }
 
 fn run_rom() -> Result<(), String> {
-    build()?;
-    let proj = resolve_project()?;
-    let gb = proj.out_dir.join(format!("{}.gb", proj.name));
+    let rom = build()?;
     let emu = std::env::var("EMULATOR").unwrap_or_else(|_| "sameboy".to_string());
     ui::status("Running", &emu);
     let status = Command::new(&emu)
-        .arg(&gb)
+        .arg(&rom)
         .status()
         .map_err(|e| format!("failed to launch {emu}: {e}"))?;
     if !status.success() {
@@ -92,7 +90,7 @@ fn resolve_project() -> Result<Project, String> {
     })
 }
 
-fn build() -> Result<(), String> {
+fn build() -> Result<PathBuf, String> {
     let tc = Toolchain::discover()?;
     let proj = resolve_project()?;
 
@@ -142,10 +140,21 @@ fn build() -> Result<(), String> {
         None => None,
     };
 
+    // 6. A ROM whose CGB flag is set (hybrid or CGB-only) uses the .gbc
+    //    extension; DMG-only ROMs use .gb.
+    let rom_path = if info.as_ref().is_some_and(|i| i.cgb != gb_header_fix::CgbFlag::None) {
+        let gbc = proj.out_dir.join(format!("{}.gbc", proj.name));
+        std::fs::rename(&gb, &gbc).map_err(|e| e.to_string())?;
+        gbc
+    } else {
+        gb
+    };
+    let rom_name = rom_path.file_name().unwrap_or_default().to_string_lossy();
+
     let size_kb = info
         .as_ref()
         .map(|i| i.total_bytes / 1024)
-        .unwrap_or_else(|| std::fs::metadata(&gb).map(|m| m.len() as usize / 1024).unwrap_or(0));
+        .unwrap_or_else(|| std::fs::metadata(&rom_path).map(|m| m.len() as usize / 1024).unwrap_or(0));
     if let Some(i) = &info {
         for w in &i.warnings {
             eprintln!("warning: {w}");
@@ -162,8 +171,8 @@ fn build() -> Result<(), String> {
             }
         }
     }
-    ui::status("Finished", &format!("{}.gb   {size_kb} KB", proj.name));
-    Ok(())
+    ui::status("Ready", &format!("{rom_name}   {size_kb} KB"));
+    Ok(rom_path)
 }
 
 fn is_banked(staticlib: &Path) -> Result<bool, String> {

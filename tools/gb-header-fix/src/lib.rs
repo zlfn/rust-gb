@@ -150,8 +150,8 @@ struct Header {
     version: u8,
 }
 
-#[derive(Deserialize, Default)]
-enum CgbFlag {
+#[derive(Deserialize, Default, Clone, Copy, PartialEq, Eq)]
+pub enum CgbFlag {
     #[default]
     None,
     Hybrid,
@@ -178,6 +178,8 @@ pub struct RomInfo {
     pub limit: usize,
     /// Non-fatal configuration warnings.
     pub warnings: Vec<String>,
+    /// The CGB compatibility flag taken from the header.
+    pub cgb: CgbFlag,
 }
 
 /// A failure while fixing a ROM header.
@@ -352,5 +354,6 @@ pub fn fix(rom_path: &Path, header_toml: &Path) -> Result<RomInfo, FixError> {
         used,
         limit,
         warnings,
+        cgb: header.cgb_flag,
     })
 }
