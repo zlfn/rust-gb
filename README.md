@@ -17,15 +17,31 @@ Compile Rust to Game Boy ROMs.
 - `gbdk-sys`: Rust bindings to the GBDK-2020 runtime (graphics, sound, input, console).
 - `gb-bank`: a compile-time-safe ROM bank switching API. GhostCell-style tokens make holding a pointer into an unmapped bank a compile error; a `#[bank]` function becomes a `Warp` (the `Future` analog of a banked call) that you run with `.drive()`.
 
-**Build tools**
-- `gb-bank-pack`: the link-time bank allocator. It bin-packs banked code and data into 16 KiB banks and wires up the bank-switch markers.
-- `gb-header-fix`: fills in the cartridge header (MBC type, ROM size, checksums).
+**Build tool**
+- `cargo-gb`: the `cargo gb` subcommand that turns a crate into a ROM (`cargo gb build`). It compiles the staticlib, bin-packs banked code into 16 KiB banks, links with the toolchain's bundled SM83 linker, and writes the cartridge header. Everything comes from the rust-z80 sysroot, so no tool or linker paths need configuring.
 
 **Utilities**
 - `gb-image-fx`: convert images (PNG, JPEG, BMP, ...) to Game Boy / Game Boy Color tile data.
 
 **Examples**
 - `examples/`: runnable demos. Start from `template` (a minimal project to copy), and see `bank-test` and a set of ported GBDK examples.
+
+## Building a ROM
+
+Install the build tool once:
+
+```sh
+cargo install --path tools/cargo-gb
+```
+
+Then, in any example (or your own crate):
+
+```sh
+cargo gb build    # compiles and writes target/<name>.gb
+cargo gb run      # build, then launch $EMULATOR (default: sameboy)
+```
+
+The rust-z80 toolchain bundles the SM83 linker and LLVM tools, so there is nothing else to configure.
 
 ## How is this possible?
 
@@ -36,8 +52,8 @@ Rust-GB uses a custom LLVM backend for Game Boy:
 
 1. [rust-z80](https://github.com/zlfn/rust), a fork of the Rust compiler, targets `sm83` and emits LLVM-IR.
 2. [llvm-z80](https://github.com/zlfn/llvm-z80), an LLVM fork with a Z80/SM83 backend, lowers that IR to SM83 machine code.
-3. The object files are linked against libraries, 
-   then built into a Game Boy ROM. [cargo-make](https://github.com/sagiegurari/cargo-make) drives the build.
+3. The objects are linked against the runtime and built into a Game Boy ROM.
+   `cargo gb build` ([`cargo-gb`](tools/cargo-gb)) drives the whole pipeline.
 
 ## Why use Rust instead of C or ASM?
 
@@ -63,9 +79,8 @@ PRs are always welcome too!
 
 ## Dependencies
 
-* [rust-z80](https://github.com/zlfn/rust) (nightly fork)
-* [llvm-z80](https://github.com/zlfn/llvm-z80)
-* [cargo-make](https://github.com/sagiegurari/cargo-make)
+* [rust-z80](https://github.com/zlfn/rust) (nightly Rust fork, built with in-tree `lld`)
+* [llvm-z80](https://github.com/zlfn/llvm-z80) (the SM83 LLVM backend, built into rust-z80)
 
 This project is still a work in progress, and I haven't tested it outside of my development environment. 
 Dependencies may change as the project evolves.

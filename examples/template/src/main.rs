@@ -1,7 +1,7 @@
 //! Minimal rust-gb project template: prints "Hello, World!" and idles.
 //!
 //! Copy this directory to start a new Game Boy project, then build the ROM with
-//! `cargo make rom` (output lands in `target/`).
+//! `cargo gb build` (output lands in `target/`).
 
 #![no_std]
 #![no_main]

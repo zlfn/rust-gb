@@ -1,5 +1,5 @@
-//! `gb-bank-pack` CLI: a thin wrapper over the `gb_bank_pack` library that prints
-//! the bank summary and writes it to `bank_summary.txt` for the Makefile pipeline.
+//! `gb-bank-pack` CLI: a thin wrapper over the `gb_bank_pack` library that runs a
+//! banking pass and writes the bank summary to `bank_summary.txt`.
 
 use std::fmt::Write as _;
 use std::path::PathBuf;
