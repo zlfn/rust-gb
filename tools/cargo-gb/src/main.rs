@@ -96,13 +96,12 @@ fn build() -> Result<(), String> {
     let tc = Toolchain::discover()?;
     let proj = resolve_project()?;
 
-    // 1. Compile the Rust staticlib.
-    let pb = ui::spinner("Building", &format!("{} ({TARGET})", proj.name));
+    // 1. Compile the Rust staticlib. cargo's own progress flows through.
     let built = Command::new("cargo")
-        .args(["build", "--release", "--target", TARGET, "--quiet"])
-        .status();
-    pb.finish_and_clear();
-    if !built.map_err(|e| format!("failed to run cargo: {e}"))?.success() {
+        .args(["build", "--release", "--target", TARGET])
+        .status()
+        .map_err(|e| format!("failed to run cargo: {e}"))?;
+    if !built.success() {
         return Err("cargo build failed".to_string());
     }
 
