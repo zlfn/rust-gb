@@ -38,21 +38,26 @@ pub fn spinner(verb: &str, msg: &str) -> ProgressBar {
 pub fn bank_bars(bank0_used: Option<usize>, banks: &[gb_bank_pack::BankInfo], bank_size: usize) {
     let width = textwrap::termwidth();
     if let Some(used) = bank0_used {
-        print_bank(0, used, bank_size, &[], width);
+        fill_bar("bank 0", used, bank_size, &[], width);
     }
     for b in banks {
-        print_bank(b.bank, b.used, bank_size, &b.modules, width);
+        fill_bar(&format!("bank {}", b.bank), b.used, bank_size, &b.modules, width);
     }
 }
 
-fn print_bank(bank: u8, used: usize, bank_size: usize, modules: &[String], width: usize) {
-    let filled = if bank_size == 0 {
+/// A single fill bar for a non-banked ROM's fixed region.
+pub fn rom_bar(used: usize, limit: usize) {
+    fill_bar("rom", used, limit, &[], textwrap::termwidth());
+}
+
+fn fill_bar(label: &str, used: usize, size: usize, modules: &[String], width: usize) {
+    let filled = if size == 0 {
         0
     } else {
-        (used * 20).div_ceil(bank_size).min(20)
+        (used * 20).div_ceil(size).min(20)
     };
     let bar: String = "█".repeat(filled) + &"░".repeat(20 - filled);
-    let prefix = format!("   bank {bank:<3} {bar} {used:>6}/{bank_size}   ");
+    let prefix = format!("   {label:<8} {bar} {used:>6}/{size}   ");
 
     if modules.is_empty() {
         println!("{}", prefix.trim_end());

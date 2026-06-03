@@ -153,9 +153,17 @@ fn build() -> Result<(), String> {
         }
     }
     ui::status("Finished", &format!("{}.gb   {size_kb} KB", proj.name));
-    if let Some(s) = &summary {
-        println!();
-        ui::bank_bars(info.as_ref().map(|i| i.used), &s.banks, s.bank_size);
+    match &summary {
+        Some(s) => {
+            println!();
+            ui::bank_bars(info.as_ref().map(|i| i.used), &s.banks, s.bank_size);
+        }
+        None => {
+            if let Some(i) = &info {
+                println!();
+                ui::rom_bar(i.used, i.limit);
+            }
+        }
     }
     Ok(())
 }
