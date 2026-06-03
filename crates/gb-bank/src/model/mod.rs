@@ -73,9 +73,9 @@ pub use warp::{Warp, BankedWarp, FixedFn, FixedWarp, WarpSafe};
 
 // ===== Low-level bank switch =====
 
-// The software bank shadow. On the Game Boy it is defined by the banking runtime
-// (trampolines.o); on the host it is a plain static so the switch logic can be
-// unit-tested without hardware.
+// The software bank shadow. On the Game Boy it is defined by the gb-rt runtime
+// (`__current_bank`, shared with GBDK's C runtime); on the host it is a plain
+// static so the switch logic can be unit-tested without hardware.
 #[cfg(target_arch = "sm83")]
 unsafe extern "C" {
     static mut _current_bank: u8;
@@ -91,8 +91,8 @@ static SWITCH_COUNT: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU
 /// Switch the active ROM bank.
 ///
 /// Writes both the MBC bank register at `0x2000` (write-only on hardware) and
-/// the `_current_bank` software shadow that gb-bank-pack and interrupt handlers
-/// rely on.
+/// the `_current_bank` software shadow that interrupt handlers rely on to save
+/// and restore the mapped bank.
 ///
 /// Prefer the safe [`scope`] / [`Far`] API; this is the raw primitive for hand
 /// rolled control. After calling it, use [`Bank::assume`] to mint a matching

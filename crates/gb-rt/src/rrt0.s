@@ -160,6 +160,15 @@ _on_joypad:
     .byte 0x00          ; Header checksum (patch later)
     .byte 0x00, 0x00    ; Global checksum (patch later)
 
+    ; ── Current ROM bank shadow ──
+    ; Mirror of the mapped switchable ROM bank. Shared by gb-bank (its switch
+    ; shadow) and GBDK's C runtime, which references __current_bank pervasively.
+    ; Its own section so the linker GCs it when nothing uses banking.
+    .section .data.current_bank, "aw"
+    .globl __current_bank
+__current_bank:
+    .byte 0
+
     ; ── Initialization ──
 
     .section .text.rrt0
