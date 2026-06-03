@@ -1,11 +1,15 @@
+# Game Boy crates (SM83 target). Host-side build tools live in the separate
+# `tools/` workspace.
 [workspace]
 members = [
+    "crates/gb-rt",
+    "crates/gb-rt-macros",
     "crates/gbdk-sys",
-    "crates/utils/gb-header-fix",
-    "crates/bank/gb-bank-type",
-    "crates/bank/gb-bank-pack",
-    "crates/bank/gb-bank-macros",
-    "crates/bank/gb-bank",
+    "crates/gb-bank-type",
+    "crates/gb-bank-macros",
+    "crates/gb-bank",
+    "crates/gb",
+    "examples/template",
     "examples/slideshow",
     "examples/bank-test",
     "examples/gbdk/filltest",
@@ -22,15 +26,12 @@ members = [
     "examples/gbdk/comm",
     "examples/gbdk/sgb-pong",
 ]
-# `cargo build` at the workspace root builds only the host-side library and tool
-# crates. The Game Boy examples need the z80 toolchain and are built through their
-# own Makefile, so they are kept out of the default set.
+# `cargo build` at the root builds the host-buildable library crates. The
+# examples need the z80 toolchain and are built through their Makefile.
 default-members = [
-    "crates/utils/gb-header-fix",
-    "crates/bank/gb-bank-type",
-    "crates/bank/gb-bank-pack",
-    "crates/bank/gb-bank-macros",
-    "crates/bank/gb-bank",
+    "crates/gb-bank-type",
+    "crates/gb-bank-macros",
+    "crates/gb-bank",
 ]
 resolver = "3"
 

@@ -46,8 +46,8 @@ static BAR_A: [u8; 360] = [
     3,3,3,3,0,0,0,0,5,5,5,5,0,0,0,0,0,0,0,0,
 ];
 
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+#[gb_rt::entry]
+fn main() {
     unsafe {
         gbdk_sys::init();
 

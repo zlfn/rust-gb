@@ -1,0 +1,17 @@
+[package]
+name = "gb"
+version = "0.1.0"
+edition = "2024"
+authors = ["zlfn <ung@zlfn.space>"]
+description = "Safe, idiomatic Game Boy hardware abstractions"
+
+[features]
+default = []
+# Game Boy Color hardware: the CGB-only registers (VRAM/WRAM banking, VRAM DMA,
+# speed switch, color palettes, ...). Off by default for a DMG baseline.
+cgb = []
+
+[dependencies]
+voladdress = "1.4.0"
+bitflags = "2"
+bitfield-struct = "0.13.0"

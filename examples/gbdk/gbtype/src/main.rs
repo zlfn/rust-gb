@@ -12,8 +12,8 @@ use gbdk_sys::gb::gb::*;
 use gbdk_sys::gb::sgb::*;
 use gbdk_sys::stdio::printf;
 
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+#[gb_rt::entry]
+fn main() {
     unsafe {
         gbdk_sys::init();
 

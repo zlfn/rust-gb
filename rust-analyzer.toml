@@ -1,0 +1,7 @@
+# rust-analyzer project config (editor-agnostic).
+#
+# Cargo features stay off by default for builds, but we enable all of them for
+# analysis so feature-gated code (e.g. the Game Boy Color `mmio::cgb` module) is
+# not greyed out and still gets completion and diagnostics in the editor.
+[cargo]
+features = "all"

@@ -77,8 +77,8 @@ fn show_slide(slide: &Slide) {
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+#[gb_rt::entry]
+fn main() {
     unsafe {
         gbdk_sys::init();
 

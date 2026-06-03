@@ -1,166 +1,19 @@
-# Common build pipeline for rust-gb Game Boy projects.
-# Examples extend this file with: extend = "../../Makefile.toml"
+# rust-gb workspace. ROM builds happen inside example/game crates, which extend
+# the shared `rom.toml` pipeline. There is nothing to build at the root itself.
 
 [config]
 skip_core_tasks = true
 default_to_workspace = false
 
-[env]
-TARGET = "sm83-nintendo-none-elf"
-WORKSPACE_ROOT = { script = ["cd ${CARGO_MAKE_WORKING_DIRECTORY} && git rev-parse --show-toplevel"] }
-OUT = "${CARGO_MAKE_WORKING_DIRECTORY}/target"
-STATICLIB = "${WORKSPACE_ROOT}/target/${TARGET}/release/lib${CARGO_MAKE_CRATE_FS_NAME}.a"
-NAME = "${CARGO_MAKE_CRATE_NAME}"
-GB_HEADER_FIX = "${WORKSPACE_ROOT}/target/release/gb-header-fix"
-GB_BANK_PACK = "${WORKSPACE_ROOT}/target/release/gb-bank-pack"
-
-# ── Step 1: Build host tools ──
-
-[tasks.build-host-tools]
-description = "Build gb-header-fix and gb-bank-pack"
-script_runner = "@shell"
-script = '''
-cd "${WORKSPACE_ROOT}/crates/utils/gb-header-fix" && RUSTUP_TOOLCHAIN=stable cargo build --release
-cd "${WORKSPACE_ROOT}/crates/bank/gb-bank-pack" && RUSTUP_TOOLCHAIN=stable cargo build --release
-'''
-
-# ── Step 2: Compile Rust staticlib ──
-
-[tasks.build-rust]
-description = "Compile Rust staticlib (build.rs generates banks.rs if banks.toml exists)"
-script_runner = "@shell"
-script = '''
-set -a && . "${WORKSPACE_ROOT}/.env" && set +a
-
-GB_BANK_PACK="${GB_BANK_PACK}" cargo build --release
-'''
-dependencies = ["build-host-tools"]
-
-# ── Step 3: Process .o files for banking ──
-
-[tasks.create-out-dir]
-command = "mkdir"
-args = ["-p", "${OUT}"]
-
-[tasks.assemble-rrt0]
-script_runner = "@shell"
-script = '''
-. "${WORKSPACE_ROOT}/.env"
-${LLVM_Z80_BIN}/clang --target=sm83 -c "${WORKSPACE_ROOT}/rrt0.s" -o "${OUT}/rrt0.o"
-'''
-dependencies = ["create-out-dir"]
-
-[tasks.bank-link]
-description = "Rename sections, bin-pack, generate trampolines and linker script"
-script_runner = "@shell"
-script = '''
-. "${WORKSPACE_ROOT}/.env"
-
-# Banking is in use if the staticlib carries any per-module BANK marker.
-HAS_BANKED=$(${LLVM_Z80_BIN}/llvm-nm "${STATICLIB}" 2>/dev/null | grep -c "bank4BANK" || true)
-
-if [ "$HAS_BANKED" -gt 0 ]; then
-    # Extract to a persistent dir: gb-bank-pack patches these objects (BANK
-    # markers -> absolute bank numbers) in place, and the link step uses them
-    # instead of the unpatched archive.
-    BANK_OBJ="${OUT}/bank_obj"
-    rm -rf "$BANK_OBJ" && mkdir -p "$BANK_OBJ"
-    cd "$BANK_OBJ" && ${LLVM_Z80_BIN}/llvm-ar x "${STATICLIB}"
-    cd "${CARGO_MAKE_WORKING_DIRECTORY}"
-
-    HEADER_ARG=""
-    [ -f "${CARGO_MAKE_WORKING_DIRECTORY}/header.toml" ] && \
-        HEADER_ARG="--header ${CARGO_MAKE_WORKING_DIRECTORY}/header.toml"
-
-    LLVM_Z80_BIN=${LLVM_Z80_BIN} ${GB_BANK_PACK} link \
-        --obj $(find "$BANK_OBJ" -name "*.o") \
-        $HEADER_ARG --out-dir "${OUT}/"
-
-    # Repack the patched objects into an archive so the linker keeps archive
-    # member-selection (avoids duplicate weak/common symbols from loose .o).
-    rm -f "${OUT}/libbanked.a"
-    ${LLVM_Z80_BIN}/llvm-ar rcs "${OUT}/libbanked.a" $(find "$BANK_OBJ" -name "*.o")
-    rm -rf "$BANK_OBJ"
-else
-    rm -f "${OUT}/libbanked.a"
-    echo "/* No banking */" > "${OUT}/gb_banked.ld"
-fi
-'''
-dependencies = ["build-rust", "create-out-dir"]
-
-# ── Step 4: Link ELF ──
-
-[tasks.link]
-script_runner = "@shell"
-script = '''
-. "${WORKSPACE_ROOT}/.env"
-
-# Link every `*.ld` a dependency's build script dropped in its OUT_DIR (e.g.
-# gbdk-sys emits gbdk.ld). Newest first, one per filename, so stale build dirs
-# don't double-define sections. No dependency is named here.
-LD_ARGS=""
-seen=" "
-for f in $(ls -t ${WORKSPACE_ROOT}/target/${TARGET}/release/build/*/out/*.ld 2>/dev/null); do
-    b=$(basename "$f")
-    case "$seen" in *" $b "*) continue ;; esac
-    seen="$seen$b "
-    LD_ARGS="$LD_ARGS -T $f"
-done
-
-# With banking, link the patched objects (BANK markers resolved to absolute bank
-# numbers) plus trampolines.o, and allow the banks to share VMA 0x4000
-# (--no-check-sections). Without banking, link the archive as usual.
-if [ -f "${OUT}/libbanked.a" ]; then
-    ${LLVM_Z80_BIN}/ld.lld \
-        -T ${WORKSPACE_ROOT}/gb.ld -L ${OUT} $LD_ARGS \
-        --gc-sections --no-check-sections \
-        ${OUT}/rrt0.o ${OUT}/libbanked.a ${OUT}/trampolines.o \
-        -o ${OUT}/${NAME}.elf
-else
-    ${LLVM_Z80_BIN}/ld.lld \
-        -T ${WORKSPACE_ROOT}/gb.ld -L ${OUT} $LD_ARGS \
-        --gc-sections \
-        ${OUT}/rrt0.o ${STATICLIB} \
-        -o ${OUT}/${NAME}.elf
-fi
-'''
-dependencies = ["bank-link", "assemble-rrt0"]
-
-# ── Step 5: ROM output ──
-
-[tasks.rom]
-script_runner = "@shell"
-script = '''
-. "${WORKSPACE_ROOT}/.env"
-${LLVM_Z80_BIN}/llvm-objcopy -O binary --gap-fill=0xFF \
-    --remove-section=.hram --remove-section=.bss \
-    ${OUT}/${NAME}.elf ${OUT}/${NAME}.gb
-
-echo "=== Done: ${OUT}/${NAME}.gb ==="
-'''
-dependencies = ["link"]
-
-[tasks.header-fix]
-script_runner = "@shell"
-script = '''
-HEADER_TOML="${CARGO_MAKE_WORKING_DIRECTORY}/header.toml"
-if [ -f "$HEADER_TOML" ]; then
-    ${GB_HEADER_FIX} ${OUT}/${NAME}.gb "$HEADER_TOML"
-fi
-[ -f "${OUT}/bank_summary.txt" ] && cat "${OUT}/bank_summary.txt"
-true
-'''
-dependencies = ["rom"]
-
-[tasks.run]
-description = "Build and launch emulator"
-script_runner = "@shell"
-script = '''${EMULATOR:-sameboy} ${OUT}/${NAME}.gb'''
-dependencies = ["header-fix"]
-
 [tasks.default]
-alias = "header-fix"
-
-[tasks.clean]
 script_runner = "@shell"
-script = '''rm -rf "${OUT}"'''
+script = '''
+echo "rust-gb workspace: nothing to build at the root."
+echo "  Build a ROM:  cd into an example or your game crate, then run: cargo make"
+echo "  Build tools:  cargo make tools   (or: cd tools && cargo build --release)"
+'''
+
+[tasks.tools]
+description = "Build the host tools (gb-header-fix, gb-bank-pack, gb-image-fx)"
+script_runner = "@shell"
+script = '''cd "$(git rev-parse --show-toplevel)/tools" && cargo build --release'''

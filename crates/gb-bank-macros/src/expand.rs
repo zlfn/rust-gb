@@ -686,7 +686,9 @@ pub fn resident(_attr: TokenStream, item: TokenStream) -> TokenStream {
         Err(e) => return e.to_compile_error(),
     };
     transform_body(&mut func.block, &quote!(::gb_bank::GroupZero), true);
-    quote!(#func)
+    // The entry-point concerns (export as `main`, force the gb-rt startup into
+    // the link) are owned by gb-rt's #[entry]; delegate to it.
+    quote!(#[::gb_rt::entry] #func)
 }
 
 /// `#[bank::zero]`: a resident helper that *propagates the caller's bank*.

@@ -26,8 +26,8 @@ fn linetest(x: u8, y: u8, w: u8) {
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+#[gb_rt::entry]
+fn main() {
     unsafe { gbdk_sys::init(); }
     let mut c: c_char = 0;
     unsafe {

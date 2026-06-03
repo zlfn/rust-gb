@@ -3,6 +3,12 @@
 #![feature(asm_experimental_arch)]
 #![allow(unsafe_op_in_unsafe_fn)]
 
+// The GBDK runtime init (gbdk_init.s) is compiled into the crate, so no host
+// assembler is needed. It strongly defines _on_vblank and the GBDK init routine,
+// overriding the weak interrupt defaults in gb-rt's rrt0. It is pulled into the
+// link by the _gbdk_init reference below.
+core::arch::global_asm!(include_str!("../gbdk_init.s"));
+
 // asm/ headers
 pub mod types;
 

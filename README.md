@@ -25,7 +25,7 @@ Compile Rust to Game Boy ROMs.
 - `gb-image-fx`: convert images (PNG, JPEG, BMP, ...) to Game Boy / Game Boy Color tile data.
 
 **Examples**
-- `examples/`: runnable demos, including `bank-test` and a set of ported GBDK examples.
+- `examples/`: runnable demos. Start from `template` (a minimal project to copy), and see `bank-test` and a set of ported GBDK examples.
 
 ## How is this possible?
 

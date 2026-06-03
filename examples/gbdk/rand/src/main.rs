@@ -17,8 +17,8 @@ const fn rand_range_8bit(randval: u8, range: u8) -> u8 {
     r
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+#[gb_rt::entry]
+fn main() {
     unsafe { gbdk_sys::init(); }
     let mut seed: u16;
     let mut accu: [u8; RANGE_SIZE as usize] = [0; RANGE_SIZE as usize]; 

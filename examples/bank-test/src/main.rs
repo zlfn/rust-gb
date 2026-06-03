@@ -131,8 +131,7 @@ impl Doubler for Counter {
 // ── Main (resident entry, bank 0) ──
 
 #[bank::main]
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+fn main() {
     unsafe {
         gbdk_sys::init();
 

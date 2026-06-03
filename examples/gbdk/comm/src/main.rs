@@ -24,8 +24,8 @@ unsafe fn io_in() -> u8 {
     unsafe { core::ptr::read_volatile(&raw const _io_in) }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+#[gb_rt::entry]
+fn main() {
     unsafe {
         gbdk_sys::init();
 

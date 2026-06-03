@@ -17,8 +17,8 @@ const CGB_BKG_PAL_0: u8 = 0;
 const CGB_ONE_PAL: u8 = 1;
 const CGB_PAL_BLACK: [PaletteColor; 4] = [RGB_BLACK, RGB_BLACK, RGB_BLACK, RGB_BLACK];
 
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+#[gb_rt::entry]
+fn main() {
     unsafe {
         gbdk_sys::init();
 

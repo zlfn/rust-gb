@@ -1,0 +1,14 @@
+[package]
+name = "gb-rt-macros"
+version = "0.1.0"
+edition = "2024"
+authors = ["zlfn <ung@zlfn.space>"]
+description = "Procedural macros for gb-rt (the #[entry] attribute)"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"

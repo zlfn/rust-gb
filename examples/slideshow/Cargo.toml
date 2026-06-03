@@ -10,4 +10,5 @@ path = "src/main.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
+gb-rt = { path = "../../crates/gb-rt" }
 gbdk-sys = { path = "../../crates/gbdk-sys" }

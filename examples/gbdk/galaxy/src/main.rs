@@ -393,8 +393,8 @@ unsafe fn place_sprite() {
     move_sprite(1, SPOSX.b.h + 8, SPOSY.b.h);
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+#[gb_rt::entry]
+fn main() {
     unsafe {
         gbdk_sys::init();
 

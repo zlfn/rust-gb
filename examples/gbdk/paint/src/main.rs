@@ -482,8 +482,8 @@ unsafe fn run() {
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+#[gb_rt::entry]
+fn main() {
     unsafe {
         gbdk_sys::init();
         OBP1_REG.write(0xE0);

@@ -44,8 +44,8 @@ unsafe fn draw_pad(n: u8, x: u8, y: u8) {
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+#[gb_rt::entry]
+fn main() {
     unsafe {
         gbdk_sys::init();
 

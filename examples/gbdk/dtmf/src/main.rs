@@ -337,8 +337,8 @@ unsafe fn move_cursor(x: u8, y: u8) {
     move_sprite(26, x + 8, y + 8);
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+#[gb_rt::entry]
+fn main() {
     unsafe {
         gbdk_sys::init();
 

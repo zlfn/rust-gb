@@ -12,5 +12,3 @@ path = "src/main.rs"
 image = "0.25"
 pico-args = "0.5"
 palette = "0.7"
-
-[workspace]

@@ -23,8 +23,8 @@ unsafe extern "C" fn scanline_isr() {
     unsafe { SCX_REG.write(OFFSETS[(base + ly) & 0x0F]) };
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+#[gb_rt::entry]
+fn main() {
     unsafe {
         gbdk_sys::init();
         printf(b"This is\na wobble\ntest\nfor DMG\n|\n|\n|\n|\n|\0".as_ptr() as *const c_char);

@@ -94,8 +94,8 @@ impl Calc {
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn main() {
+#[gb_rt::entry]
+fn main() {
     unsafe { gbdk_sys::init() };
     unsafe { puts(cstr(b"RPN Calculator\0")) };
 

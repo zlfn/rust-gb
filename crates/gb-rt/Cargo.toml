@@ -1,0 +1,9 @@
+[package]
+name = "gb-rt"
+version = "0.1.0"
+edition = "2024"
+authors = ["zlfn <ung@zlfn.space>"]
+description = "Core Game Boy (SM83) runtime: startup code and linker script"
+
+[dependencies]
+gb-rt-macros = { path = "../gb-rt-macros" }
