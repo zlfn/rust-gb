@@ -13,13 +13,10 @@
 
     .globl __gbdk_init
 __gbdk_init:
-    ; Read boot registers from HRAM (saved by rrt0 at 0xFF80-0xFF81).
-    ; Must happen BEFORE OAM DMA copy which overwrites 0xFF80.
-    ;   __cpu: raw boot A (0x01=DMG, 0xFF=MGB, 0x11=CGB)
-    ;   __is_GBA: 0x00 or 0x01
-    ldh a, ( 0x80 )     ; Boot A (CPU type)
-    ld (__cpu), a
-    ldh a, ( 0x81 )     ; Boot B (GBA flag)
+    ; __cpu aliases rrt0's raw boot-A (see gbdk.ld), so it is already populated.
+    ; Derive __is_GBA from the raw boot-B that rrt0 captured (bit 0 = GBA).
+    ld a, (__boot_b)
+    and 1
     ld (__is_GBA), a
 
     ; Clear OAM shadow
@@ -295,11 +292,8 @@ _set_interrupts:
 
     .section .bss
 
-    ; CPU detection (set by __gbdk_init from boot registers in HRAM)
-    .globl __cpu
-__cpu:
-    .byte 0
-
+    ; CPU detection. __cpu aliases rrt0's __boot_a (see gbdk.ld); __is_GBA is
+    ; derived from the raw boot-B by __gbdk_init.
     .globl __is_GBA
 __is_GBA:
     .byte 0

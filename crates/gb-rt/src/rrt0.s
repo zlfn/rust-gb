@@ -169,6 +169,16 @@ _on_joypad:
 __current_bank:
     .byte 0
 
+    ; ── Raw boot registers ──
+    ; Captured by `_reset` at boot.
+    .section .bss
+    .globl __boot_a
+__boot_a:
+    .byte 0
+    .globl __boot_b
+__boot_b:
+    .byte 0
+
     ; ── Initialization ──
 
     .section .text.rrt0
@@ -178,17 +188,15 @@ _reset:
     di
     ld sp, 0xE000
 
-    ; ── Save boot registers ──
-    ; The Game Boy Boot ROM leaves identification values in registers
-    ; when it hands control to the cartridge at address 0x100:
+    ; ── Capture boot registers ──
+    ; The Boot ROM leaves identification values in registers when it hands
+    ; control to the cartridge at 0x100, valid only at this first instruction:
     ;   A = 0x01 → DMG, 0xFF → MGB (Pocket/Light), 0x11 → CGB (also GBA)
-    ;   B = 0x01 → GBA (Game Boy Advance in GBC mode), 0x00 → not GBA
-    ; These values are only valid at the very first instruction after boot.
-    ; Save to HRAM 0xFF80-0xFF81 (not affected by WRAM clear below).
-    ; gbdk_init will read these before copying OAM DMA to the same location.
-    ldh ( 0x80 ), a     ; HRAM $FF80 = boot A (CPU type)
-    ld a, b
-    ldh ( 0x81 ), a     ; HRAM $FF81 = boot B (GBA flag)
+    ;   B = bit 0 set → GBA (Game Boy Advance in GBC mode)
+    ; Hold them in D/E (untouched by the WRAM clear below), then store to WRAM
+    ; once it is cleared.
+    ld d, a             ; D = boot A
+    ld e, b             ; E = boot B
 
     ; Clear all WRAM (0xC000-0xDFFF)
     xor a
@@ -201,6 +209,12 @@ _reset:
     or c
     ld a, 0
     jr nz, .clear_wram
+
+    ; ── Persist raw boot registers to WRAM (now cleared) ──
+    ld a, d
+    ld (__boot_a), a
+    ld a, e
+    ld (__boot_b), a
 
     ; ── Reset hardware state ──
     ; Clean up residual state left by the Boot ROM so every program
