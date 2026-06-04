@@ -54,6 +54,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "gb-hram"
+version = "0.1.0"
+
+[[package]]
 name = "gb-rt"
 version = "0.1.0"
 dependencies = [
