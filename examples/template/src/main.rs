@@ -16,7 +16,7 @@ fn main() {
         gbdk_sys::init();
 
         // C strings must be NUL-terminated.
-        printf(b"Hello, World!\n\0".as_ptr() as *const c_char);
+        printf(b"Hello, Rust-GB!\n\0".as_ptr() as *const c_char);
     }
 
     // A Game Boy program never returns; spin forever.
