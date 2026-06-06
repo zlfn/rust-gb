@@ -13,6 +13,6 @@ crate-type = ["staticlib"]
 workspace = true
 
 [dependencies]
-gb-rt = { path = "../../crates/gb-rt" }
-gbdk-sys = { path = "../../crates/gbdk-sys" }
-gb-bank = { path = "../../crates/gb-bank" }
+gb-rt = { workspace = true }
+gbdk-sys = { workspace = true }
+gb-bank = { workspace = true }

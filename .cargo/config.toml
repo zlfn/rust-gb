@@ -1,0 +1,4 @@
+# The Game Boy crates target SM83; default every root `cargo` command to it so
+# `cargo build`/`cargo doc` work without an explicit `--target`.
+[build]
+target = "sm83-nintendo-none-elf"

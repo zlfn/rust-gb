@@ -26,13 +26,32 @@ members = [
     "examples/gbdk/comm",
     "examples/gbdk/sgb-pong",
 ]
-# `cargo build` at the root builds the host-buildable library crates. The
-# examples need the z80 toolchain and are built through their Makefile.
+# `cargo build`/`cargo doc` at the root (sm83 target, see .cargo/config.toml)
+# operate on the library crates. Examples are built with `cargo gb`.
 default-members = [
-    "crates/gb-bank-macros",
+    "crates/gb",
+    "crates/gb-hram",
     "crates/gb-bank",
+    "crates/gb-bank-macros",
+    "crates/gb-rt",
+    "crates/gb-rt-macros",
+    "crates/gbdk-sys",
 ]
 resolver = "3"
+
+[workspace.dependencies]
+# Internal crates.
+gb = { path = "crates/gb" }
+gb-hram = { path = "crates/gb-hram" }
+gb-rt = { path = "crates/gb-rt" }
+gb-rt-macros = { path = "crates/gb-rt-macros" }
+gbdk-sys = { path = "crates/gbdk-sys" }
+gb-bank = { path = "crates/gb-bank" }
+gb-bank-macros = { path = "crates/gb-bank-macros" }
+# Shared third-party crates.
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
 
 [workspace.lints.rust.unexpected_cfgs]
 level = "warn"

@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-gb-bank-macros = { path = "../gb-bank-macros" }
-gb-hram = { path = "../gb-hram" }
+gb-bank-macros = { workspace = true }
+gb-hram = { workspace = true }
