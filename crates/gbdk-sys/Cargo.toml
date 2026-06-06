@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2024"
 authors = ["zlfn <ung@zlfn.space>"]
 description = "Raw FFI bindings to GBDK"
+
+[dependencies]
+gb-hram = { path = "../gb-hram" }

@@ -28,16 +28,14 @@ __gbdk_init:
     dec c
     jr nz, .clear_oam
 
-    ; Copy OAM DMA routine to HRAM (0xFF80)
-    ld hl, _oam_dma_src
-    ld de, 0xFF80
-    ld c, _oam_dma_end - _oam_dma_src
-.copy_dma:
-    ld a, (hl+)
-    ld (de), a
-    inc de
-    dec c
-    jr nz, .copy_dma
+    ; Default the shadow OAM source page to the high byte of _shadow_OAM (0xC000),
+    ; then copy the OAM DMA routine to its HRAM landing site (.refresh_OAM).
+    ld a, 0xC0
+    ldh (__shadow_OAM_base), a
+    ld de, .start_refresh_OAM
+    ld hl, .refresh_OAM
+    ld c, .end_refresh_OAM - .start_refresh_OAM
+    rst 0x30
 
     ; Set default DMG palettes
     ld a, 0xE4          ; BGP: 11 10 01 00
@@ -76,17 +74,42 @@ _display_off:
     ldh ( 0x40 ), a
     ret
 
-    ; ── OAM DMA source (copied to HRAM) ──
+    ; ── OAM DMA routine source (copied to .refresh_OAM in HRAM) ──
+    ; Reads the shadow OAM page from __shadow_OAM_base and skips when it is zero,
+    ; matching GBDK. `.refresh_OAM` runs the guard; `.refresh_OAM_DMA` skips it.
 
-_oam_dma_src:
-    ld a, 0xC0
+.start_refresh_OAM:
+    ldh a, (__shadow_OAM_base)
+    or a
+    ret z
+.start_refresh_OAM_DMA:
     ldh ( 0x46 ), a
     ld a, 40
 .dma_wait:
     dec a
     jr nz, .dma_wait
     ret
-_oam_dma_end:
+.end_refresh_OAM:
+
+    ; HRAM landing sites for the routine above. libgb.a calls `.refresh_OAM` (and
+    ; `.refresh_OAM_DMA`) by name; the linker places them and __gbdk_init copies the
+    ; routine here. Referenced, so kept without an explicit KEEP.
+    .section _HRAM.refresh_OAM, "aw"
+    .globl .refresh_OAM
+    .globl .refresh_OAM_DMA
+.refresh_OAM:
+    .skip (.start_refresh_OAM_DMA - .start_refresh_OAM)
+.refresh_OAM_DMA:
+    .skip (.end_refresh_OAM - .start_refresh_OAM_DMA)
+    .section .text, "ax"
+
+    ; Shadow OAM source page, read by the routine above. libgb.a sets it;
+    ; __gbdk_init defaults it to the high byte of _shadow_OAM.
+    .section _HRAM.shadow_base, "aw"
+    .globl __shadow_OAM_base
+__shadow_OAM_base:
+    .skip 1
+    .section .text, "ax"
 
     ; ── VBlank handler (strong override) ──
 
@@ -95,7 +118,7 @@ _oam_dma_end:
     .globl _on_vblank
 _on_vblank:
     ; OAM DMA
-    call 0xFF80
+    call .refresh_OAM
 
     ; Clear vbl_done flag
     xor a

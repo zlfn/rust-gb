@@ -42,6 +42,7 @@ name = "gb-bank"
 version = "0.1.0"
 dependencies = [
  "gb-bank-macros",
+ "gb-hram",
 ]
 
 [[package]]
@@ -180,6 +181,9 @@ dependencies = [
 [[package]]
 name = "gbdk-sys"
 version = "0.1.0"
+dependencies = [
+ "gb-hram",
+]
 
 [[package]]
 name = "proc-macro2"
