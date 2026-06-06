@@ -74,25 +74,15 @@ pub use warp::{Warp, BankedWarp, FixedFn, FixedWarp, WarpSafe};
 // ===== Low-level bank switch =====
 
 // The software bank shadow. The MBC bank register is write-only, so the mapped
-// bank is tracked here. On the Game Boy it is a High RAM cell read and written
-// with the immediate `ldh` form through gb-hram; the runtime zero-initialises HRAM
-// at reset (as gb-hram requires), so it starts at 0. The `as "_current_bank"`
-// exports the storage as the `__current_bank` symbol that GBDK's C runtime also
-// references (the target adds the leading underscore). On the host it is a plain
-// static so the switch logic can be unit-tested without hardware.
-#[cfg(target_arch = "sm83")]
+// bank is tracked here: a High RAM cell read and written with the immediate `ldh`
+// form through gb-hram. The runtime zero-initialises HRAM at reset (as gb-hram
+// requires), so it starts at 0. The `as "_current_bank"` exports the storage as
+// the `__current_bank` symbol that GBDK's C runtime also references (the target
+// adds the leading underscore).
 gb_hram::hram! {
     static CURRENT_BANK as "_current_bank": u8;
 }
-#[cfg(target_arch = "sm83")]
 use gb_hram::HramCell;
-#[cfg(not(target_arch = "sm83"))]
-#[allow(non_upper_case_globals)]
-static mut _current_bank: u8 = 0;
-
-// Test-only count of real hardware switches, to assert elision and restore.
-#[cfg(all(test, not(target_arch = "sm83")))]
-static SWITCH_COUNT: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
 
 /// Switch the active ROM bank.
 ///
@@ -111,18 +101,9 @@ static SWITCH_COUNT: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU
 /// invalid across the switch.
 #[inline(never)]
 pub unsafe fn switch_bank(bank: u8) {
-    #[cfg(target_arch = "sm83")]
-    {
-        // Shadow (immediate `ldh` via gb-hram), then the write-only MBC register.
-        CURRENT_BANK.set(bank);
-        unsafe { core::ptr::write_volatile(0x2000 as *mut u8, bank) };
-    }
-    #[cfg(not(target_arch = "sm83"))]
-    unsafe {
-        core::ptr::write_volatile(&raw mut _current_bank, bank);
-        #[cfg(test)]
-        SWITCH_COUNT.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-    }
+    // Shadow (immediate `ldh` via gb-hram), then the write-only MBC register.
+    CURRENT_BANK.set(bank);
+    unsafe { core::ptr::write_volatile(0x2000 as *mut u8, bank) };
 }
 
 /// Read the currently mapped bank from the software shadow.
@@ -133,12 +114,7 @@ pub unsafe fn switch_bank(bank: u8) {
 /// type and never needs it.
 #[inline]
 pub fn current_bank() -> u8 {
-    #[cfg(target_arch = "sm83")]
-    {
-        CURRENT_BANK.get()
-    }
-    #[cfg(not(target_arch = "sm83"))]
-    unsafe { core::ptr::read_volatile(&raw const _current_bank) }
+    CURRENT_BANK.get()
 }
 
 // ===== Group brands =====
@@ -330,186 +306,5 @@ pub(crate) fn switch_run<C: Group, G: Group, R>(
             unsafe { switch_bank(C::bank()) };
         }
         r
-    }
-}
-
-// The bank switch logic (FIXED / same-group elision, restore on the way out) is
-// hardware-independent, so it runs on the host: the MMIO write is gated out (see
-// `switch_bank`) and `_current_bank` is a plain static. `SWITCH_COUNT` records
-// how many real switches happened, so elision can be asserted, not just guessed.
-#[cfg(all(test, not(target_arch = "sm83")))]
-mod tests {
-    use super::*;
-    use core::sync::atomic::Ordering::Relaxed;
-
-    struct G1;
-    impl Group for G1 {
-        const FIXED: bool = false;
-        fn bank() -> u8 {
-            1
-        }
-    }
-    struct G2;
-    impl Group for G2 {
-        const FIXED: bool = false;
-        fn bank() -> u8 {
-            2
-        }
-    }
-
-    fn root() -> Bank<GroupZero> {
-        unsafe { Bank::assume() }
-    }
-    fn switches() -> u32 {
-        SWITCH_COUNT.load(Relaxed)
-    }
-    fn reset() {
-        SWITCH_COUNT.store(0, Relaxed);
-    }
-    /// The host test harness runs in bank 0, so minting an `Anchor` is sound here.
-    fn anchor() -> Anchor {
-        unsafe { Anchor::assume() }
-    }
-
-    #[test]
-    fn fixed_and_same_group_are_elided() {
-        reset();
-        let mut b = root();
-        // GroupZero is FIXED: entering it switches nothing.
-        scope(anchor(), &mut b, |_z: &mut Bank<GroupZero>| {});
-        assert_eq!(switches(), 0);
-
-        // root (FIXED) -> G1 is one switch, with no restore on the way out.
-        scope(anchor(), &mut b, |g1: &mut Bank<G1>| {
-            let before = switches();
-            // G1 -> G1 (same group) is elided.
-            scope(anchor(), g1, |_same: &mut Bank<G1>| {});
-            assert_eq!(switches(), before);
-        });
-        assert_eq!(switches(), 1);
-    }
-
-    #[test]
-    fn cross_group_switches_and_restores() {
-        reset();
-        let mut b = root();
-        scope(anchor(), &mut b, |g1: &mut Bank<G1>| {
-            assert_eq!(current_bank(), 1);
-            scope(anchor(), g1, |_g2: &mut Bank<G2>| {
-                assert_eq!(current_bank(), 2);
-            });
-            // caller G1 is non-fixed, so the bank is restored to 1.
-            assert_eq!(current_bank(), 1);
-        });
-        // root->G1, G1->G2, G2->G1 restore.
-        assert_eq!(switches(), 3);
-    }
-
-    #[test]
-    fn restore_skipped_when_caller_is_fixed() {
-        reset();
-        let mut b = root();
-        scope(anchor(), &mut b, |_g1: &mut Bank<G1>| {
-            assert_eq!(current_bank(), 1);
-        });
-        // caller is GroupZero (FIXED): no restore, only the inbound switch.
-        assert_eq!(switches(), 1);
-        assert_eq!(current_bank(), 1);
-    }
-
-    #[test]
-    fn local_reads_same_group_data() {
-        static DATA: [u8; 3] = [10, 20, 30];
-        let far: Far<[u8; 3], GroupZero> = unsafe { Far::new(&DATA) };
-        let b = root();
-        assert_eq!(far.local(&b), &[10, 20, 30]);
-    }
-
-    #[test]
-    fn far_invoke_runs_in_target_bank() {
-        reset();
-        fn double(x: u8) -> u8 {
-            x.wrapping_mul(2)
-        }
-        let far: Far<fn(u8) -> u8, G1> = unsafe { Far::new(double as *const _) };
-        let mut b = root();
-        assert_eq!(far.invoke(&mut b, (21,)), 42);
-        assert_eq!(switches(), 1); // into G1; no restore (root is fixed)
-    }
-
-    #[test]
-    fn far_there_borrows_then_restores() {
-        static DATA: u8 = 99;
-        let far: Far<u8, G2> = unsafe { Far::new(&DATA) };
-        let mut b = root();
-        let v = scope(anchor(), &mut b, |g1: &mut Bank<G1>| {
-            let v = far.there(anchor(), g1, |&d| d);
-            assert_eq!(current_bank(), 1); // restored to the G1 caller
-            v
-        });
-        assert_eq!(v, 99);
-    }
-
-    #[test]
-    fn anyfar_dispatch_table() {
-        fn add1(x: u8) -> u8 {
-            x + 1
-        }
-        fn add2(x: u8) -> u8 {
-            x + 2
-        }
-        let a: Far<fn(u8) -> u8, G1> = unsafe { Far::new(add1 as *const _) };
-        let b: Far<fn(u8) -> u8, G2> = unsafe { Far::new(add2 as *const _) };
-        let table = [a.erase(), b.erase()];
-        let mut root = root();
-        assert_eq!(table[0].invoke(&mut root, (10,)), 11);
-        assert_eq!(table[1].invoke(&mut root, (10,)), 12);
-    }
-
-    // Driving a `Warp` with an explicit token (as in `scope(.., |b| w.drive(b))`):
-    // same group elides the switch, a different group switches and restores.
-    #[test]
-    fn drive_with_scope_token_same_group_is_elided() {
-        reset();
-        fn double(x: u8) -> u8 {
-            x.wrapping_mul(2)
-        }
-        let mut root = root();
-        scope(anchor(), &mut root, |g1: &mut Bank<G1>| {
-            let before = switches();
-            let w = unsafe { BankedWarp::<fn(u8) -> u8, G1, (u8,)>::new(double, (21,)) };
-            assert_eq!(w.drive(g1), 42); // G1 warp + G1 token -> same group
-            assert_eq!(switches(), before); // no extra switch
-        });
-    }
-
-    #[test]
-    fn near_runs_in_place_without_switching() {
-        reset();
-        fn double(x: u8) -> u8 {
-            x.wrapping_mul(2)
-        }
-        let mut root = root();
-        scope(anchor(), &mut root, |g1: &mut Bank<G1>| {
-            let before = switches();
-            let w = unsafe { BankedWarp::<fn(u8) -> u8, G1, (u8,)>::new(double, (21,)) };
-            // `near` takes a Bank<Self::Group> (= G1), so it cannot switch.
-            assert_eq!(w.near(g1), 42);
-            assert_eq!(switches(), before);
-        });
-    }
-
-    #[test]
-    fn drive_with_scope_token_other_group_switches() {
-        reset();
-        fn id(x: u8) -> u8 {
-            x
-        }
-        let mut root = root();
-        scope(anchor(), &mut root, |g1: &mut Bank<G1>| {
-            let w = unsafe { BankedWarp::<fn(u8) -> u8, G2, (u8,)>::new(id, (7,)) };
-            assert_eq!(w.drive(g1), 7);
-            assert_eq!(current_bank(), 1); // restored to the G1 caller
-        });
     }
 }

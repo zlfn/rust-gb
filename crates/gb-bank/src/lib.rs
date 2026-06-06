@@ -257,7 +257,7 @@
 //! [`switch_bank`] not paired with a matching restore.
 
 #![cfg_attr(not(test), no_std)]
-#![cfg_attr(target_arch = "sm83", feature(asm_experimental_arch))]
+#![feature(asm_experimental_arch)]
 #![feature(negative_impls, with_negative_coherence, auto_traits)]
 #![feature(fn_traits, unboxed_closures, tuple_trait, const_trait_impl, const_cmp)]
 

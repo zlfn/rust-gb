@@ -1,5 +1,5 @@
 #![no_std]
-#![cfg_attr(target_arch = "sm83", feature(asm_experimental_arch))]
+#![feature(asm_experimental_arch)]
 
 //! Typed handles to the Game Boy's High RAM (HRAM, `0xFF80..=0xFFFE`).
 //!
@@ -131,7 +131,6 @@ impl<T> Hram<T> {
 
 // Register-form unroll: one `ldh (c)` per byte, the low address byte held in `c`.
 // The asm lives here in gb-hram, so callers of `Hram<T>` need no nightly feature.
-#[cfg(target_arch = "sm83")]
 macro_rules! unroll_load_c {
     ($base:ident, $dst:ident, $ty:ty, $($i:literal),*) => {$(
         if $i < size_of::<$ty>() {
@@ -147,7 +146,6 @@ macro_rules! unroll_load_c {
     )*};
 }
 
-#[cfg(target_arch = "sm83")]
 macro_rules! unroll_store_c {
     ($base:ident, $src:ident, $ty:ty, $($i:literal),*) => {$(
         if $i < size_of::<$ty>() {
@@ -167,7 +165,6 @@ impl<T: Copy> HramCell for Hram<T> {
     #[inline]
     fn get(&self) -> T {
         const { assert!(size_of::<T>() <= MAX_BYTES, "Hram<T>: T is larger than MAX_BYTES") };
-        #[cfg(target_arch = "sm83")]
         unsafe {
             let base = self.ptr() as usize as u8;
             let mut out = MaybeUninit::<T>::uninit();
@@ -175,24 +172,15 @@ impl<T: Copy> HramCell for Hram<T> {
             unroll_load_c!(base, dst, T, 0, 1, 2, 3, 4, 5, 6, 7);
             out.assume_init()
         }
-        #[cfg(not(target_arch = "sm83"))]
-        unsafe {
-            self.ptr().read_volatile()
-        }
     }
 
     #[inline]
     fn set(&self, value: T) {
         const { assert!(size_of::<T>() <= MAX_BYTES, "Hram<T>: T is larger than MAX_BYTES") };
-        #[cfg(target_arch = "sm83")]
         unsafe {
             let base = self.ptr() as usize as u8;
             let src = (&value as *const T).cast::<u8>();
             unroll_store_c!(base, src, T, 0, 1, 2, 3, 4, 5, 6, 7);
-        }
-        #[cfg(not(target_arch = "sm83"))]
-        unsafe {
-            self.ptr().write_volatile(value);
         }
     }
 
@@ -363,16 +351,11 @@ macro_rules! hram {
                             "hram! cell is larger than MAX_BYTES",
                         )
                     };
-                    #[cfg(target_arch = "sm83")]
                     unsafe {
                         let mut out = ::core::mem::MaybeUninit::<$ty>::uninit();
                         let dst = out.as_mut_ptr().cast::<u8>();
                         $crate::__hram_imm_load!(STORAGE, dst, $ty, 0, 1, 2, 3, 4, 5, 6, 7);
                         out.assume_init()
-                    }
-                    #[cfg(not(target_arch = "sm83"))]
-                    unsafe {
-                        STORAGE.ptr().read_volatile()
                     }
                 }
 
@@ -384,14 +367,9 @@ macro_rules! hram {
                             "hram! cell is larger than MAX_BYTES",
                         )
                     };
-                    #[cfg(target_arch = "sm83")]
                     unsafe {
                         let src = (&value as *const $ty).cast::<u8>();
                         $crate::__hram_imm_store!(STORAGE, src, $ty, 0, 1, 2, 3, 4, 5, 6, 7);
-                    }
-                    #[cfg(not(target_arch = "sm83"))]
-                    unsafe {
-                        STORAGE.ptr().write_volatile(value);
                     }
                 }
 
