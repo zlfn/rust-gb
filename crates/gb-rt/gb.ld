@@ -79,8 +79,6 @@ SECTIONS {
     _shadow_OAM = 0xC000;
     .STACK = 0xE000;
 
-    .hram (NOLOAD) : { *(_HRAM) } > HRAM
-
     /DISCARD/ : {
         *(.comment)
         *(.eh_frame*)

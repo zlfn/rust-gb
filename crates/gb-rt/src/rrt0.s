@@ -160,15 +160,6 @@ _on_joypad:
     .byte 0x00          ; Header checksum (patch later)
     .byte 0x00, 0x00    ; Global checksum (patch later)
 
-    ; ── Current ROM bank shadow ──
-    ; Mirror of the mapped switchable ROM bank. Shared by gb-bank (its switch
-    ; shadow) and GBDK's C runtime, which references __current_bank pervasively.
-    ; Its own section so the linker GCs it when nothing uses banking.
-    .section .data.current_bank, "aw"
-    .globl __current_bank
-__current_bank:
-    .byte 0
-
     ; ── Raw boot registers ──
     ; Captured by `_reset` at boot.
     .section .bss
@@ -215,6 +206,17 @@ _reset:
     ld (__boot_a), a
     ld a, e
     ld (__boot_b), a
+
+    ; Clear all HRAM (0xFF80-0xFFFE) so NOLOAD cells (such as the bank shadow)
+    ; start at zero, mirroring the WRAM clear above. This zeroes the address range
+    ; only, referencing no `_HRAM.*` symbol, so unused cells are still GC'd.
+    xor a
+    ld hl, 0xFF80
+    ld c, 0x7F
+.clear_hram:
+    ld (hl+), a
+    dec c
+    jr nz, .clear_hram
 
     ; ── Reset hardware state ──
     ; Clean up residual state left by the Boot ROM so every program
