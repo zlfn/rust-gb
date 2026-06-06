@@ -73,15 +73,21 @@ pub use warp::{Warp, BankedWarp, FixedFn, FixedWarp, WarpSafe};
 
 // ===== Low-level bank switch =====
 
-// The software bank shadow. On the Game Boy it is defined by the gb-rt runtime
-// (`__current_bank`, shared with GBDK's C runtime); on the host it is a plain
+// The software bank shadow. The MBC bank register is write-only, so the mapped
+// bank is tracked here. On the Game Boy it is a High RAM cell read and written
+// with the immediate `ldh` form through gb-hram; the runtime zero-initialises HRAM
+// at reset (as gb-hram requires), so it starts at 0. The `as "_current_bank"`
+// exports the storage as the `__current_bank` symbol that GBDK's C runtime also
+// references (the target adds the leading underscore). On the host it is a plain
 // static so the switch logic can be unit-tested without hardware.
 #[cfg(target_arch = "sm83")]
-unsafe extern "C" {
-    static mut _current_bank: u8;
+gb_hram::hram! {
+    static CURRENT_BANK as "_current_bank": u8;
 }
+#[cfg(target_arch = "sm83")]
+use gb_hram::HramCell;
 #[cfg(not(target_arch = "sm83"))]
-#[allow(non_upper_case_globals)] // mirrors the extern runtime symbol's name
+#[allow(non_upper_case_globals)]
 static mut _current_bank: u8 = 0;
 
 // Test-only count of real hardware switches, to assert elision and restore.
@@ -90,9 +96,9 @@ static SWITCH_COUNT: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU
 
 /// Switch the active ROM bank.
 ///
-/// Writes both the MBC bank register at `0x2000` (write-only on hardware) and
-/// the `_current_bank` software shadow that interrupt handlers rely on to save
-/// and restore the mapped bank.
+/// Writes both the MBC bank register at `0x2000` (write-only on hardware) and the
+/// software bank shadow that interrupt handlers rely on to save and restore the
+/// mapped bank.
 ///
 /// Prefer the safe [`scope`] / [`Far`] API; this is the raw primitive for hand
 /// rolled control. After calling it, use [`Bank::assume`] to mint a matching
@@ -105,13 +111,18 @@ static SWITCH_COUNT: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU
 /// invalid across the switch.
 #[inline(never)]
 pub unsafe fn switch_bank(bank: u8) {
+    #[cfg(target_arch = "sm83")]
+    {
+        // Shadow (immediate `ldh` via gb-hram), then the write-only MBC register.
+        CURRENT_BANK.set(bank);
+        unsafe { core::ptr::write_volatile(0x2000 as *mut u8, bank) };
+    }
+    #[cfg(not(target_arch = "sm83"))]
     unsafe {
         core::ptr::write_volatile(&raw mut _current_bank, bank);
-        #[cfg(target_arch = "sm83")]
-        core::ptr::write_volatile(0x2000 as *mut u8, bank);
+        #[cfg(test)]
+        SWITCH_COUNT.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
     }
-    #[cfg(all(test, not(target_arch = "sm83")))]
-    SWITCH_COUNT.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
 }
 
 /// Read the currently mapped bank from the software shadow.
@@ -122,6 +133,11 @@ pub unsafe fn switch_bank(bank: u8) {
 /// type and never needs it.
 #[inline]
 pub fn current_bank() -> u8 {
+    #[cfg(target_arch = "sm83")]
+    {
+        CURRENT_BANK.get()
+    }
+    #[cfg(not(target_arch = "sm83"))]
     unsafe { core::ptr::read_volatile(&raw const _current_bank) }
 }
 

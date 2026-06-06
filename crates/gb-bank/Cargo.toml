@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 gb-bank-macros = { path = "../gb-bank-macros" }
+gb-hram = { path = "../gb-hram" }
