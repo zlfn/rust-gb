@@ -139,6 +139,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "gbdk-hram"
+version = "0.1.0"
+dependencies = [
+ "gb-hram",
+ "gb-rt",
+ "gbdk-sys",
+]
+
+[[package]]
 name = "gbdk-lcd-isr-wobble"
 version = "0.1.0"
 dependencies = [

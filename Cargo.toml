@@ -25,6 +25,7 @@ members = [
     "examples/gbdk/lcd-isr-wobble",
     "examples/gbdk/comm",
     "examples/gbdk/sgb-pong",
+    "examples/gbdk/hram",
 ]
 # `cargo build`/`cargo doc` at the root (sm83 target, see .cargo/config.toml)
 # operate on the library crates. Examples are built with `cargo gb`.

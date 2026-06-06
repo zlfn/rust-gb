@@ -6,7 +6,7 @@
 #![no_std]
 #![no_main]
 
-use core::ffi::c_char;
+use core::ffi::{c_char, c_int};
 use gbdk_sys::gb::gb::*;
 use gbdk_sys::gbdk::console::gotoxy;
 use gbdk_sys::stdio::printf;
@@ -76,7 +76,7 @@ fn main() -> ! {
         let mut player2: u8 = 64;
         let mut p1_score: u16 = 0;
         let mut p2_score: u16 = 0;
-        printf(HUD.as_ptr() as *const c_char, p1_score as i32, p2_score as i32);
+        printf(HUD.as_ptr() as *const c_char, p1_score as c_int, p2_score as c_int);
 
         let mut ball_x: u8 = INITBALLX;
         let mut ball_y: u8 = INITBALLY;
@@ -138,14 +138,14 @@ fn main() -> ! {
                 spd_x = -spd_x;
                 p2_score += 1;
                 gotoxy(0, 0);
-                printf(HUD.as_ptr() as *const c_char, p1_score as i32, p2_score as i32);
+                printf(HUD.as_ptr() as *const c_char, p1_score as c_int, p2_score as c_int);
             } else if ball_x > PLAYER2_X {
                 ball_x = INITBALLX;
                 ball_y = INITBALLY;
                 spd_x = -spd_x;
                 p1_score += 1;
                 gotoxy(0, 0);
-                printf(HUD.as_ptr() as *const c_char, p1_score as i32, p2_score as i32);
+                printf(HUD.as_ptr() as *const c_char, p1_score as c_int, p2_score as c_int);
             }
             move_sprite(3, ball_x, ball_y);
 
