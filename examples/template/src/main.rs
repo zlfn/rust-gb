@@ -10,7 +10,7 @@ use core::ffi::c_char;
 use gbdk_sys::stdio::printf;
 
 #[gb_rt::entry]
-fn main() {
+fn main() -> ! {
     unsafe {
         // Set up the GBDK runtime (display, console font, interrupts).
         gbdk_sys::init();

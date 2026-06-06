@@ -248,8 +248,5 @@ _reset:
 .data_done:
 
     ei
-    call _main
-
-.halt_loop:
-    halt
-    jr .halt_loop
+    ; main is `fn() -> !`, so it never returns; jump to it rather than call.
+    jp _main

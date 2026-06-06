@@ -131,9 +131,10 @@ pub fn bank(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// ```ignore
 /// # use gb_bank::*;
 /// #[bank::main]
-/// pub fn main() {
+/// pub fn main() -> ! {
 ///     sound::play(60).drive();    // banked function: driven with `.drive()`
 ///     update(0).drive();          // bank-0 helper: also `.drive()`
+///     loop {}
 /// }
 /// ```
 #[proc_macro_attribute]

@@ -13,7 +13,7 @@ use gbdk_sys::gb::sgb::*;
 use gbdk_sys::stdio::printf;
 
 #[gb_rt::entry]
-fn main() {
+fn main() -> ! {
     unsafe {
         gbdk_sys::init();
 

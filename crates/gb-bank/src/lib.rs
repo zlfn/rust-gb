@@ -30,8 +30,10 @@
 //! }
 //!
 //! #[bank::main]
-//! pub fn main() {
-//!     let note = sound::play(0).drive(); // cross-bank call from the bank-0 loop
+//! pub fn main() -> ! {
+//!     loop {
+//!         let note = sound::play(0).drive(); // cross-bank call from the bank-0 loop
+//!     }
 //! }
 //! ```
 //!

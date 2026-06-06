@@ -95,7 +95,7 @@ impl Calc {
 }
 
 #[gb_rt::entry]
-fn main() {
+fn main() -> ! {
     unsafe { gbdk_sys::init() };
     unsafe { puts(cstr(b"RPN Calculator\0")) };
 

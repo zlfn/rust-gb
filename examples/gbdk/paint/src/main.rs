@@ -483,7 +483,7 @@ unsafe fn run() {
 }
 
 #[gb_rt::entry]
-fn main() {
+fn main() -> ! {
     unsafe {
         gbdk_sys::init();
         OBP1_REG.write(0xE0);
@@ -500,6 +500,8 @@ fn main() {
 
         run();
     }
+
+    loop {}
 }
 
 #[panic_handler]

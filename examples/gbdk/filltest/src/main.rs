@@ -27,7 +27,7 @@ fn linetest(x: u8, y: u8, w: u8) {
 }
 
 #[gb_rt::entry]
-fn main() {
+fn main() -> ! {
     unsafe { gbdk_sys::init(); }
     let mut c: c_char = 0;
     unsafe {
@@ -74,6 +74,8 @@ fn main() {
             line(0, 143, 159, 143);
         }
     }
+
+    loop {}
 }
 
 #[panic_handler]

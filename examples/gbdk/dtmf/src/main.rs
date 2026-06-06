@@ -338,7 +338,7 @@ unsafe fn move_cursor(x: u8, y: u8) {
 }
 
 #[gb_rt::entry]
-fn main() {
+fn main() -> ! {
     unsafe {
         gbdk_sys::init();
 

@@ -18,7 +18,7 @@ const fn rand_range_8bit(randval: u8, range: u8) -> u8 {
 }
 
 #[gb_rt::entry]
-fn main() {
+fn main() -> ! {
     unsafe { gbdk_sys::init(); }
     let mut seed: u16;
     let mut accu: [u8; RANGE_SIZE as usize] = [0; RANGE_SIZE as usize]; 
@@ -87,6 +87,8 @@ fn main() {
             core::arch::asm!("ei");
         }
     }
+
+    loop {}
 }
 
 #[panic_handler]

@@ -25,7 +25,7 @@ unsafe fn io_in() -> u8 {
 }
 
 #[gb_rt::entry]
-fn main() {
+fn main() -> ! {
     unsafe {
         gbdk_sys::init();
 

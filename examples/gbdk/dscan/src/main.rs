@@ -701,7 +701,7 @@ unsafe fn kirai() {
 }
 
 #[gb_rt::entry]
-fn main() {
+fn main() -> ! {
     unsafe {
         gbdk_sys::init();
 

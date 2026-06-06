@@ -47,7 +47,7 @@ static BAR_A: [u8; 360] = [
 ];
 
 #[gb_rt::entry]
-fn main() {
+fn main() -> ! {
     unsafe {
         gbdk_sys::init();
 
@@ -76,6 +76,8 @@ fn main() {
         enable_interrupts();
         display_on();
     }
+
+    loop {}
 }
 
 #[panic_handler]

@@ -45,7 +45,7 @@ unsafe fn draw_pad(n: u8, x: u8, y: u8) {
 }
 
 #[gb_rt::entry]
-fn main() {
+fn main() -> ! {
     unsafe {
         gbdk_sys::init();
 
@@ -69,7 +69,7 @@ fn main() {
         if joypad_init(2, &raw mut joypads) != 2 {
             printf(b" This program must\n  be executed  on\n   Super GameBoy\0".as_ptr()
                 as *const c_char);
-            return;
+            loop {}
         }
 
         let mut player1: u8 = 64;

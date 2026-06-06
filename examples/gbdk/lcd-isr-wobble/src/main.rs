@@ -24,7 +24,7 @@ unsafe extern "C" fn scanline_isr() {
 }
 
 #[gb_rt::entry]
-fn main() {
+fn main() -> ! {
     unsafe {
         gbdk_sys::init();
         printf(b"This is\na wobble\ntest\nfor DMG\n|\n|\n|\n|\n|\0".as_ptr() as *const c_char);
