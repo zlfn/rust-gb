@@ -6,7 +6,13 @@
 use bitfield_struct::bitfield;
 use voladdress::{Safe, VolAddress};
 
-/// Speed switch (`KEY1`).
+/// CPU speed switch (`KEY1`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | `double_speed` | RO  | Currently in double-speed mode. |
+/// | 6-1 | —              |     | Unused. |
+/// | 0   | `armed`        | R/W | Arm a speed switch; it takes effect on the next `STOP`. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct SpeedSwitch {
@@ -19,7 +25,12 @@ pub struct SpeedSwitch {
     pub double_speed: bool,
 }
 
-/// VRAM DMA length/mode/start (`HDMA5`).
+/// VRAM DMA length, mode, and start (`HDMA5`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | `hblank` | R/W | Write: set = HBlank DMA, clear = general-purpose. Read: set = no transfer active. |
+/// | 6-0 | `blocks` | R/W | Transfer length in 16-byte blocks, minus one (0 = one block). |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct HdmaCtrl {
@@ -32,6 +43,13 @@ pub struct HdmaCtrl {
 }
 
 /// Infrared communications port (`RP`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7-6 | `read_enable` | R/W | Set both bits to read the receiver. |
+/// | 5-2 | —             |     | Unused. |
+/// | 1   | `receiving`   | RO  | Receiving an IR signal (reads 0 while a signal is seen). |
+/// | 0   | `led_on`      | R/W | Turn the IR LED on. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct Infrared {
@@ -48,6 +66,12 @@ pub struct Infrared {
 }
 
 /// Color palette index (`BCPS` / `OCPS`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | `auto_increment` | R/W | Auto-increment the address after each data-port write. |
+/// | 6   | —                |     | Unused. |
+/// | 5-0 | `address`        | R/W | Byte offset into palette memory reached through the data port. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct PaletteIndex {
@@ -60,7 +84,12 @@ pub struct PaletteIndex {
     pub auto_increment: bool,
 }
 
-/// Packed PCM amplitudes (`PCM12` / `PCM34`).
+/// Packed PCM amplitudes (`PCM12` / `PCM34`). Read-only.
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7-4 | `high` | RO | Upper channel's amplitude (CH2 for `PCM12`, CH4 for `PCM34`). |
+/// | 3-0 | `low`  | RO | Lower channel's amplitude (CH1 for `PCM12`, CH3 for `PCM34`). |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct PcmAmplitudes {

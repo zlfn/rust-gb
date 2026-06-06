@@ -7,6 +7,15 @@ use voladdress::{Safe, Unsafe, VolAddress, VolBlock, VolGrid2d};
 pub type Tile = [u8; 16];
 
 /// Sprite attribute byte (`OamEntry::attr`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | `priority`    | R/W | Set draws the sprite behind BG colors 1-3. |
+/// | 6   | `y_flip`      | R/W | Mirror vertically. |
+/// | 5   | `x_flip`      | R/W | Mirror horizontally. |
+/// | 4   | `dmg_palette` | R/W | DMG palette: clear = OBP0, set = OBP1. |
+/// | 3   | `cgb_bank`    | R/W | CGB tile VRAM bank. |
+/// | 2-0 | `cgb_palette` | R/W | CGB object palette (0-7). |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct OamAttr {
@@ -26,6 +35,13 @@ pub struct OamAttr {
 }
 
 /// A single OAM sprite entry (4 bytes).
+///
+/// | Byte | Field | Meaning |
+/// |------|-------|---------|
+/// | 0 | `y`    | Screen Y position, offset by 16. |
+/// | 1 | `x`    | Screen X position, offset by 8. |
+/// | 2 | `tile` | Tile index into the sprite tile data. |
+/// | 3 | `attr` | Attribute flags (`OamAttr`). |
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct OamEntry {
@@ -40,6 +56,17 @@ pub struct OamEntry {
 }
 
 /// LCD control (`LCDC`). Each field's name describes the meaning when *set*.
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7 | `lcd_enable`          | R/W | LCD and PPU enable. |
+/// | 6 | `window_tilemap_high` | R/W | Window tile map at 0x9C00 instead of 0x9800. |
+/// | 5 | `window_enable`       | R/W | Window enable. |
+/// | 4 | `tiledata_8000`       | R/W | BG/window tile data from the 0x8000 area instead of 0x8800. |
+/// | 3 | `bg_tilemap_high`     | R/W | BG tile map at 0x9C00 instead of 0x9800. |
+/// | 2 | `obj_tall`            | R/W | Object size 8x16 instead of 8x8. |
+/// | 1 | `obj_enable`          | R/W | Object (sprite) rendering enable. |
+/// | 0 | `bg_window_enable`    | R/W | BG and window enable (DMG); BG/window master priority (CGB). |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct Lcdc {
@@ -77,7 +104,17 @@ pub enum PpuMode {
     Drawing = 3,
 }
 
-/// LCD status (`STAT`): PPU mode plus STAT-interrupt source selects.
+/// LCD status (`STAT`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | —           |     | Unused. |
+/// | 6   | `lyc_int`   | R/W | Raise the STAT interrupt on LYC=LY. |
+/// | 5   | `mode2_int` | R/W | Raise the STAT interrupt on mode 2 (OAM scan). |
+/// | 4   | `mode1_int` | R/W | Raise the STAT interrupt on mode 1 (VBlank). |
+/// | 3   | `mode0_int` | R/W | Raise the STAT interrupt on mode 0 (HBlank). |
+/// | 2   | `lyc_eq_ly` | RO  | Set while LY equals LYC. |
+/// | 1-0 | `mode`      | RO  | Current PPU mode. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct Stat {
@@ -113,8 +150,15 @@ pub enum Shade {
     Black = 3,
 }
 
-/// A DMG palette (`BGP` / `OBP0` / `OBP1`): a shade per color index. For object
-/// palettes color index 0 is transparent, so its field is ignored.
+/// A DMG palette (`BGP` / `OBP0` / `OBP1`): one shade per color index. Object
+/// palettes ignore color index 0 (transparent).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7-6 | `id3` | R/W | Shade for color index 3. |
+/// | 5-4 | `id2` | R/W | Shade for color index 2. |
+/// | 3-2 | `id1` | R/W | Shade for color index 1. |
+/// | 1-0 | `id0` | R/W | Shade for color index 0. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct Palette {
@@ -172,7 +216,6 @@ pub const WX: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF4B) };
 // ── Video memory ────────────────────────────────────────────────────────────
 
 /// Tile data: 384 tiles at `0x8000..0x97FF` (shared by BG and sprites on DMG).
-/// Writes during the PPU's rendering window (mode 3) are ignored by the hardware.
 pub const VRAM_TILES: VolBlock<Tile, Safe, Safe, 384> =
     unsafe { VolBlock::new(0x8000) };
 /// Tile map 0: a 32x32 grid of tile indices at `0x9800`, indexed `(x, y)`.
@@ -181,9 +224,7 @@ pub const TILEMAP_0: VolGrid2d<u8, Safe, Safe, 32, 32> =
 /// Tile map 1: a 32x32 grid of tile indices at `0x9C00`, indexed `(x, y)`.
 pub const TILEMAP_1: VolGrid2d<u8, Safe, Safe, 32, 32> =
     unsafe { VolGrid2d::new(0x9C00) };
-/// Object attribute memory: 40 sprite entries at `0xFE00..=0xFE9F`. The next
-/// range `0xFEA0..=0xFEFF` is the prohibited "Not Usable" area, left unmapped.
-/// Accessible outside the PPU's OAM-scan and rendering windows, or via OAM DMA.
+/// Object attribute memory: 40 sprite entries at `0xFE00..=0xFE9F`.
 pub const OAM: VolBlock<OamEntry, Safe, Safe, 40> =
     unsafe { VolBlock::new(0xFE00) };
 

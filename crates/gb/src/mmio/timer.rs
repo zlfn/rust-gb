@@ -3,8 +3,7 @@
 use bitfield_struct::{bitenum, bitfield};
 use voladdress::{Safe, VolAddress};
 
-/// Timer input clock: the `TAC` clock-select field (bits 1-0). The four values
-/// are mutually exclusive, so this is an enum, not a set of flags.
+/// Timer input clock: the `TAC` clock-select field (bits 1-0).
 #[bitenum(all = false)]
 #[repr(u8)]
 #[derive(Debug, PartialEq, Eq)]
@@ -20,7 +19,13 @@ pub enum TimerClock {
     Hz16384 = 0b11,
 }
 
-/// Timer control (`TAC`): the enable flag plus the 2-bit clock select.
+/// Timer control (`TAC`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7-3 | —        |     | Unused. |
+/// | 2   | `enable` | R/W | Run the timer (TIMA increments). |
+/// | 1-0 | `clock`  | R/W | Input clock that drives TIMA. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct TimerCtrl {

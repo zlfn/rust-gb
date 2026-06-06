@@ -1,5 +1,4 @@
-//! Memory-mapped hardware registers and memory regions as typed [`voladdress`]
-//! handles. Every access is volatile, with the read/write permission in the type.
+//! Typed, volatile handles to the Game Boy's hardware registers and memory.
 //!
 //! The Game Boy has no faulting memory, so an accessor is `unsafe` only when it
 //! can make the CPU execute arbitrary bytes (OAM DMA started outside HRAM, or

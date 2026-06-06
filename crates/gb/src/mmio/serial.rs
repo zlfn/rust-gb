@@ -3,7 +3,14 @@
 use bitfield_struct::bitfield;
 use voladdress::{Safe, VolAddress};
 
-/// Serial transfer control (`SC`) value.
+/// Serial transfer control (`SC`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | `transfer_enable` | R/W | Transfer requested / in progress. |
+/// | 6-2 | —                 |     | Unused. |
+/// | 1   | `clock_speed`     | R/W | Fast clock (CGB only). |
+/// | 0   | `clock_select`    | R/W | Use the internal clock (this Game Boy drives the transfer). |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct SerialCtrl {

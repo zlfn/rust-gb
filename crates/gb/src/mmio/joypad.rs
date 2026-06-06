@@ -3,9 +3,18 @@
 use bitfield_struct::bitfield;
 use voladdress::{Safe, VolAddress};
 
-/// Joypad register (`JOYP`) value.
+/// Joypad register (`JOYP`). Active low: a cleared bit means selected, or the input
+/// pressed.
 ///
-/// Active low: a cleared bit means the group is selected, or the input pressed.
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7-6 | —                | | Unused. |
+/// | 5   | `select_buttons` | R/W | Select the action buttons (A/B/Select/Start). |
+/// | 4   | `select_dpad`    | R/W | Select the d-pad. |
+/// | 3   | `p13`            | RO  | Input line P13: Down (d-pad) or Start (buttons). |
+/// | 2   | `p12`            | RO  | Input line P12: Up (d-pad) or Select (buttons). |
+/// | 1   | `p11`            | RO  | Input line P11: Left (d-pad) or B (buttons). |
+/// | 0   | `p10`            | RO  | Input line P10: Right (d-pad) or A (buttons). |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct Joypad {

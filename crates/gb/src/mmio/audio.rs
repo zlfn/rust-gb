@@ -35,7 +35,14 @@ pub enum WaveLevel {
     Quarter = 3,
 }
 
-/// Frequency sweep (`NR10`).
+/// Channel 1 frequency sweep (`NR10`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | —          |     | Unused. |
+/// | 6-4 | `pace`     | R/W | An iteration every `pace` 128 Hz ticks; 0 disables the sweep. |
+/// | 3   | `subtract` | R/W | Period direction: clear adds, set subtracts. |
+/// | 2-0 | `step`     | R/W | Shift applied to the period each iteration. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct Sweep {
@@ -52,6 +59,11 @@ pub struct Sweep {
 }
 
 /// Length timer and duty cycle (`NR11` / `NR21`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7-6 | `duty`   | R/W | Output waveform duty cycle. |
+/// | 5-0 | `length` | W   | Initial length timer; higher means a shorter time to cut. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct PulseLengthDuty {
@@ -64,6 +76,12 @@ pub struct PulseLengthDuty {
 }
 
 /// Volume and envelope (`NR12` / `NR22` / `NR42`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7-4 | `volume`   | R/W | Initial volume. |
+/// | 3   | `increase` | R/W | Direction: set raises volume over time, clear lowers it. |
+/// | 2-0 | `pace`     | R/W | A step every `pace` 64 Hz ticks; 0 disables the envelope. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct Envelope {
@@ -78,6 +96,13 @@ pub struct Envelope {
 }
 
 /// Period high bits and channel control (`NR14` / `NR24` / `NR34`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | `trigger`       | W   | (Re)start the channel. |
+/// | 6   | `length_enable` | R/W | Stop the channel when the length timer expires. |
+/// | 5-3 | —               |     | Unused. |
+/// | 2-0 | `period_high`   | W   | Upper 3 bits of the 11-bit period (low 8 in `NRx3`). |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct PeriodCtrl {
@@ -94,6 +119,11 @@ pub struct PeriodCtrl {
 }
 
 /// Channel 3 DAC power (`NR30`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | `dac_on` | R/W | DAC power; turning it off also turns the channel off. |
+/// | 6-0 | —        |     | Unused. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct WaveDac {
@@ -104,6 +134,12 @@ pub struct WaveDac {
 }
 
 /// Channel 3 output level (`NR32`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | —       |     | Unused. |
+/// | 6-5 | `level` | R/W | Coarse output volume. |
+/// | 4-0 | —       |     | Unused. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct WaveOutput {
@@ -117,6 +153,12 @@ pub struct WaveOutput {
 }
 
 /// Channel 4 frequency and randomness (`NR43`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7-4 | `shift`      | R/W | Clock shift. |
+/// | 3   | `short_lfsr` | R/W | LFSR width: set = 7-bit (more tonal), clear = 15-bit. |
+/// | 2-0 | `divider`    | R/W | Clock divider. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct NoiseFreq {
@@ -131,6 +173,12 @@ pub struct NoiseFreq {
 }
 
 /// Channel 4 control (`NR44`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | `trigger`       | W   | (Re)start the channel. |
+/// | 6   | `length_enable` | R/W | Stop the channel when the length timer expires. |
+/// | 5-0 | —               |     | Unused. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct NoiseCtrl {
@@ -144,6 +192,13 @@ pub struct NoiseCtrl {
 }
 
 /// Master volume and VIN panning (`NR50`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | `vin_left`     | R/W | Mix external VIN into the left output. |
+/// | 6-4 | `left_volume`  | R/W | Left output volume (0 treated as 1, 7 as 8). |
+/// | 3   | `vin_right`    | R/W | Mix external VIN into the right output. |
+/// | 2-0 | `right_volume` | R/W | Right output volume (0 treated as 1, 7 as 8). |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct MasterVolume {
@@ -160,32 +215,61 @@ pub struct MasterVolume {
 }
 
 /// Sound panning (`NR51`): which channels reach each output.
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | `ch4_left`  | R/W | Channel 4 (noise) reaches the left output. |
+/// | 6   | `ch3_left`  | R/W | Channel 3 (wave) reaches the left output. |
+/// | 5   | `ch2_left`  | R/W | Channel 2 (pulse) reaches the left output. |
+/// | 4   | `ch1_left`  | R/W | Channel 1 (pulse) reaches the left output. |
+/// | 3   | `ch4_right` | R/W | Channel 4 (noise) reaches the right output. |
+/// | 2   | `ch3_right` | R/W | Channel 3 (wave) reaches the right output. |
+/// | 1   | `ch2_right` | R/W | Channel 2 (pulse) reaches the right output. |
+/// | 0   | `ch1_right` | R/W | Channel 1 (pulse) reaches the right output. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct Panning {
-    /// Channel 1 to the right output.
+    /// Channel 1 (pulse) reaches the right output.
     pub ch1_right: bool,
+    /// Channel 2 (pulse) reaches the right output.
     pub ch2_right: bool,
+    /// Channel 3 (wave) reaches the right output.
     pub ch3_right: bool,
+    /// Channel 4 (noise) reaches the right output.
     pub ch4_right: bool,
-    /// Channel 1 to the left output.
+    /// Channel 1 (pulse) reaches the left output.
     pub ch1_left: bool,
+    /// Channel 2 (pulse) reaches the left output.
     pub ch2_left: bool,
+    /// Channel 3 (wave) reaches the left output.
     pub ch3_left: bool,
+    /// Channel 4 (noise) reaches the left output.
     pub ch4_left: bool,
 }
 
 /// Audio master control (`NR52`).
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | `audio_on` | R/W | Master audio power; off clears and locks the other registers. |
+/// | 6-4 | —          |     | Unused. |
+/// | 3   | `ch4_on`   | RO  | Channel 4 (noise) is running. |
+/// | 2   | `ch3_on`   | RO  | Channel 3 (wave) is running. |
+/// | 1   | `ch2_on`   | RO  | Channel 2 (pulse) is running. |
+/// | 0   | `ch1_on`   | RO  | Channel 1 (pulse) is running. |
 #[bitfield(u8)]
 #[derive(PartialEq, Eq)]
 pub struct AudioCtrl {
-    /// Channel 1 active (read-only status).
+    /// Channel 1 (pulse) is running (read-only status).
     #[bits(1, access = RO)]
     pub ch1_on: bool,
+    /// Channel 2 (pulse) is running (read-only status).
     #[bits(1, access = RO)]
     pub ch2_on: bool,
+    /// Channel 3 (wave) is running (read-only status).
     #[bits(1, access = RO)]
     pub ch3_on: bool,
+    /// Channel 4 (noise) is running (read-only status).
     #[bits(1, access = RO)]
     pub ch4_on: bool,
     #[bits(3)]

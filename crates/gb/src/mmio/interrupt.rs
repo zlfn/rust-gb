@@ -5,6 +5,14 @@ use voladdress::{Safe, Unsafe, VolAddress};
 
 bitflags! {
     /// Interrupt sources. `IE` and `IF` share this type (same bit layout).
+    ///
+    /// | Bit | Flag | Meaning |
+    /// |-----|------|---------|
+    /// | 4 | `JOYPAD`   | A selected input line went low. |
+    /// | 3 | `SERIAL`   | Serial transfer completed. |
+    /// | 2 | `TIMER`    | TIMA overflowed. |
+    /// | 1 | `LCD_STAT` | A configured PPU mode or LYC=LY condition. |
+    /// | 0 | `VBLANK`   | The PPU entered VBlank. |
     #[derive(Clone, Copy, PartialEq, Eq, Debug)]
     pub struct Interrupts: u8 {
         /// VBlank: the PPU entered VBlank.
