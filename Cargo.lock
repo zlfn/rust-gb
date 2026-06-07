@@ -164,6 +164,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "gbdk-isr-vector"
+version = "0.1.0"
+dependencies = [
+ "gb-rt",
+ "gbdk-sys",
+]
+
+[[package]]
 name = "gbdk-lcd-isr-wobble"
 version = "0.1.0"
 dependencies = [
