@@ -222,6 +222,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "gbdk-sound"
+version = "0.1.0"
+dependencies = [
+ "gb-rt",
+ "gbdk-sys",
+]
+
+[[package]]
 name = "gbdk-sys"
 version = "0.1.0"
 dependencies = [

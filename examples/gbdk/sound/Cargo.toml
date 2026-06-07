@@ -1,0 +1,14 @@
+[package]
+name = "gbdk-sound"
+version = "0.1.0"
+edition = "2024"
+autobins = false
+
+[lib]
+name = "gbdk_sound"
+path = "src/main.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+gb-rt = { workspace = true }
+gbdk-sys = { workspace = true }

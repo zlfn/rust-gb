@@ -30,6 +30,7 @@ members = [
     "examples/gbdk/hram",
     "examples/gbdk/ram-function",
     "examples/gbdk/isr-vector",
+    "examples/gbdk/sound",
 ]
 # `cargo build`/`cargo doc` at the root (sm83 target, see .cargo/config.toml)
 # operate on the library crates. Examples are built with `cargo gb`.
