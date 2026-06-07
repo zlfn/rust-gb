@@ -59,6 +59,22 @@ name = "gb-hram"
 version = "0.1.0"
 
 [[package]]
+name = "gb-ram-fn"
+version = "0.1.0"
+dependencies = [
+ "gb-ram-fn-macros",
+]
+
+[[package]]
+name = "gb-ram-fn-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "gb-rt"
 version = "0.1.0"
 dependencies = [
@@ -159,6 +175,16 @@ dependencies = [
 name = "gbdk-paint"
 version = "0.1.0"
 dependencies = [
+ "gb-rt",
+ "gbdk-sys",
+]
+
+[[package]]
+name = "gbdk-ram-function"
+version = "0.1.0"
+dependencies = [
+ "gb-hram",
+ "gb-ram-fn",
  "gb-rt",
  "gbdk-sys",
 ]

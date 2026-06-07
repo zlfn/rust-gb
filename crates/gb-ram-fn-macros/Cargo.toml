@@ -1,0 +1,13 @@
+[package]
+name = "gb-ram-fn-macros"
+version = "0.1.0"
+edition = "2024"
+description = "Procedural macro for gb-ram-fn (the #[ram_fn] attribute)"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { workspace = true }
+quote = { workspace = true }
+proc-macro2 = { workspace = true }

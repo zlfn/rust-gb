@@ -2,6 +2,7 @@
 //! toolchain. Everything is taken from the toolchain sysroot, so no linker or
 //! tool paths need configuring.
 
+mod ramfn;
 mod rom;
 mod toolchain;
 mod ui;
@@ -129,18 +130,21 @@ fn build() -> Result<PathBuf, String> {
     pb.finish_and_clear();
     let elf = elf?;
 
-    // 4. ELF -> raw ROM.
+    // 4. Verify #[ram_fn] functions (size <= max, position independent).
+    ramfn::check(&elf)?;
+
+    // 5. ELF -> raw ROM.
     let gb = proj.out_dir.join(format!("{}.gb", proj.name));
     let image = rom::elf_to_rom(&elf)?;
     std::fs::write(&gb, &image).map_err(|e| e.to_string())?;
 
-    // 5. Fix the cartridge header.
+    // 6. Fix the cartridge header.
     let info = match &proj.header {
         Some(h) => Some(gb_header_fix::fix(&gb, h).map_err(|e| format!("header: {e}"))?),
         None => None,
     };
 
-    // 6. A ROM whose CGB flag is set (hybrid or CGB-only) uses the .gbc
+    // 7. A ROM whose CGB flag is set (hybrid or CGB-only) uses the .gbc
     //    extension; DMG-only ROMs use .gb.
     let rom_path = if info.as_ref().is_some_and(|i| i.cgb != gb_header_fix::CgbFlag::None) {
         let gbc = proj.out_dir.join(format!("{}.gbc", proj.name));

@@ -244,6 +244,7 @@ dependencies = [
  "indicatif",
  "object",
  "pico-args",
+ "rustc-demangle",
  "textwrap",
 ]
 

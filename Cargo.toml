@@ -8,6 +8,8 @@ members = [
     "crates/gb-bank-macros",
     "crates/gb-bank",
     "crates/gb-hram",
+    "crates/gb-ram-fn",
+    "crates/gb-ram-fn-macros",
     "crates/gb",
     "examples/template",
     "examples/slideshow",
@@ -26,12 +28,14 @@ members = [
     "examples/gbdk/comm",
     "examples/gbdk/sgb-pong",
     "examples/gbdk/hram",
+    "examples/gbdk/ram-function",
 ]
 # `cargo build`/`cargo doc` at the root (sm83 target, see .cargo/config.toml)
 # operate on the library crates. Examples are built with `cargo gb`.
 default-members = [
     "crates/gb",
     "crates/gb-hram",
+    "crates/gb-ram-fn",
     "crates/gb-bank",
     "crates/gb-bank-macros",
     "crates/gb-rt",
@@ -44,6 +48,8 @@ resolver = "3"
 # Internal crates.
 gb = { path = "crates/gb" }
 gb-hram = { path = "crates/gb-hram" }
+gb-ram-fn = { path = "crates/gb-ram-fn" }
+gb-ram-fn-macros = { path = "crates/gb-ram-fn-macros" }
 gb-rt = { path = "crates/gb-rt" }
 gb-rt-macros = { path = "crates/gb-rt-macros" }
 gbdk-sys = { path = "crates/gbdk-sys" }

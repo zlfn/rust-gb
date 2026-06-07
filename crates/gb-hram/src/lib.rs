@@ -263,6 +263,11 @@ impl<const N: usize> HramArea<N> {
         self.0.get() as *mut u8
     }
 
+    /// A mutable pointer to the area as a fixed-size byte array.
+    pub const fn as_array_ptr(&self) -> *mut [u8; N] {
+        self.0.get() as *mut [u8; N]
+    }
+
     /// The area's length in bytes (`N`).
     pub const fn len(&self) -> usize {
         N

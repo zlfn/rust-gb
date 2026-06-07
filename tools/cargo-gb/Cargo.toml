@@ -13,6 +13,7 @@ gb-bank-pack = { path = "../gb-bank-pack" }
 gb-header-fix = { path = "../gb-header-fix" }
 cargo_metadata = "0.18"
 object = "0.36"
+rustc-demangle = "0.1"
 anstyle = "1"
 anstream = "0.6"
 indicatif = "0.17"

@@ -1,0 +1,7 @@
+[package]
+name = "gb-ram-fn"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gb-ram-fn-macros = { workspace = true }
