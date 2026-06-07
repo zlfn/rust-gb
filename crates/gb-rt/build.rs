@@ -1,9 +1,8 @@
 use std::path::Path;
 
 // Drop the linker script (gb.ld) into OUT_DIR, where the ROM build pipeline picks
-// it up by globbing each crate's OUT_DIR (the same way gbdk-sys delivers
-// gbdk.ld). The startup (rrt0.s) is compiled into the crate via global_asm!, so
-// no assembler is invoked here.
+// it up by globbing each crate's OUT_DIR for `*.ld`. The startup (rrt0.s) is
+// compiled into the crate via global_asm!, so no assembler is invoked here.
 fn main() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let out_dir = std::env::var("OUT_DIR").unwrap();

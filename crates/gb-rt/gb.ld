@@ -24,6 +24,14 @@ SECTIONS {
     _INT_SERIAL (0x0058) : { KEEP(*(_INT_SERIAL)) } > ROM
     _INT_JOYPAD (0x0060) : { KEEP(*(_INT_JOYPAD)) } > ROM
 
+    /* Interrupt hooks default to the no-op. PROVIDE yields to any object
+       definition: a weak overridable default, or a strong handler. */
+    PROVIDE(_on_vblank   = _isr_noop);
+    PROVIDE(_on_lcd_stat = _isr_noop);
+    PROVIDE(_on_timer    = _isr_noop);
+    PROVIDE(_on_serial   = _isr_noop);
+    PROVIDE(_on_joypad   = _isr_noop);
+
     /* ROM header */
     _ENTRY      (0x0100) : { KEEP(*(_ENTRY)) } > ROM
     _LOGO       (0x0104) : { KEEP(*(_LOGO)) } > ROM
@@ -32,9 +40,6 @@ SECTIONS {
 
     /* rrt0 init */
     .text.rrt0 : { KEEP(*(.text.rrt0)) } > ROM
-
-    /* GBDK library HOME code */
-    .text.home : { *(.text.home) } > ROM
 
     /* ROM banking: claim the banked per-function sections into their banks
        BEFORE the resident .text glob below would grab them (the linker assigns

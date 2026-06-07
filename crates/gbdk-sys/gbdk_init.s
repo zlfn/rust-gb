@@ -138,28 +138,28 @@ _on_vblank:
 
     ; ── LCD STAT handler ──
 
-    .globl _on_lcd_stat
+    .weak _on_lcd_stat
 _on_lcd_stat:
     ld hl, _lcd_table
     jp _dispatch_table
 
     ; ── Timer handler ──
 
-    .globl _on_timer
+    .weak _on_timer
 _on_timer:
     ld hl, _tim_table
     jp _dispatch_table
 
     ; ── Serial handler ──
 
-    .globl _on_serial
+    .weak _on_serial
 _on_serial:
     ld hl, _sio_table
     jp _dispatch_table
 
     ; ── Joypad handler ──
 
-    .globl _on_joypad
+    .weak _on_joypad
 _on_joypad:
     ld hl, _joy_table
     jp _dispatch_table

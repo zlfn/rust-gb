@@ -115,18 +115,13 @@ _isr_joypad:
     pop af
     reti
 
-    ; ── Weak default handlers ──
+    ; ── Default interrupt handler (no-op) ──
+    ; Each `_on_*` hook defaults to this via PROVIDE in gb.ld, so an unhandled
+    ; interrupt does nothing. PROVIDE yields to any object definition: a weak one
+    ; (an overridable default) or a strong one, which wins over both.
 
-    .weak _on_vblank
-_on_vblank:
-    .weak _on_lcd_stat
-_on_lcd_stat:
-    .weak _on_timer
-_on_timer:
-    .weak _on_serial
-_on_serial:
-    .weak _on_joypad
-_on_joypad:
+    .globl _isr_noop
+_isr_noop:
     ret
 
     ; ── ROM header ──
@@ -220,7 +215,7 @@ _reset:
 
     ; ── Reset hardware state ──
     ; Clean up residual state left by the Boot ROM so every program
-    ; starts from a known-good baseline, even without GBDK.
+    ; starts from a known-good baseline.
     xor a
     ldh ( 0x26 ), a     ; NR52 — sound off (silences Boot ROM jingle)
     ldh ( 0x42 ), a     ; SCY  — scroll Y = 0
