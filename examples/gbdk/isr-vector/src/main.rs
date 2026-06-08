@@ -20,10 +20,10 @@ static OFFSETS: [u8; 16] = [0, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2, 3, 3, 2, 1, 0];
 static mut BASE: u8 = 0;
 
 /// STAT (mode 0 / H-Blank) interrupt, installed directly at the vector: set the
-/// scroll offset for this scanline. A strong `_on_lcd_stat` wins over GBDK's weak
-/// dispatcher; gb-rt's trampoline has already saved registers and will `reti`.
-#[unsafe(no_mangle)]
-extern "C" fn on_lcd_stat() {
+/// scroll offset for this scanline. This handler wins over GBDK's weak dispatcher;
+/// gb-rt's trampoline has already saved registers and will `reti`.
+#[gb_rt::interrupt(LcdStat)]
+fn wobble() {
     let base = unsafe { core::ptr::read_volatile(&raw const BASE) } as usize;
     let ly = (unsafe { LY_REG.read() } & 0x07) as usize;
     unsafe { SCX_REG.write(OFFSETS[(base + ly) & 0x0F]) };

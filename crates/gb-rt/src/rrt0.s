@@ -1,7 +1,8 @@
 ; rrt0.s — Rust Runtime 0 for Game Boy (SM83)
 ;
 ; Minimal Game Boy startup. Section addresses are set by the linker script.
-; Interrupt handlers use weak symbols.
+; Each interrupt vector calls an `_on_*` handler that defaults to a no-op via
+; gb.ld and is overridden by defining a strong symbol.
 
     ; ── RST 0x20 — indirect call helper ──
     ; SDCC uses .call_hl, LLVM codegen uses _call_hl (mangled to __call_hl)
@@ -53,8 +54,6 @@ __call_hl:
     .section _INT_JOYPAD, "ax"
     push af
     jp _isr_joypad
-
-    ; ── Weak default handlers ──
 
     .section .text.rrt0, "ax"
 
