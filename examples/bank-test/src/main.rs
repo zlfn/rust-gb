@@ -99,7 +99,7 @@ pub fn resident_inc(x: u8) -> u8 {
 /// Generic resident helper: drives a generic banked call. Monomorphized per `T`
 /// and per caller group.
 #[bank::zero]
-pub fn resident_clamp<T: PartialOrd + Copy + WarpSafe>(v: T, lo: T, hi: T) -> T {
+pub fn resident_clamp<T: PartialOrd + Copy + BankSafe>(v: T, lo: T, hi: T) -> T {
     arithmetic::clamp(v, lo, hi).drive()
 }
 

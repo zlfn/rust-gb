@@ -12,56 +12,147 @@ use core::marker::{PhantomData, Tuple};
 
 use super::{DynFar, Bank, Far, FarCall, Group, GroupZero, switch_run};
 
-/// A value safe to carry across a [`Warp`] (bank-switch) boundary: it embeds no
-/// pointer to banked code that the switch would unmap.
+/// A value safe to carry across a bank switch: it embeds no pointer to banked code
+/// that the switch would unmap.
 ///
 /// This is the bank-switching analog of the standard library's `std::panic::UnwindSafe`,
-/// and like it an *auto trait*: a type is `WarpSafe` unless it contains something that
-/// is not, so the property propagates through structs, tuples, and enums.
+/// and like it an *auto trait*: a type is `BankSafe` unless it contains something that
+/// is not, so the property propagates through structs, tuples, and enums. A generic
+/// type parameter that reaches a switch therefore needs an explicit `BankSafe` bound,
+/// the same way crossing a thread boundary needs `Send`.
 ///
-/// A [`Warp`]'s [`Output`](Warp::Output) must be `WarpSafe`, so a `#[bank]` function
-/// cannot hand back a bare `fn` pointer, a `dyn` trait object, or a value containing
-/// one: the caller would invoke it with the callee's bank no longer mapped. Banked
-/// functions carried as [`Far`] / [`DynFar`] (via `far!`) are exempt, because calling
-/// one switches banks first.
+/// # What is not `BankSafe`
+///
+/// A bare `fn` pointer and a `dyn` trait object, because calling either performs no
+/// bank switch: if it targets banked code, the caller runs it with that bank unmapped.
+/// [`Far`] and [`DynFar`] are the sanctioned carriers and are exempt, because calling
+/// one switches banks first (and costs nothing when the target is [`GroupZero`]).
+///
+/// [`Anchor`](crate::Anchor) is excluded for a different reason: it witnesses that the
+/// current code is in bank 0, which reaching a banked callee would falsify.
+///
+/// # Where it is enforced
+///
+/// Every path that crosses a switch requires it on the values that cross:
+/// [`Warp`] and [`FarCall`] on both their arguments and their output, [`scope`](crate::scope)
+/// and [`FarWith::there`](crate::FarWith::there) on what the closure returns.
+///
+/// # Examples
+///
+/// Handing a banked function pointer back to the caller is rejected:
+///
+/// ```compile_fail
+/// # use gb_bank::*;
+/// mod sound {
+/// #   use gb_bank::*;
+/// #   bank::module!();
+///     #[bank]
+///     pub fn pick() -> fn() {
+///         fn helper() { /* lives in this bank */ }
+///         helper // ERROR: `fn()` is not `BankSafe`
+///     }
+/// }
+/// ```
+///
+/// So is passing one into another bank, where it would no longer be mapped:
+///
+/// ```compile_fail
+/// # use gb_bank::*;
+/// mod sound {
+/// #   use gb_bank::*;
+/// #   bank::module!();
+///     #[bank]
+///     pub fn register(tick: fn()) { // ERROR: `fn()` is not `BankSafe`
+///         tick()
+///     }
+/// }
+/// ```
+///
+/// Carry the function as a [`Far`] instead; calling it maps its bank first:
+///
+/// ```ignore
+/// #[bank]
+/// fn pick() -> Far<fn(), Sound> {
+///     far!(sound::helper)
+/// }
+/// ```
+///
+/// A generic banked item needs the bound on any parameter that crosses:
+///
+/// ```ignore
+/// #[bank]
+/// impl<A: Copy + BankSafe> Summary for Pair<A> {
+///     fn summarize(&self) -> u8 { /* `&Pair<A>` crosses as the receiver */ }
+/// }
+/// ```
+///
+/// # What it does not cover
+///
+/// Only values crossing through the calls above are checked. Writing a banked code
+/// pointer into a global and reading it back elsewhere goes around all of them, and
+/// takes no `unsafe`:
+///
+/// ```ignore
+/// gb_hram::hram! { static CB: fn(); }
+///
+/// #[bank]
+/// pub fn install() {
+///     CB.set((|| { /* lives in this bank */ }) as fn()); // accepted
+/// }
+///
+/// // elsewhere, once this bank is no longer mapped
+/// (CB.get())(); // undefined behaviour
+/// ```
+///
+/// Calling such a pointer runs whatever bytes the currently mapped bank holds at that
+/// address. `UnwindSafe` has the same limitation, but a violation there only means
+/// observing inconsistent state; here the code of an already unmapped bank is run, so
+/// arbitrary code execution becomes possible.
+///
+/// At the time of writing no way to enforce this through the type system has been
+/// found, and it is believed to be impossible: a bound constrains the values that pass
+/// through an API, not what another crate stores in its own statics.
 #[diagnostic::on_unimplemented(
-    message = "`{Self}` is not `WarpSafe`: it carries a pointer to banked code",
+    message = "`{Self}` cannot be carried across a bank switch",
     label = "cannot cross a bank switch",
     note = "a `#[bank]` function cannot return a bare `fn` pointer, a `dyn` trait object, \
             or a value containing one: the caller would run it with the bank unmapped",
     note = "carry banked functions as `Far` / `DynFar` (built by `far!`) instead, \
             whose call switches banks first"
 )]
-pub auto trait WarpSafe {}
+pub auto trait BankSafe {}
 
 // Far pointers are the sanctioned way to carry a banked function out of its bank:
-// calling one switches banks first, so a `Far` / `DynFar` is `WarpSafe` regardless of
+// calling one switches banks first, so a `Far` / `DynFar` is `BankSafe` regardless of
 // what it points at. (This also stops the auto-derivation from looking through the
 // inner `*const T` at a banked `fn`.)
-impl<T: ?Sized, G: Group> WarpSafe for Far<T, G> {}
-impl<T: ?Sized> WarpSafe for DynFar<T> {}
+impl<T: ?Sized, G: Group> BankSafe for Far<T, G> {}
+impl<T: ?Sized> BankSafe for DynFar<T> {}
 
-// A bare `fn` pointer is *not* `WarpSafe`: calling it performs no bank switch, so if
+// A bare `fn` pointer is *not* `BankSafe`: calling it performs no bank switch, so if
 // it targets banked code the caller runs it with that bank unmapped. One impl per
-// arity, as the standard library does for the `Fn` family.
-macro_rules! not_warp_safe_fn {
+// arity and safety/ABI combination, as the standard library does for the `Fn` family.
+macro_rules! not_bank_safe_fn {
     ($($arg:ident),*) => {
-        impl<Ret, $($arg),*> !WarpSafe for fn($($arg),*) -> Ret {}
+        impl<Ret, $($arg),*> !BankSafe for fn($($arg),*) -> Ret {}
+        impl<Ret, $($arg),*> !BankSafe for unsafe fn($($arg),*) -> Ret {}
+        impl<Ret, $($arg),*> !BankSafe for extern "C" fn($($arg),*) -> Ret {}
+        impl<Ret, $($arg),*> !BankSafe for unsafe extern "C" fn($($arg),*) -> Ret {}
     };
 }
-not_warp_safe_fn!();
-not_warp_safe_fn!(A);
-not_warp_safe_fn!(A, B);
-not_warp_safe_fn!(A, B, C);
-not_warp_safe_fn!(A, B, C, D);
-not_warp_safe_fn!(A, B, C, D, E);
-not_warp_safe_fn!(A, B, C, D, E, F);
-not_warp_safe_fn!(A, B, C, D, E, F, G);
-not_warp_safe_fn!(A, B, C, D, E, F, G, H);
-not_warp_safe_fn!(A, B, C, D, E, F, G, H, I);
-not_warp_safe_fn!(A, B, C, D, E, F, G, H, I, J);
-not_warp_safe_fn!(A, B, C, D, E, F, G, H, I, J, K);
-not_warp_safe_fn!(A, B, C, D, E, F, G, H, I, J, K, L);
+not_bank_safe_fn!();
+not_bank_safe_fn!(A);
+not_bank_safe_fn!(A, B);
+not_bank_safe_fn!(A, B, C);
+not_bank_safe_fn!(A, B, C, D);
+not_bank_safe_fn!(A, B, C, D, E);
+not_bank_safe_fn!(A, B, C, D, E, F);
+not_bank_safe_fn!(A, B, C, D, E, F, G);
+not_bank_safe_fn!(A, B, C, D, E, F, G, H);
+not_bank_safe_fn!(A, B, C, D, E, F, G, H, I);
+not_bank_safe_fn!(A, B, C, D, E, F, G, H, I, J);
+not_bank_safe_fn!(A, B, C, D, E, F, G, H, I, J, K);
+not_bank_safe_fn!(A, B, C, D, E, F, G, H, I, J, K, L);
 
 /// A deferred banked call: a function applied to its arguments, not yet run.
 ///
@@ -72,10 +163,10 @@ not_warp_safe_fn!(A, B, C, D, E, F, G, H, I, J, K, L);
 /// Implemented by [`BankedWarp`] (what the macro builds) and, transitively, by any
 /// function that returns one, so a banked function value is itself a [`FarCall`].
 pub trait Warp {
-    /// The value the call produces. It must be [`WarpSafe`]: a banked call's result
+    /// The value the call produces. It must be [`BankSafe`]: a banked call's result
     /// crosses the switch back to the caller, so it cannot embed a pointer to the
     /// callee's (now unmapped) banked code.
-    type Output: WarpSafe;
+    type Output: BankSafe;
 
     /// The bank group this call targets (where its function lives).
     type Group: Group;
@@ -132,9 +223,9 @@ impl<F, G, Args> BankedWarp<F, G, Args> {
     }
 }
 
-impl<F: Fn<Args>, G: Group, Args: Tuple> Warp for BankedWarp<F, G, Args>
+impl<F: Fn<Args>, G: Group, Args: Tuple + BankSafe> Warp for BankedWarp<F, G, Args>
 where
-    F::Output: WarpSafe,
+    F::Output: BankSafe,
 {
     type Output = F::Output;
     type Group = G;
@@ -154,7 +245,7 @@ impl<F, Args: Tuple> !Fn<Args> for DynFar<F> {}
 
 /// A [`Warp`]-returning function is itself a [`FarCall`], usable as a dispatch
 /// target like a [`Far`] / [`DynFar`].
-impl<T, Args: Tuple> FarCall<Args> for T
+impl<T, Args: Tuple + BankSafe> FarCall<Args> for T
 where
     T: Fn<Args>,
     T::Output: Warp,
@@ -180,10 +271,10 @@ where
 /// a per-function marker type by the `#[bank::zero]` macro. The generic lives on
 /// the [`run`](FixedFn::run) *method*, which is allowed. [`FixedWarp`] is the
 /// [`Warp`] that invokes it.
-pub trait FixedFn<Args> {
-    /// The value the call produces. [`WarpSafe`] for the same reason as
+pub trait FixedFn<Args: BankSafe> {
+    /// The value the call produces. [`BankSafe`] for the same reason as
     /// [`Warp::Output`]: a bank-0 helper's result is handed back to the caller.
-    type Output: WarpSafe;
+    type Output: BankSafe;
 
     /// Run the body in the caller's bank `C`, threading its `bank` token so that
     /// any banked call inside restores `C` on the way out.
@@ -221,7 +312,7 @@ impl<M, Args> FixedWarp<M, Args> {
     }
 }
 
-impl<M: FixedFn<Args>, Args> Warp for FixedWarp<M, Args> {
+impl<M: FixedFn<Args>, Args: BankSafe> Warp for FixedWarp<M, Args> {
     type Output = M::Output;
     // A bank-0 helper is caller-generic; anchor it at bank 0 so the
     // `Warp` contract is satisfied. Resident helpers are normally run with `drive`.

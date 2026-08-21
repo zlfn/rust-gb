@@ -8,7 +8,7 @@
 
 use core::marker::{PhantomData, Tuple};
 
-use super::{scope, switch_bank, switch_run, Anchor, Bank, Group, GroupZero};
+use super::{scope, switch_bank, switch_run, Anchor, Bank, Group, GroupZero, BankSafe};
 
 // ===== Far: static-bank far pointer =====
 
@@ -193,15 +193,18 @@ impl<T: ?Sized> Clone for DynFar<T> {
 /// unified call interface: [`invoke`](FarCall::invoke) switches into the target
 /// bank, invokes the function with `args`, and restores the caller's bank `C`.
 /// The `#[bank]` macro rewrites `recv.invoke(args)` onto it.
-pub trait FarCall<Args: Tuple> {
+pub trait FarCall<Args: Tuple + BankSafe> {
     /// The function's return type.
-    type Output;
+    type Output: BankSafe;
 
     /// Switch into the far function's bank, call it with `args`, restore `C`.
     fn invoke<C: Group>(&self, outer: &mut Bank<C>, args: Args) -> Self::Output;
 }
 
-impl<F: Copy + Fn<Args>, G: Group, Args: Tuple> FarCall<Args> for Far<F, G> {
+impl<F: Copy + Fn<Args>, G: Group, Args: Tuple + BankSafe> FarCall<Args> for Far<F, G>
+where
+    F::Output: BankSafe,
+{
     type Output = F::Output;
     // `inline(never)`: keep the switch in a *bank 0* trampoline, so this
     // one-shot cross-bank call is safe even from a banked caller (whose own code is
@@ -216,7 +219,10 @@ impl<F: Copy + Fn<Args>, G: Group, Args: Tuple> FarCall<Args> for Far<F, G> {
     }
 }
 
-impl<F: Copy + Fn<Args>, Args: Tuple> FarCall<Args> for DynFar<F> {
+impl<F: Copy + Fn<Args>, Args: Tuple + BankSafe> FarCall<Args> for DynFar<F>
+where
+    F::Output: BankSafe,
+{
     type Output = F::Output;
     // `inline(never)`: bank-0 trampoline, see `Far`'s impl above.
     #[inline(never)]
@@ -243,19 +249,19 @@ pub trait FarWith<T: ?Sized> {
     /// `anchor` proves the caller is in bank 0: `f` runs across a bank switch, so its
     /// code must stay mapped. A `#[bank]` function holds no [`Anchor`] and so cannot
     /// call this (use [`local`](Far::local) for same-bank data instead).
-    fn there<C: Group, R>(&self, anchor: Anchor, outer: &mut Bank<C>, f: impl FnOnce(&T) -> R) -> R;
+    fn there<C: Group, R: BankSafe>(&self, anchor: Anchor, outer: &mut Bank<C>, f: impl FnOnce(&T) -> R) -> R;
 }
 
 impl<T: ?Sized, G: Group> FarWith<T> for Far<T, G> {
     #[inline]
-    fn there<C: Group, R>(&self, anchor: Anchor, outer: &mut Bank<C>, f: impl FnOnce(&T) -> R) -> R {
+    fn there<C: Group, R: BankSafe>(&self, anchor: Anchor, outer: &mut Bank<C>, f: impl FnOnce(&T) -> R) -> R {
         scope(anchor, outer, |b: &mut Bank<G>| f(self.local(b)))
     }
 }
 
 impl<T: ?Sized> FarWith<T> for DynFar<T> {
     #[inline]
-    fn there<C: Group, R>(&self, _anchor: Anchor, _outer: &mut Bank<C>, f: impl FnOnce(&T) -> R) -> R {
+    fn there<C: Group, R: BankSafe>(&self, _anchor: Anchor, _outer: &mut Bank<C>, f: impl FnOnce(&T) -> R) -> R {
         unsafe { switch_bank(self.bank) };
         let r = f(unsafe { &*self.ptr });
         if !C::FIXED {

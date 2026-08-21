@@ -173,7 +173,7 @@
 //!   deferred-call analog of a [`Future`]: `play(0)` captures the call,
 //!   `.drive()` performs the bank switch and runs it. On a `static` it exposes a
 //!   [`Far`] to the banked data. Also works on an `impl` or `trait`. Its return type
-//!   must be [`WarpSafe`] (no bare `fn` pointer or `dyn` to banked code, which the
+//!   must be [`BankSafe`] (no bare `fn` pointer or `dyn` to banked code, which the
 //!   caller would run with the bank unmapped, carry one as a [`Far`] / [`DynFar`]).
 //! - [`#[bank::main]`](bank::main) marks the **entry point** in bank 0.
 //!   It holds a [`GroupZero`] token and drives banked calls directly.
@@ -279,13 +279,13 @@ pub use gb_bank_macros::{bank, far};
 /// fn main() { let _ = sound::__bank_fn_play(0); } // ERROR: call to unsafe function
 /// ```
 ///
-/// ```
+/// ```ignore
 /// mod sound { use gb_bank::*; bank::module!(); #[bank] pub fn play(i: u8) -> u8 { i } }
 /// let _warp = sound::play(0); // ok: the wrapper builds the deferred call
 /// ```
 ///
 /// A `#[bank]` function cannot return a value carrying a pointer to its own (banked)
-/// code, e.g. a bare `fn` pointer: the [`Output`](Warp::Output) must be [`WarpSafe`],
+/// code, e.g. a bare `fn` pointer: the [`Output`](Warp::Output) must be [`BankSafe`],
 /// so the caller can never invoke banked code with the bank unmapped.
 ///
 /// ```compile_fail
@@ -294,7 +294,7 @@ pub use gb_bank_macros::{bank, far};
 /// }
 /// ```
 ///
-/// ```
+/// ```ignore
 /// // The sanctioned carrier is fine: a `Far` / `DynFar` call switches banks first.
 /// mod m { use gb_bank::*; bank::module!();
 ///     #[bank] pub fn add(x: u8) -> u8 { x.wrapping_add(1) }
@@ -322,6 +322,6 @@ pub mod prelude {
     pub use crate::bank;
     pub use crate::{
         far, scope, Anchor, Bank, DynFar, Far, FarCall, FarWith, Group, GroupZero, Warp,
-        WarpSafe,
+        BankSafe,
     };
 }

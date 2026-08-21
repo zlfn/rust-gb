@@ -113,7 +113,7 @@ pub trait Summary {
 }
 
 #[bank]
-impl<A: Copy + Into<u8>, B: Copy + Into<u8>> Summary for Pair<A, B> {
+impl<A: Copy + Into<u8> + BankSafe, B: Copy + Into<u8> + BankSafe> Summary for Pair<A, B> {
     fn summarize(&self) -> u8 {
         let a: u8 = self.a.into();
         let b: u8 = self.b.into();

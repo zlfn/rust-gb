@@ -69,7 +69,7 @@ mod far;
 mod warp;
 
 pub use far::{DynFar, Far, FarCall, FarWith};
-pub use warp::{Warp, BankedWarp, FixedFn, FixedWarp, WarpSafe};
+pub use warp::{Warp, BankedWarp, FixedFn, FixedWarp, BankSafe};
 
 // ===== Low-level bank switch =====
 
@@ -222,6 +222,11 @@ impl<G: Group> Bank<G> {
 #[derive(Clone, Copy)]
 pub struct Anchor(());
 
+// An `Anchor` witnesses that the *current* code is in bank 0, so carrying one into a
+// banked call would falsify it: the callee would hold a bank-0 capability while
+// running from a switchable bank.
+impl !BankSafe for Anchor {}
+
 impl Anchor {
     /// Assert that the calling code runs in bank 0.
     ///
@@ -273,7 +278,7 @@ impl Anchor {
 /// }
 /// ```
 #[inline]
-pub fn scope<C: Group, G: Group, R>(
+pub fn scope<C: Group, G: Group, R: BankSafe>(
     _anchor: Anchor,
     outer: &mut Bank<C>,
     f: impl FnOnce(&mut Bank<G>) -> R,

@@ -16,7 +16,7 @@ pub fn mul(a: u8, b: u8) -> u8 {
 
 /// Generic clamp: every instantiation is banked independently.
 #[bank]
-pub fn clamp<T: PartialOrd + Copy + WarpSafe>(val: T, min: T, max: T) -> T {
+pub fn clamp<T: PartialOrd + Copy + BankSafe>(val: T, min: T, max: T) -> T {
     if val < min {
         min
     } else if val > max {
