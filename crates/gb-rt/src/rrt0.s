@@ -16,7 +16,9 @@ __call_hl:
     ; ── RST 0x28 — MemsetSmall: fill C bytes at HL with A ──
     .section _RST28, "ax"
     .globl .MemsetSmall
+    .globl __MemsetSmall
 .MemsetSmall:
+__MemsetSmall:
     ld (hl+), a
     dec c
     jr nz, .MemsetSmall
@@ -25,7 +27,9 @@ __call_hl:
     ; ── RST 0x30 — MemcpySmall: copy C bytes from DE to HL ──
     .section _RST30, "ax"
     .globl .MemcpySmall
+    .globl __MemcpySmall
 .MemcpySmall:
+__MemcpySmall:
     ld a, (de)
     ld (hl+), a
     inc de
