@@ -111,12 +111,22 @@ __shadow_OAM_base:
     .skip 1
     .section .text, "ax"
 
-    ; ── VBlank handler (strong override) ──
+    ; ── Interrupt handlers ──
+    ; The vector jumps straight here. The stack frame matches GBDK's: the pairs go
+    ; on as AF, HL, BC, DE and the dispatch loop is entered with a jump, so above
+    ; the saved pairs a dispatched handler finds exactly its call return address
+    ; and the saved table pointer. A handler that ends the chain itself
+    ; (`nowait_int_handler`) drops those two words and returns from the interrupt.
 
     ; ── VBlank handler — dispatches registered handlers ──
 
     .globl _on_vblank
 _on_vblank:
+    push af
+    push hl
+    push bc
+    push de
+
     ; OAM DMA
     call .refresh_OAM
 
@@ -134,51 +144,85 @@ _on_vblank:
 
     ; Dispatch VBL handler table
     ld hl, _vbl_table
-    jp _dispatch_table
+    jr .dispatch
 
     ; ── LCD STAT handler ──
 
     .weak _on_lcd_stat
 _on_lcd_stat:
+    push af
+    push hl
+    push bc
+    push de
     ld hl, _lcd_table
-    jp _dispatch_table
+    jr .dispatch
 
     ; ── Timer handler ──
 
     .weak _on_timer
 _on_timer:
+    push af
+    push hl
+    push bc
+    push de
     ld hl, _tim_table
-    jp _dispatch_table
+    jr .dispatch
 
     ; ── Serial handler ──
 
     .weak _on_serial
 _on_serial:
+    push af
+    push hl
+    push bc
+    push de
     ld hl, _sio_table
-    jp _dispatch_table
+    jr .dispatch
 
     ; ── Joypad handler ──
 
     .weak _on_joypad
 _on_joypad:
+    push af
+    push hl
+    push bc
+    push de
     ld hl, _joy_table
-    jp _dispatch_table
 
     ; ── Handler table dispatcher ──
     ; HL = pointer to handler table
-_dispatch_table:
+.dispatch:
     ld a, (hl+)
     ld e, a
     ld a, (hl+)
     ld d, a
     or e
-    ret z               ; end of table
+    jr z, .int_tail     ; end of table
     push hl
     ld h, d
     ld l, e
     call .call_hl
     pop hl
-    jr _dispatch_table
+    jr .dispatch
+
+    ; ── Chain terminator ──
+    ; Drops the call return address and the saved table pointer, then returns from
+    ; the interrupt. The tail waits for the LCD to leave modes 2 and 3, so a
+    ; handler returns no earlier than the start of mode 2.
+
+    .globl _wait_int_handler
+_wait_int_handler:
+    add sp, 4
+.int_tail:
+    pop de
+    pop bc
+    pop hl
+.wait_stat:
+    ldh a, ( 0x41 )     ; STAT
+    and 0x02            ; STATF_BUSY — set in modes 2 and 3
+    jr nz, .wait_stat
+    pop af
+    reti
 
     ; ── add/remove VBL/LCD helpers ──
 

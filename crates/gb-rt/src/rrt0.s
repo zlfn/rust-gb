@@ -1,7 +1,7 @@
 ; rrt0.s — Rust Runtime 0 for Game Boy (SM83)
 ;
 ; Minimal Game Boy startup. Section addresses are set by the linker script.
-; Each interrupt vector calls an `_on_*` handler that defaults to a no-op via
+; Each interrupt vector jumps to an `_on_*` handler that defaults to a no-op via
 ; gb.ld and is overridden by defining a strong symbol.
 
     ; ── RST 0x20 — indirect call helper ──
@@ -37,86 +37,26 @@ __MemcpySmall:
     jr nz, .MemcpySmall
     ret
 
-    ; ── Interrupt vectors (8 bytes each, use jp to full handler) ──
+    ; ── Interrupt vectors (8 bytes each, jump straight to the handler) ──
+    ; Handlers use the `z80-interrupt` calling convention, so each one saves the
+    ; register pairs it clobbers and returns with `reti`.
 
     .section _INT_VBL, "ax"
-    push af
-    jp _isr_vblank
+    jp _on_vblank
 
     .section _INT_STAT, "ax"
-    push af
-    jp _isr_lcd_stat
+    jp _on_lcd_stat
 
     .section _INT_TIMER, "ax"
-    push af
-    jp _isr_timer
+    jp _on_timer
 
     .section _INT_SERIAL, "ax"
-    push af
-    jp _isr_serial
+    jp _on_serial
 
     .section _INT_JOYPAD, "ax"
-    push af
-    jp _isr_joypad
+    jp _on_joypad
 
     .section .text.rrt0, "ax"
-
-    ; ── ISR trampolines ──
-
-_isr_vblank:
-    push bc
-    push de
-    push hl
-    call _on_vblank
-    pop hl
-    pop de
-    pop bc
-    pop af
-    reti
-
-_isr_lcd_stat:
-    push bc
-    push de
-    push hl
-    call _on_lcd_stat
-    pop hl
-    pop de
-    pop bc
-    pop af
-    reti
-
-_isr_timer:
-    push bc
-    push de
-    push hl
-    call _on_timer
-    pop hl
-    pop de
-    pop bc
-    pop af
-    reti
-
-_isr_serial:
-    push bc
-    push de
-    push hl
-    call _on_serial
-    pop hl
-    pop de
-    pop bc
-    pop af
-    reti
-
-_isr_joypad:
-    push bc
-    push de
-    push hl
-    call _on_joypad
-    pop hl
-    pop de
-    pop bc
-    pop af
-    reti
 
     ; ── Default interrupt handler (no-op) ──
     ; Each `_on_*` hook defaults to this via PROVIDE in gb.ld, so an unhandled
@@ -125,7 +65,7 @@ _isr_joypad:
 
     .globl _isr_noop
 _isr_noop:
-    ret
+    reti
 
     ; ── ROM header ──
 

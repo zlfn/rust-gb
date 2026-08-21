@@ -2,11 +2,12 @@
 //!
 //! The companion of `lcd-isr-wobble`: the same per-scanline wobble, but the STAT
 //! (mode 0 / H-Blank) handler is installed **directly at the interrupt vector**
-//! instead of through GBDK's dispatcher. gb-rt's STAT trampoline calls
-//! `_on_lcd_stat`; defining a strong one here overrides the weak GBDK dispatcher,
-//! so the interrupt runs this handler with no dispatch overhead.
+//! instead of through GBDK's dispatcher. The STAT vector jumps to `_on_lcd_stat`;
+//! defining a strong one here overrides the weak GBDK dispatcher, so the interrupt
+//! runs this handler with no dispatch overhead.
 
 #![no_std]
+#![feature(abi_z80_interrupt)]
 #![no_main]
 
 use core::ffi::c_char;
@@ -21,7 +22,7 @@ static mut BASE: u8 = 0;
 
 /// STAT (mode 0 / H-Blank) interrupt, installed directly at the vector: set the
 /// scroll offset for this scanline. This handler wins over GBDK's weak dispatcher;
-/// gb-rt's trampoline has already saved registers and will `reti`.
+/// the `z80-interrupt` convention saves the pairs it clobbers and returns with `reti`.
 #[gb_rt::interrupt(LcdStat)]
 fn wobble() {
     let base = unsafe { core::ptr::read_volatile(&raw const BASE) } as usize;

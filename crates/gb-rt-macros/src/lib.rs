@@ -67,12 +67,16 @@ pub fn entry(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// | `Serial`   | `_on_serial`   |
 /// | `Joypad`   | `_on_joypad`   |
 ///
-/// The vector trampoline saves and restores registers and issues `reti`, so the
-/// handler is a plain `fn()` with no parameters and no return. The exported
-/// symbol is strong, overriding the weak or PROVIDE default, so this handler runs
-/// in place of any default for that vector:
+/// The vector jumps straight to the handler, which the `z80-interrupt` calling
+/// convention compiles to save only the register pairs it clobbers and to return
+/// with `reti`. It takes no parameters and returns nothing. The exported symbol is
+/// strong, overriding the weak or PROVIDE default, so this handler runs in place
+/// of any default for that vector. The defining crate needs
+/// `#![feature(abi_z80_interrupt)]`:
 ///
 /// ```ignore
+/// #![feature(abi_z80_interrupt)]
+///
 /// #[gb_rt::interrupt(LcdStat)]
 /// fn wobble() {
 ///     // runs on each STAT interrupt
@@ -126,7 +130,7 @@ pub fn interrupt(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
 
-    func.sig.abi = Some(parse_quote!(extern "C"));
+    func.sig.abi = Some(parse_quote!(extern "z80-interrupt"));
 
     quote! {
         #[unsafe(export_name = #symbol)]
