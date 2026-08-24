@@ -162,6 +162,10 @@ not_bank_safe_fn!(A, B, C, D, E, F, G, H, I, J, K, L);
 ///
 /// Implemented by [`BankedWarp`] (what the macro builds) and, transitively, by any
 /// function that returns one, so a banked function value is itself a [`FarCall`].
+///
+/// The attribute sits here rather than on [`BankedWarp`] / [`FixedWarp`] because a
+/// banked function returns `impl Warp`, and that lint reads the trait.
+#[must_use = "a Warp does nothing until `.drive()`"]
 pub trait Warp {
     /// The value the call produces. It must be [`BankSafe`]: a banked call's result
     /// crosses the switch back to the caller, so it cannot embed a pointer to the
