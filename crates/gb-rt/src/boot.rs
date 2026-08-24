@@ -3,7 +3,14 @@
 //! The boot ROM leaves identification values in registers `A` and `B` when it
 //! hands control to the cartridge at `0x100`, valid only at that first
 //! instruction. `rrt0` captures them into `__boot_a` and `__boot_b`; this module
-//! reads them back. Interpreting the values is left to callers.
+//! reads them back. Interpreting the values is left to callers:
+//!
+//! | Register | Value | Console |
+//! |----------|-------|---------|
+//! | `A` | `0x01` | DMG, and Super Game Boy |
+//! | `A` | `0xFF` | MGB (Pocket, Light) |
+//! | `A` | `0x11` | CGB, also reported by the Game Boy Advance |
+//! | `B` | bit 0 set | Game Boy Advance running in CGB mode |
 
 unsafe extern "C" {
     #[link_name = "_boot_a"]

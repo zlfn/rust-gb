@@ -1,15 +1,9 @@
-; gbdk_init.s — GBDK runtime initialization for Game Boy
+; gbdk_init.s: GBDK runtime initialization for Game Boy
 ;
-; Provides:
-;   __gbdk_init — call from Rust to initialize GBDK runtime
-;   _on_vblank  — strong override of rrt0 weak VBlank handler
-;   GBDK internal symbols (.display_off, .mode, .add_int, .remove_int)
-;
-; Assembled with: clang --target=sm83 -c gbdk_init.s -o gbdk_init.o
+; Bridges rrt0 and the prebuilt libgb.a: the init routine, the interrupt handlers
+; libgb.a's dispatch tables need, and the internal symbols it calls by name.
 
     .section .text, "ax"
-
-    ; ── GBDK init (called by user from main) ──
 
     .globl __gbdk_init
 __gbdk_init:
@@ -48,15 +42,12 @@ __gbdk_init:
     ld a, 0xC0          ; LCDCF_ON | LCDCF_WIN9C00 (BG off, OBJ off)
     ldh ( 0x40 ), a     ; LCDC
 
-    ; Enable VBlank interrupt
     ld a, 0x01          ; VBL_IFLAG
     ldh ( 0xFF ), a     ; IE
     xor a
-    ldh ( 0x0F ), a     ; IF — clear pending
+    ldh ( 0x0F ), a     ; IF, clear pending
 
     ret
-
-    ; ── Display off ──
 
     .globl _display_off
     .globl .display_off
@@ -74,9 +65,9 @@ _display_off:
     ldh ( 0x40 ), a
     ret
 
-    ; ── OAM DMA routine source (copied to .refresh_OAM in HRAM) ──
-    ; Reads the shadow OAM page from __shadow_OAM_base and skips when it is zero,
-    ; matching GBDK. `.refresh_OAM` runs the guard; `.refresh_OAM_DMA` skips it.
+    ; Source of the OAM DMA routine, copied into HRAM at .refresh_OAM. Reads the
+    ; shadow OAM page from __shadow_OAM_base and skips when it is zero, matching
+    ; GBDK. `.refresh_OAM` runs that guard; `.refresh_OAM_DMA` skips it.
 
 .start_refresh_OAM:
     ldh a, (__shadow_OAM_base)
@@ -111,14 +102,11 @@ __shadow_OAM_base:
     .skip 1
     .section .text, "ax"
 
-    ; ── Interrupt handlers ──
     ; The vector jumps straight here. The stack frame matches GBDK's: the pairs go
     ; on as AF, HL, BC, DE and the dispatch loop is entered with a jump, so above
     ; the saved pairs a dispatched handler finds exactly its call return address
     ; and the saved table pointer. A handler that ends the chain itself
     ; (`nowait_int_handler`) drops those two words and returns from the interrupt.
-
-    ; ── VBlank handler — dispatches registered handlers ──
 
     .globl _on_vblank
 _on_vblank:
@@ -127,14 +115,11 @@ _on_vblank:
     push bc
     push de
 
-    ; OAM DMA
     call .refresh_OAM
 
-    ; Clear vbl_done flag
     xor a
     ld (_vbl_done), a
 
-    ; Increment sys_time (16-bit VBlank tick counter)
     ld hl, _sys_time
     inc (hl)
     jr nz, .vbl_no_carry
@@ -142,11 +127,8 @@ _on_vblank:
     inc (hl)
 .vbl_no_carry:
 
-    ; Dispatch VBL handler table
     ld hl, _vbl_table
     jr .dispatch
-
-    ; ── LCD STAT handler ──
 
     .weak _on_lcd_stat
 _on_lcd_stat:
@@ -157,8 +139,6 @@ _on_lcd_stat:
     ld hl, _lcd_table
     jr .dispatch
 
-    ; ── Timer handler ──
-
     .weak _on_timer
 _on_timer:
     push af
@@ -167,8 +147,6 @@ _on_timer:
     push de
     ld hl, _tim_table
     jr .dispatch
-
-    ; ── Serial handler ──
 
     .weak _on_serial
 _on_serial:
@@ -179,8 +157,6 @@ _on_serial:
     ld hl, _sio_table
     jr .dispatch
 
-    ; ── Joypad handler ──
-
     .weak _on_joypad
 _on_joypad:
     push af
@@ -189,8 +165,7 @@ _on_joypad:
     push de
     ld hl, _joy_table
 
-    ; ── Handler table dispatcher ──
-    ; HL = pointer to handler table
+    ; HL = handler table
 .dispatch:
     ld a, (hl+)
     ld e, a
@@ -205,10 +180,9 @@ _on_joypad:
     pop hl
     jr .dispatch
 
-    ; ── Chain terminator ──
     ; Drops the call return address and the saved table pointer, then returns from
-    ; the interrupt. The tail waits for the LCD to leave modes 2 and 3, so a
-    ; handler returns no earlier than the start of mode 2.
+    ; the interrupt. The tail waits for the LCD to leave modes 2 and 3, so a handler
+    ; returns no earlier than the start of mode 2.
 
     .globl _wait_int_handler
 _wait_int_handler:
@@ -219,12 +193,10 @@ _wait_int_handler:
     pop hl
 .wait_stat:
     ldh a, ( 0x41 )     ; STAT
-    and 0x02            ; STATF_BUSY — set in modes 2 and 3
+    and 0x02            ; STATF_BUSY, set in modes 2 and 3
     jr nz, .wait_stat
     pop af
     reti
-
-    ; ── add/remove VBL/LCD helpers ──
 
     .globl _add_VBL
     .globl .add_VBL
@@ -254,8 +226,6 @@ _remove_LCD:
     ld hl, _lcd_table
     jp .remove_int
 
-    ; ── wait_vbl_done / vsync ──
-
     .globl _wait_vbl_done
     .globl .wait_vbl_done
     .globl _vsync
@@ -273,11 +243,8 @@ _vsync:
     jr nz, .wait_loop
     ret
 
-    ; ── GBDK internal stubs ──
-
-    ; .add_int — Add handler to interrupt table
-    ; HL = pointer to handler table, DE = handler function
-    ; Table format: pairs of (func_lo, func_hi), terminated by 0x0000
+    ; HL = handler table, DE = handler to append. A table holds (lo, hi) pairs
+    ; terminated by 0x0000.
     .globl .add_int
 .add_int:
     ld a, (hl+)
@@ -293,14 +260,12 @@ _vsync:
     ld (hl+), a
     ld a, d
     ld (hl+), a
-    ; Zero-terminate
     xor a
     ld (hl+), a
     ld (hl), a
     ret
 
-    ; .remove_int — Remove handler from interrupt table
-    ; HL = pointer to handler table, DE = handler function to remove
+    ; HL = handler table, DE = handler to drop.
     .globl .remove_int
 .remove_int:
     ld a, (hl+)
@@ -315,12 +280,11 @@ _vsync:
     ld a, c
     cp d
     jr nz, .remove_int
-    ; Found — shift remaining entries down
+    ; Shift the remaining entries down over it.
     dec hl
     dec hl
     push hl
 .remove_shift:
-    ; Copy next entry over current
     inc hl
     inc hl
     ld a, (hl)
@@ -331,7 +295,6 @@ _vsync:
     ld a, (hl)
     dec hl
     ld (hl), a
-    ; Check if we just copied a terminator
     dec hl
     ld a, (hl+)
     ld b, a
@@ -341,8 +304,7 @@ _vsync:
     pop hl
     ret
 
-    ; ── set_interrupts(flags) — flags passed in A (matches GBDK crt0) ──
-    ; Sets the IE register and clears any pending IF, like GBDK's set_interrupts.
+    ; Flags arrive in A, matching GBDK's crt0.
 
     .globl _set_interrupts
     .globl .set_interrupts
@@ -355,7 +317,7 @@ _set_interrupts:
     ld (0xFF0F), a      ; IF_REG = 0 (clear pending)
     ret
 
-    ; ── BSS data (zero-initialized by rrt0) ──
+    ; Zero-initialized by rrt0's WRAM clear.
 
     .section .bss
 

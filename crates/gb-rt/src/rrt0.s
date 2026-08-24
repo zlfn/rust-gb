@@ -1,11 +1,10 @@
-; rrt0.s — Rust Runtime 0 for Game Boy (SM83)
+; rrt0.s: Rust Runtime 0 for Game Boy (SM83)
 ;
-; Minimal Game Boy startup. Section addresses are set by the linker script.
-; Each interrupt vector jumps to an `_on_*` handler that defaults to a no-op via
-; gb.ld and is overridden by defining a strong symbol.
+; Section addresses come from gb.ld. See the crate docs for the interrupt model.
 
-    ; ── RST 0x20 — indirect call helper ──
-    ; SDCC uses .call_hl, LLVM codegen uses _call_hl (mangled to __call_hl)
+    ; RST 0x20: indirect call to HL
+    ; The backend lowers its CALL_HL pseudo to `call __call_hl`; SDCC and GBDK
+    ; reach the same routine as `.call_hl`.
     .section _RST20, "ax"
     .globl .call_hl
     .globl __call_hl
@@ -13,7 +12,7 @@
 __call_hl:
     jp (hl)
 
-    ; ── RST 0x28 — MemsetSmall: fill C bytes at HL with A ──
+    ; RST 0x28: fill C bytes at HL with A
     .section _RST28, "ax"
     .globl .MemsetSmall
     .globl __MemsetSmall
@@ -24,7 +23,7 @@ __MemsetSmall:
     jr nz, .MemsetSmall
     ret
 
-    ; ── RST 0x30 — MemcpySmall: copy C bytes from DE to HL ──
+    ; RST 0x30: copy C bytes from DE to HL
     .section _RST30, "ax"
     .globl .MemcpySmall
     .globl __MemcpySmall
@@ -37,9 +36,7 @@ __MemcpySmall:
     jr nz, .MemcpySmall
     ret
 
-    ; ── Interrupt vectors (8 bytes each, jump straight to the handler) ──
-    ; Handlers use the `z80-interrupt` calling convention, so each one saves the
-    ; register pairs it clobbers and returns with `reti`.
+    ; Interrupt vectors
 
     .section _INT_VBL, "ax"
     jp _on_vblank
@@ -58,16 +55,13 @@ __MemcpySmall:
 
     .section .text.rrt0, "ax"
 
-    ; ── Default interrupt handler (no-op) ──
-    ; Each `_on_*` hook defaults to this via PROVIDE in gb.ld, so an unhandled
-    ; interrupt does nothing. PROVIDE yields to any object definition: a weak one
-    ; (an overridable default) or a strong one, which wins over both.
-
+    ; What every `_on_*` hook resolves to unless something defines it, bound by
+    ; PROVIDE in gb.ld.
     .globl _isr_noop
 _isr_noop:
     reti
 
-    ; ── ROM header ──
+    ; ROM header
 
     .section _ENTRY, "ax"
     nop
@@ -85,21 +79,22 @@ _isr_noop:
     .ascii "RUSTGB"
     .byte 0, 0, 0, 0, 0
 
+    ; Cartridge type, ROM size, and both checksums are patched after the link.
     .section _HEADER, "ax"
-    .byte 0x00          ; DMG (monochrome)
+    .byte 0x00          ; CGB flag
     .byte 0x00, 0x00    ; Licensee
     .byte 0x00          ; SGB flag
     .byte 0x00          ; Cartridge type
-    .byte 0x00          ; ROM size (32KB)
+    .byte 0x00          ; ROM size
     .byte 0x00          ; RAM size
     .byte 0x01          ; Destination (non-JP)
     .byte 0x00          ; Old licensee
     .byte 0x00          ; ROM version
-    .byte 0x00          ; Header checksum (patch later)
-    .byte 0x00, 0x00    ; Global checksum (patch later)
+    .byte 0x00          ; Header checksum
+    .byte 0x00, 0x00    ; Global checksum
 
-    ; ── Raw boot registers ──
-    ; Captured by `_reset` at boot.
+    ; Boot registers
+
     .section .bss
     .globl __boot_a
 __boot_a:
@@ -108,7 +103,7 @@ __boot_a:
 __boot_b:
     .byte 0
 
-    ; ── Initialization ──
+    ; Startup
 
     .section .text.rrt0
 
@@ -117,37 +112,32 @@ _reset:
     di
     ld sp, 0xE000
 
-    ; ── Capture boot registers ──
-    ; The Boot ROM leaves identification values in registers when it hands
-    ; control to the cartridge at 0x100, valid only at this first instruction:
-    ;   A = 0x01 → DMG, 0xFF → MGB (Pocket/Light), 0x11 → CGB (also GBA)
-    ;   B = bit 0 set → GBA (Game Boy Advance in GBC mode)
-    ; Hold them in D/E (untouched by the WRAM clear below), then store to WRAM
-    ; once it is cleared.
-    ld d, a             ; D = boot A
-    ld e, b             ; E = boot B
+    ; The boot ROM's identification bytes in A and B are valid only here, at the
+    ; first instruction. Hold them in D/E until WRAM is cleared.
+    ld d, a
+    ld e, b
 
-    ; Clear all WRAM (0xC000-0xDFFF)
+    ; Zero WRAM so `.bss` starts at zero and an uninitialized read is
+    ; reproducible.
     xor a
     ld hl, 0xC000
-    ld bc, 0x2000
-.clear_wram:
+    ld b, 0x20
+.wram_page:
+    ld c, 0
+.wram_byte:
     ld (hl+), a
-    dec bc
-    ld a, b
-    or c
-    ld a, 0
-    jr nz, .clear_wram
+    dec c
+    jr nz, .wram_byte
+    dec b
+    jr nz, .wram_page
 
-    ; ── Persist raw boot registers to WRAM (now cleared) ──
     ld a, d
     ld (__boot_a), a
     ld a, e
     ld (__boot_b), a
 
-    ; Clear all HRAM (0xFF80-0xFFFE) so NOLOAD cells (such as the bank shadow)
-    ; start at zero, mirroring the WRAM clear above. This zeroes the address range
-    ; only, referencing no `_HRAM.*` symbol, so unused cells are still GC'd.
+    ; Zero HRAM so NOLOAD cells such as the bank shadow start at zero. This names
+    ; no `_HRAM.*` symbol, so unused cells are still collected.
     xor a
     ld hl, 0xFF80
     ld c, 0x7F
@@ -156,19 +146,17 @@ _reset:
     dec c
     jr nz, .clear_hram
 
-    ; ── Reset hardware state ──
-    ; Clean up residual state left by the Boot ROM so every program
-    ; starts from a known-good baseline.
+    ; Drop residual boot ROM state.
     xor a
-    ldh ( 0x26 ), a     ; NR52 — sound off (silences Boot ROM jingle)
-    ldh ( 0x42 ), a     ; SCY  — scroll Y = 0
-    ldh ( 0x43 ), a     ; SCX  — scroll X = 0
-    ldh ( 0x41 ), a     ; STAT — clear LCD status mode/interrupt config
-    ldh ( 0x4A ), a     ; WY   — window Y = 0
+    ldh ( 0x26 ), a     ; NR52, silences the boot jingle
+    ldh ( 0x42 ), a     ; SCY
+    ldh ( 0x43 ), a     ; SCX
+    ldh ( 0x41 ), a     ; STAT
+    ldh ( 0x4A ), a     ; WY
     ld a, 0x07
-    ldh ( 0x4B ), a     ; WX   — window X = 7 (standard left edge)
+    ldh ( 0x4B ), a     ; WX, standard left edge
 
-    ; Copy .data initializers
+    ; Copy the `.data` initializers from ROM.
     ld hl, s__INITIALIZER
     ld de, s__INITIALIZED
     ld bc, l__INITIALIZER
@@ -186,5 +174,4 @@ _reset:
 .data_done:
 
     ei
-    ; main is `fn() -> !`, so it never returns; jump to it rather than call.
-    jp _main
+    jp _main            ; `fn() -> !`, so it never comes back
