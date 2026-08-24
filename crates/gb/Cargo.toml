@@ -6,16 +6,26 @@ authors = ["zlfn <ung@zlfn.space>"]
 description = "Safe, idiomatic Game Boy hardware abstractions"
 
 [features]
-default = []
+default = ["bank"]
+# ROM banking (`gb::bank`). The HAL itself never banks, so a 32 KiB ROM can drop
+# this and skip building `gb-bank`.
+bank = ["dep:gb-bank", "dep:gb-bank-macros"]
 # Game Boy Color hardware: the CGB-only registers (VRAM/WRAM banking, VRAM DMA,
 # speed switch, color palettes, ...). Off by default for a DMG baseline.
 cgb = []
 
 [dependencies]
+gb-rt = { workspace = true }
+gb-hram = { workspace = true }
+gb-bank = { workspace = true, optional = true }
+gb-bank-macros = { workspace = true, optional = true }
+gb-ram-fn = { workspace = true }
 voladdress = "1.4.0"
 bitflags = "2"
 bitfield-struct = "0.13.0"
 
-# Build docs with all features so docs.rs shows the CGB-only API.
+# Build docs with all features so docs.rs shows the feature-gated API, and with
+# `--cfg docsrs` so `doc(cfg)` marks what each item needs.
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -2,6 +2,34 @@
 
 #![no_std]
 #![feature(asm_experimental_arch)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod mmio;
 pub mod interrupt;
+
+// Also at the root, so the attribute reads as `#[gb::bank]` rather than
+// `#[gb::bank::bank]`. A macro and a module may share a name.
+#[cfg(feature = "bank")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bank")))]
+pub use gb_bank_macros::bank;
+pub use gb_hram::hram;
+pub use gb_ram_fn::ram_fn;
+
+#[cfg(feature = "bank")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bank")))]
+#[doc(inline)]
+pub use gb_bank as bank;
+#[doc(inline)]
+pub use gb_hram as hram;
+#[doc(inline)]
+pub use gb_ram_fn as ram_fn;
+#[doc(inline)]
+pub use gb_rt as rt;
+
+// Where the `gb-bank` and `gb-ram-fn` macros look when the invoking crate depends
+// on this crate instead of on them.
+#[cfg(feature = "bank")]
+#[doc(hidden)]
+pub use gb_bank as __bank;
+#[doc(hidden)]
+pub use gb_ram_fn as __ram_fn;

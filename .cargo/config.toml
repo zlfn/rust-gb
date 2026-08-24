@@ -2,3 +2,10 @@
 # `cargo build`/`cargo doc` work without an explicit `--target`.
 [build]
 target = "sm83-nintendo-none-elf"
+# `doc(cfg)` marks what each item needs; without this the marks are absent locally
+# while docs.rs (which passes the same flag) shows them.
+rustdocflags = ["--cfg", "docsrs"]
+
+[alias]
+# Feature-gated items are only documented when their feature is on.
+doc-all = "doc --all-features --no-deps"

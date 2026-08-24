@@ -10,6 +10,10 @@
 //!   banked functions.
 //! - [`macro@far`] (`far!`) takes a far pointer to a banked function for dispatch.
 //!
+//! The expansions name the `gb-bank` runtime by looking it up in the invoking
+//! crate's manifest, so they work whether it depends on `gb-bank` directly or
+//! reaches it through a facade such as `gb`.
+//!
 //! [`gb-bank`]: https://docs.rs/gb-bank
 
 use proc_macro::TokenStream;

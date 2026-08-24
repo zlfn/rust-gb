@@ -11,6 +11,33 @@ use syn::{
     ItemTrait, Pat, Path, ReturnType, Stmt, TraitItem, Type,
 };
 
+/// Path to a runtime crate as the *invoking* crate can name it: directly when it
+/// depends on that crate, otherwise through the `gb` facade, which re-exports the
+/// runtime crates at `facade` for exactly this purpose. Falling back to the plain
+/// name when neither is present lets the usual unresolved-import error name the
+/// crate the user is missing.
+fn runtime_root(krate: &str, facade: &str) -> TokenStream {
+    use proc_macro_crate::{crate_name, FoundCrate};
+    let path = match crate_name(krate) {
+        Ok(FoundCrate::Itself) => "crate".to_string(),
+        Ok(FoundCrate::Name(n)) => format!("::{}", n.replace('-', "_")),
+        Err(_) => match crate_name("rust-gb").or_else(|_| crate_name("gb")) {
+            Ok(FoundCrate::Itself) => format!("crate::{facade}"),
+            Ok(FoundCrate::Name(n)) => format!("::{}::{facade}", n.replace('-', "_")),
+            Err(_) => format!("::{}", krate.replace('-', "_")),
+        },
+    };
+    path.parse().expect("runtime root path")
+}
+
+fn bank_root() -> TokenStream {
+    runtime_root("gb-bank", "__bank")
+}
+
+fn rt_root() -> TokenStream {
+    runtime_root("gb-rt", "rt")
+}
+
 /// The injected ambient bank token. `mixed_site` hygiene keeps it invisible to,
 /// and unclashable with, user code.
 fn token() -> Ident {
@@ -224,6 +251,7 @@ fn closure_token_ident(closure: &syn::ExprClosure) -> Option<Ident> {
 /// gates `scope` / `there`: a banked body (`false`) gets no `Anchor` and rejects
 /// them. Bindings are emitted only if touched, so they never trip unused-var lints.
 fn transform_body(block: &mut syn::Block, group: &TokenStream, resident: bool) {
+    let gb_bank = bank_root();
     let tok = token();
     let anchor_id = anchor();
     let mut rw = Rewrite {
@@ -236,13 +264,13 @@ fn transform_body(block: &mut syn::Block, group: &TokenStream, resident: bool) {
     rw.visit_block_mut(block);
     if rw.anchor_used {
         let mint: Stmt = parse_quote! {
-            let #anchor_id = unsafe { ::gb_bank::Anchor::assume() };
+            let #anchor_id = unsafe { #gb_bank::Anchor::assume() };
         };
         block.stmts.insert(0, mint);
     }
     if rw.used {
         let inject: Stmt = parse_quote! {
-            let mut #tok = unsafe { ::gb_bank::Bank::<#group>::assume() };
+            let mut #tok = unsafe { #gb_bank::Bank::<#group>::assume() };
         };
         block.stmts.insert(0, inject);
     }
@@ -253,6 +281,7 @@ fn transform_body(block: &mut syn::Block, group: &TokenStream, resident: bool) {
 /// `FixedFn::run` receives the caller's token as a param. The body is resident, so
 /// `scope` / `there` are allowed; the `Anchor` is minted when one is threaded.
 fn rewrite_only(block: &mut syn::Block) {
+    let gb_bank = bank_root();
     let anchor_id = anchor();
     let mut rw = Rewrite {
         tok: token(),
@@ -264,7 +293,7 @@ fn rewrite_only(block: &mut syn::Block) {
     rw.visit_block_mut(block);
     if rw.anchor_used {
         let mint: Stmt = parse_quote! {
-            let #anchor_id = unsafe { ::gb_bank::Anchor::assume() };
+            let #anchor_id = unsafe { #gb_bank::Anchor::assume() };
         };
         block.stmts.insert(0, mint);
     }
@@ -273,6 +302,7 @@ fn rewrite_only(block: &mut syn::Block) {
 // ===== bank::module!() =====
 
 pub fn bank_module(input: TokenStream) -> TokenStream {
+    let gb_bank = bank_root();
     // Optional pin: `bank::module!(N)` fixes this module to bank `N` instead of
     // letting gb-bank-pack auto-assign. The marker's *initial* byte carries the pin
     // (0 = auto); the packer reads it, reserves bank `N`, and leaves it as-is.
@@ -300,7 +330,7 @@ pub fn bank_module(input: TokenStream) -> TokenStream {
         #[allow(non_camel_case_types)]
         pub struct __BankGroup;
 
-        impl ::gb_bank::Group for __BankGroup {
+        impl #gb_bank::Group for __BankGroup {
             const FIXED: bool = false;
             #[inline(always)]
             fn bank() -> u8 {
@@ -411,9 +441,10 @@ fn warp_new(
     callee: &TokenStream,
     args_val: &TokenStream,
 ) -> TokenStream {
+    let gb_bank = bank_root();
     quote! {
         unsafe {
-            ::gb_bank::BankedWarp::<#fn_ty, __BankGroup, #args_ty>::new(
+            #gb_bank::BankedWarp::<#fn_ty, __BankGroup, #args_ty>::new(
                 ::core::mem::transmute::<unsafe #fn_ty, #fn_ty>(#callee as unsafe #fn_ty),
                 #args_val,
             )
@@ -424,6 +455,7 @@ fn warp_new(
 // --- #[bank] fn ---
 
 fn bank_fn(mut func: ItemFn) -> TokenStream {
+    let gb_bank = bank_root();
     let vis = func.vis.clone();
     let name = func.sig.ident.clone();
     let generics = func.sig.generics.clone();
@@ -468,19 +500,20 @@ fn bank_fn(mut func: ItemFn) -> TokenStream {
         #func
 
         #[inline]
-        #vis fn #name #ig (#inputs) -> impl ::gb_bank::Warp<Output = #output, Group = __BankGroup> #wc {
+        #vis fn #name #ig (#inputs) -> impl #gb_bank::Warp<Output = #output, Group = __BankGroup> #wc {
             #warp
         }
 
         #[doc(hidden)]
         #[inline]
-        #vis fn #far_name #ig () -> ::gb_bank::Far<#fn_ty, __BankGroup> #wc {
-            unsafe { ::gb_bank::Far::new(#callee as *const _) }
+        #vis fn #far_name #ig () -> #gb_bank::Far<#fn_ty, __BankGroup> #wc {
+            unsafe { #gb_bank::Far::new(#callee as *const _) }
         }
     }
 }
 
 fn bank_static(s: ItemStatic) -> TokenStream {
+    let gb_bank = bank_root();
     let vis = s.vis.clone();
     let name = s.ident.clone();
     let ty = (*s.ty).clone();
@@ -492,8 +525,8 @@ fn bank_static(s: ItemStatic) -> TokenStream {
         static #impl_name: #ty = #expr;
 
         #[allow(non_upper_case_globals)]
-        #vis const #name: ::gb_bank::Far<#ty, __BankGroup> =
-            unsafe { ::gb_bank::Far::new(&#impl_name) };
+        #vis const #name: #gb_bank::Far<#ty, __BankGroup> =
+            unsafe { #gb_bank::Far::new(&#impl_name) };
     }
 }
 
@@ -564,6 +597,7 @@ impl VisitMut for SelfQualify<'_> {
 /// One method into `(wrapper, hidden)`. The receiver, if any, becomes the first
 /// argument of the underlying fn pointer (`fn(&Self, ..) -> R`).
 fn bank_method(mut m: ImplItemFn, trait_path: Option<&Path>) -> (TokenStream, TokenStream) {
+    let gb_bank = bank_root();
     let vis = m.vis.clone();
     let name = m.sig.ident.clone();
     let mgen = m.sig.generics.clone();
@@ -619,7 +653,7 @@ fn bank_method(mut m: ImplItemFn, trait_path: Option<&Path>) -> (TokenStream, To
 
     let wrapper = quote! {
         #[inline]
-        #vis fn #name #mig (#inputs) -> impl ::gb_bank::Warp<Output = #output> #mwc {
+        #vis fn #name #mig (#inputs) -> impl #gb_bank::Warp<Output = #output> #mwc {
             #warp
         }
     };
@@ -641,8 +675,8 @@ fn bank_method(mut m: ImplItemFn, trait_path: Option<&Path>) -> (TokenStream, To
     let far_ctor = quote! {
         #[doc(hidden)]
         #[inline]
-        #vis fn #far_name #mig () -> ::gb_bank::Far<#far_fn_ty, __BankGroup> #mwc {
-            unsafe { ::gb_bank::Far::new(#callee as *const _) }
+        #vis fn #far_name #mig () -> #gb_bank::Far<#far_fn_ty, __BankGroup> #mwc {
+            unsafe { #gb_bank::Far::new(#callee as *const _) }
         }
     };
 
@@ -655,6 +689,7 @@ fn bank_method(mut m: ImplItemFn, trait_path: Option<&Path>) -> (TokenStream, To
 /// Warp<Output = R>` (RPITIT), the same shape an `async fn` in a trait desugars
 /// to. The matching `#[bank] impl` then supplies the `Warp`-returning bodies.
 fn bank_trait(mut tr: ItemTrait) -> TokenStream {
+    let gb_bank = bank_root();
     for it in &mut tr.items {
         if let TraitItem::Fn(m) = it {
             if m.default.is_some() {
@@ -665,7 +700,7 @@ fn bank_trait(mut tr: ItemTrait) -> TokenStream {
                 .to_compile_error();
             }
             let out = output_ty(&m.sig.output);
-            m.sig.output = parse_quote!(-> impl ::gb_bank::Warp<Output = #out>);
+            m.sig.output = parse_quote!(-> impl #gb_bank::Warp<Output = #out>);
         }
     }
     quote!(#tr)
@@ -681,14 +716,16 @@ fn bank_trait(mut tr: ItemTrait) -> TokenStream {
 /// drives banked calls directly (no `Warp`). This is the original resident
 /// expansion.
 pub fn resident(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let gb_bank = bank_root();
     let mut func = match parse2::<ItemFn>(item) {
         Ok(f) => f,
         Err(e) => return e.to_compile_error(),
     };
-    transform_body(&mut func.block, &quote!(::gb_bank::GroupZero), true);
+    transform_body(&mut func.block, &quote!(#gb_bank::GroupZero), true);
     // The entry-point concerns (export as `main`, force the gb-rt startup into
     // the link) are owned by gb-rt's #[entry]; delegate to it.
-    quote!(#[::gb_rt::entry] #func)
+    let gb_rt = rt_root();
+    quote!(#[#gb_rt::entry] #func)
 }
 
 /// `#[bank::zero]`: a resident helper that *propagates the caller's bank*.
@@ -740,6 +777,7 @@ pub fn resident_fixed(_attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 fn resident_fn(func: ItemFn) -> TokenStream {
+    let gb_bank = bank_root();
     let vis = func.vis.clone();
     let name = func.sig.ident.clone();
     let generics = func.sig.generics.clone();
@@ -787,20 +825,20 @@ fn resident_fn(func: ItemFn) -> TokenStream {
         #marker_def
 
         #[doc(hidden)]
-        impl #ig ::gb_bank::FixedFn<#args_ty> for #marker_ty #wc {
+        impl #ig #gb_bank::FixedFn<#args_ty> for #marker_ty #wc {
             type Output = #output;
             #[inline]
-            fn run<__C: ::gb_bank::Group>(
+            fn run<__C: #gb_bank::Group>(
                 #args_pat: #args_ty,
-                #tok: &mut ::gb_bank::Bank<__C>,
+                #tok: &mut #gb_bank::Bank<__C>,
             ) -> #output #block
         }
 
         // Public surface: a real fn returning `impl Warp`, driven with `.invoke()`,
         // which threads the caller's token into `run` (no bank switch).
         #[inline]
-        #vis fn #name #ig (#inputs) -> impl ::gb_bank::Warp<Output = #output> #wc {
-            ::gb_bank::FixedWarp::<#marker_ty, #args_ty>::new(#args_val)
+        #vis fn #name #ig (#inputs) -> impl #gb_bank::Warp<Output = #output> #wc {
+            #gb_bank::FixedWarp::<#marker_ty, #args_ty>::new(#args_val)
         }
 
         // Trampoline behind `far!`: save the caller's bank at runtime, run the body
@@ -809,19 +847,19 @@ fn resident_fn(func: ItemFn) -> TokenStream {
         #[doc(hidden)]
         #[inline(never)]
         #vis fn #dyn_name #ig (#inputs) -> #output #wc {
-            let __saved = ::gb_bank::current_bank();
-            let mut __z = unsafe { ::gb_bank::Bank::<::gb_bank::GroupZero>::assume() };
-            let __r = <#marker_ty as ::gb_bank::FixedFn<#args_ty>>::run::<::gb_bank::GroupZero>(
+            let __saved = #gb_bank::current_bank();
+            let mut __z = unsafe { #gb_bank::Bank::<#gb_bank::GroupZero>::assume() };
+            let __r = <#marker_ty as #gb_bank::FixedFn<#args_ty>>::run::<#gb_bank::GroupZero>(
                 #args_val, &mut __z,
             );
-            unsafe { ::gb_bank::switch_bank(__saved) };
+            unsafe { #gb_bank::switch_bank(__saved) };
             __r
         }
 
         #[doc(hidden)]
         #[inline]
-        #vis fn #far_name #ig () -> ::gb_bank::Far<#fn_ty, ::gb_bank::GroupZero> #wc {
-            unsafe { ::gb_bank::Far::new(#dyn_name #turbofish as *const _) }
+        #vis fn #far_name #ig () -> #gb_bank::Far<#fn_ty, #gb_bank::GroupZero> #wc {
+            unsafe { #gb_bank::Far::new(#dyn_name #turbofish as *const _) }
         }
     }
 }
@@ -898,6 +936,7 @@ fn resident_method(
     self_ty: &Type,
     self_ident: &Ident,
 ) -> (TokenStream, TokenStream, TokenStream) {
+    let gb_bank = bank_root();
     let vis = m.vis.clone();
     let name = m.sig.ident.clone();
     let inputs = m.sig.inputs.clone();
@@ -932,9 +971,9 @@ fn resident_method(
     let hidden = quote! {
         #[doc(hidden)]
         #[inline]
-        pub fn #hidden_name<__C: ::gb_bank::Group>(
+        pub fn #hidden_name<__C: #gb_bank::Group>(
             #inputs,
-            #tok: &mut ::gb_bank::Bank<__C>,
+            #tok: &mut #gb_bank::Bank<__C>,
         ) -> #output #block
     };
 
@@ -967,12 +1006,12 @@ fn resident_method(
         pub struct #marker;
 
         #[doc(hidden)]
-        impl #impl_lt ::gb_bank::FixedFn<#args_ty> for #marker {
+        impl #impl_lt #gb_bank::FixedFn<#args_ty> for #marker {
             type Output = #output;
             #[inline]
-            fn run<__C: ::gb_bank::Group>(
+            fn run<__C: #gb_bank::Group>(
                 #args_pat: #args_ty,
-                #tok: &mut ::gb_bank::Bank<__C>,
+                #tok: &mut #gb_bank::Bank<__C>,
             ) -> #output {
                 <#self_ty>::#hidden_name::<__C>(#(#fwd,)* #tok)
             }
@@ -983,8 +1022,8 @@ fn resident_method(
     // rather than naming the impl-only `'__r`.
     let wrapper = quote! {
         #[inline]
-        #vis fn #name(#inputs) -> impl ::gb_bank::Warp<Output = #output> {
-            ::gb_bank::FixedWarp::<#marker, _>::new(#args_val)
+        #vis fn #name(#inputs) -> impl #gb_bank::Warp<Output = #output> {
+            #gb_bank::FixedWarp::<#marker, _>::new(#args_val)
         }
     };
 
@@ -1006,18 +1045,18 @@ fn resident_method(
         #[doc(hidden)]
         #[inline(never)]
         #vis fn #dyn_name(#(#fwd: #dyn_tys),*) -> #output {
-            let __saved = ::gb_bank::current_bank();
-            let mut __z = unsafe { ::gb_bank::Bank::<::gb_bank::GroupZero>::assume() };
-            let __r = <#self_ty>::#hidden_name::<::gb_bank::GroupZero>(#(#fwd,)* &mut __z);
-            unsafe { ::gb_bank::switch_bank(__saved) };
+            let __saved = #gb_bank::current_bank();
+            let mut __z = unsafe { #gb_bank::Bank::<#gb_bank::GroupZero>::assume() };
+            let __r = <#self_ty>::#hidden_name::<#gb_bank::GroupZero>(#(#fwd,)* &mut __z);
+            unsafe { #gb_bank::switch_bank(__saved) };
             __r
         }
     };
     let far_ctor = quote! {
         #[doc(hidden)]
         #[inline]
-        #vis fn #far_name() -> ::gb_bank::Far<#dyn_fn_ty, ::gb_bank::GroupZero> {
-            unsafe { ::gb_bank::Far::new(#dyn_name as *const _) }
+        #vis fn #far_name() -> #gb_bank::Far<#dyn_fn_ty, #gb_bank::GroupZero> {
+            unsafe { #gb_bank::Far::new(#dyn_name as *const _) }
         }
     };
 

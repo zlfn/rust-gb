@@ -317,6 +317,13 @@ pub mod bank {
     };
 }
 
+/// The [`mod@bank`] attributes, also at the root so a facade re-exporting
+/// this crate as its own `bank` module reaches them as `bank::main` rather than
+/// `bank::bank::main`.
+pub use gb_bank_macros::{
+    bank_inherit as inherit, bank_main as main, bank_module as module, bank_zero as zero,
+};
+
 /// Everything needed to write banked code in one import.
 pub mod prelude {
     pub use crate::bank;

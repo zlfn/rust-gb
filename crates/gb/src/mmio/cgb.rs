@@ -1,7 +1,7 @@
-//! Game Boy Color hardware registers, compiled in only with the `cgb` feature.
-//! These accessors are safe but only take effect on CGB hardware. The
-//! undocumented registers `0xFF72..=0xFF75` are omitted; they have no defined
-//! function.
+//! Game Boy Color hardware registers.
+//!
+//! The accessors are safe but take effect only on CGB hardware. The undocumented
+//! registers `0xFF72..=0xFF75` are omitted; they have no defined function.
 
 use bitfield_struct::bitfield;
 use voladdress::{Safe, VolAddress};

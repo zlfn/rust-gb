@@ -1,4 +1,8 @@
 //! Procedural macro for gb-ram-fn (the `#[ram_fn]` attribute).
+//!
+//! The expansion names the `gb-ram-fn` runtime by looking it up in the invoking
+//! crate's manifest, so it works whether it depends on `gb-ram-fn` directly or
+//! reaches it through a facade such as `gb`.
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -22,6 +26,23 @@ impl Parse for Args {
     }
 }
 
+/// Path to the `gb-ram-fn` runtime as the *invoking* crate can name it: directly
+/// when it depends on `gb-ram-fn`, otherwise through the `gb` facade, which
+/// re-exports the crate for exactly this purpose.
+fn ram_fn_root() -> proc_macro2::TokenStream {
+    use proc_macro_crate::{crate_name, FoundCrate};
+    let path = match crate_name("gb-ram-fn") {
+        Ok(FoundCrate::Itself) => "crate".to_string(),
+        Ok(FoundCrate::Name(n)) => format!("::{}", n.replace('-', "_")),
+        Err(_) => match crate_name("rust-gb").or_else(|_| crate_name("gb")) {
+            Ok(FoundCrate::Itself) => "crate::__ram_fn".to_string(),
+            Ok(FoundCrate::Name(n)) => format!("::{}::__ram_fn", n.replace('-', "_")),
+            Err(_) => "::gb_ram_fn".to_string(),
+        },
+    };
+    path.parse().expect("ram_fn_root path")
+}
+
 /// Define a RAM-copyable function with any non-generic signature.
 ///
 /// `max` is the function's maximum compiled size, in bytes. `install` relies on
@@ -36,6 +57,7 @@ impl Parse for Args {
 /// scope to call these.
 #[proc_macro_attribute]
 pub fn ram_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let gb_ram_fn = ram_fn_root();
     let args = parse_macro_input!(attr as Args);
     let func = parse_macro_input!(item as ItemFn);
     let max = &args.max;
@@ -92,10 +114,10 @@ pub fn ram_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
             #[unsafe(link_section = #sec2)]
             static MAX_MARKER: u16 = #max;
 
-            /// Handle to a RAM-copyable function. See [`RamFn`](::gb_ram_fn::RamFn).
+            /// Handle to a RAM-copyable function, implementing the `RamFn` trait.
             pub struct Handle;
 
-            impl ::gb_ram_fn::RamFn for Handle {
+            impl #gb_ram_fn::RamFn for Handle {
                 type Fn = fn(#(#argtys),*) #output;
                 const MAX: usize = #max;
 

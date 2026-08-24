@@ -11,14 +11,6 @@
 //! method). Addresses follow the Pan Docs / GBDK `hardware.h` map.
 //!
 //! Registers and their value types are re-exported flat (`mmio::LCDC`).
-#![cfg_attr(
-    feature = "cgb",
-    doc = "The CGB-only registers live in [`cgb`], gated by the `cgb` feature."
-)]
-#![cfg_attr(
-    not(feature = "cgb"),
-    doc = "The CGB-only registers live in the `cgb` module, gated by the `cgb` feature."
-)]
 
 mod audio;
 mod interrupt;
@@ -35,4 +27,5 @@ pub use serial::*;
 pub use timer::*;
 
 #[cfg(feature = "cgb")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cgb")))]
 pub mod cgb;
