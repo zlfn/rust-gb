@@ -2,48 +2,15 @@
 # `tools/` workspace.
 [workspace]
 members = [
-    "crates/gb-rt",
-    "crates/gb-rt-macros",
-    "crates/gbdk-sys",
-    "crates/gb-bank-macros",
-    "crates/gb-bank",
-    "crates/gb-hram",
-    "crates/gb-ram-fn",
-    "crates/gb-ram-fn-macros",
-    "crates/gb",
-    "examples/template",
-    "examples/slideshow",
+    "crates/*",
     "examples/bank-test",
-    "examples/gbdk/filltest",
-    "examples/gbdk/rand",
-    "examples/gbdk/paint",
-    "examples/gbdk/apa-image",
-    "examples/gbdk/colorbar",
-    "examples/gbdk/dscan",
-    "examples/gbdk/galaxy",
-    "examples/gbdk/dtmf",
-    "examples/gbdk/gbtype",
-    "examples/gbdk/rpn",
-    "examples/gbdk/lcd-isr-wobble",
-    "examples/gbdk/comm",
-    "examples/gbdk/sgb-pong",
-    "examples/gbdk/hram",
-    "examples/gbdk/ram-function",
-    "examples/gbdk/isr-vector",
-    "examples/gbdk/sound",
+    "examples/slideshow",
+    "examples/template",
+    "examples/gbdk/*",
 ]
 # `cargo build`/`cargo doc` at the root (sm83 target, see .cargo/config.toml)
 # operate on the library crates. Examples are built with `cargo gb`.
-default-members = [
-    "crates/gb",
-    "crates/gb-hram",
-    "crates/gb-ram-fn",
-    "crates/gb-bank",
-    "crates/gb-bank-macros",
-    "crates/gb-rt",
-    "crates/gb-rt-macros",
-    "crates/gbdk-sys",
-]
+default-members = ["crates/*"]
 resolver = "3"
 
 [workspace.dependencies]
