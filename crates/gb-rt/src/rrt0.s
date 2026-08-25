@@ -173,5 +173,5 @@ _reset:
     jr nz, .data_copy
 .data_done:
 
-    ei
+    ; IME stays off: turning interrupts on is the program's call.
     jp _main            ; `fn() -> !`, so it never comes back

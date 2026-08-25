@@ -46,6 +46,7 @@ __gbdk_init:
     ldh ( 0xFF ), a     ; IE
     xor a
     ldh ( 0x0F ), a     ; IF, clear pending
+    ei                  ; rrt0 leaves IME off, GBDK code expects it on
 
     ret
 
