@@ -12,7 +12,7 @@ use gbdk_sys::stdio::printf;
 // GBDK's `SFR my_hram_variable;`: an 8-bit cell in HRAM, read and written with the
 // immediate `ldh` form.
 hram! {
-    static MY_HRAM_VARIABLE: u8;
+    static MY_HRAM_VARIABLE: HramAtomicCell<u8>;
 }
 
 #[gb_rt::entry]

@@ -26,7 +26,7 @@ fn inc() {
 // Landing sites for the copied code: an ordinary WRAM static and a gb-hram area.
 static mut RAM_BUF: [u8; 16] = [0; 16];
 hram! {
-    static HRAM_BUF: [u8; 16];
+    static HRAM_BUF: HramArea<16>;
 }
 
 fn print_counter() {

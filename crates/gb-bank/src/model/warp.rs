@@ -93,7 +93,7 @@ use super::{DynFar, Bank, Far, FarCall, Group, GroupZero, switch_run};
 /// takes no `unsafe`:
 ///
 /// ```ignore
-/// gb_hram::hram! { static CB: fn(); }
+/// gb_hram::hram! { static CB: HramCell<fn()>; }
 ///
 /// #[bank]
 /// pub fn install() {

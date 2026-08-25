@@ -79,10 +79,11 @@ pub use warp::{Warp, BankedWarp, FixedFn, FixedWarp, BankSafe};
 // requires), so it starts at 0. The `as "_current_bank"` exports the storage as
 // the `__current_bank` symbol that GBDK's C runtime also references (the target
 // adds the leading underscore).
+use gb_hram::prelude::*;
+
 gb_hram::hram! {
-    static CURRENT_BANK as "_current_bank": u8;
+    static CURRENT_BANK as "_current_bank": HramAtomicCell<u8>;
 }
-use gb_hram::HramCell;
 
 /// Switch the active ROM bank.
 ///
