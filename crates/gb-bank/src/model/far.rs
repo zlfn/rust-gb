@@ -8,7 +8,9 @@
 
 use core::marker::{PhantomData, Tuple};
 
-use super::{scope, switch_bank, switch_run, Anchor, Bank, Group, GroupZero, BankSafe};
+use super::{
+    scope, switch_bank, switch_run, switch_run_far, Anchor, Bank, BankSafe, Group, GroupZero,
+};
 
 // ===== Far: static-bank far pointer =====
 
@@ -206,16 +208,20 @@ where
     F::Output: BankSafe,
 {
     type Output = F::Output;
-    // `inline(never)`: keep the switch in a *bank 0* trampoline, so this
-    // one-shot cross-bank call is safe even from a banked caller (whose own code is
-    // switched out of the window during the call).
-    #[inline(never)]
+    // A resident caller inlines the switch; a banked one, whose code leaves the
+    // window during the call, takes the bank-0 trampoline instead.
+    #[inline]
     fn invoke<C: Group>(&self, outer: &mut Bank<C>, args: Args) -> F::Output {
-        switch_run(outer, |_b: &mut Bank<G>| {
+        let run = |_b: &mut Bank<G>| {
             // `ptr` is the function's address; reinterpret it as the fn pointer.
             let f: F = unsafe { core::mem::transmute_copy(&self.ptr) };
             f.call(args)
-        })
+        };
+        if C::FIXED {
+            switch_run(outer, run)
+        } else {
+            switch_run_far(outer, run)
+        }
     }
 }
 
@@ -224,18 +230,32 @@ where
     F::Output: BankSafe,
 {
     type Output = F::Output;
-    // `inline(never)`: bank-0 trampoline, see `Far`'s impl above.
-    #[inline(never)]
+    // See `Far`'s impl above. The target bank is a runtime value, so this cannot go
+    // through `switch_run` and carries its own trampoline.
+    #[inline]
     fn invoke<C: Group>(&self, _outer: &mut Bank<C>, args: Args) -> F::Output {
-        unsafe { switch_bank(self.bank) };
-        // `ptr` is the function's address; reinterpret it as the fn pointer.
-        let f: F = unsafe { core::mem::transmute_copy(&self.ptr) };
-        let r = f.call(args);
-        if !C::FIXED {
-            unsafe { switch_bank(C::bank()) };
+        let run = || {
+            // `ptr` is the function's address; reinterpret it as the fn pointer.
+            let f: F = unsafe { core::mem::transmute_copy(&self.ptr) };
+            f.call(args)
+        };
+        if C::FIXED {
+            unsafe { switch_bank(self.bank) };
+            run()
+        } else {
+            dyn_invoke_far::<C, _>(self.bank, run)
         }
-        r
     }
+}
+
+/// [`DynFar::invoke`](FarCall::invoke) for a banked caller. `C` is never
+/// [`FIXED`](Group::FIXED) here, so the restore is unconditional.
+#[inline(never)]
+fn dyn_invoke_far<C: Group, R>(bank: u8, f: impl FnOnce() -> R) -> R {
+    unsafe { switch_bank(bank) };
+    let r = f();
+    unsafe { switch_bank(C::bank()) };
+    r
 }
 
 /// Borrowing a far pointer's *data* across a bank boundary.

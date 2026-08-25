@@ -88,20 +88,44 @@ impl CartridgeType {
         }
     }
 
-    pub fn max_banks(self) -> u16 {
+    /// The highest bank number `switch_bank` can select on this cartridge.
+    ///
+    /// Each value is the width of the register at `0x2000`, which is the only one
+    /// the runtime writes. MBC1 and MBC5 reach further through a second register
+    /// (at `0x4000` and `0x3000`), so raising these means widening `switch_bank`
+    /// first.
+    ///
+    /// Bank 0 is never allocated: MBC1, MBC2, and MBC3 read a written `0` as `1`,
+    /// and on MBC5, which does map it, bank 0 already holds the resident region.
+    pub fn max_bank(self) -> u16 {
         match self {
+            // 0x4000-0x7FFF is fixed, so there is no bank to switch to.
             Self::Rom => 0,
-            Self::Mbc1 | Self::Mbc1Ram | Self::Mbc1RamBattery => 32,
-            Self::Mbc2 | Self::Mbc2Battery => 16,
+            // 5 bits.
+            Self::Mbc1 | Self::Mbc1Ram | Self::Mbc1RamBattery => 31,
+            // 4 bits.
+            Self::Mbc2 | Self::Mbc2Battery => 15,
+            // 7 bits.
             Self::Mbc3 | Self::Mbc3TimerBattery | Self::Mbc3TimerRamBattery
-            | Self::Mbc3Ram | Self::Mbc3RamBattery => 128,
+            | Self::Mbc3Ram | Self::Mbc3RamBattery => 127,
+            // 8 bits, the ninth sitting in the register at 0x3000.
             Self::Mbc5 | Self::Mbc5Ram | Self::Mbc5RamBattery
-            | Self::Mbc5Rumble | Self::Mbc5RumbleRam | Self::Mbc5RumbleRamBattery => 512,
+            | Self::Mbc5Rumble | Self::Mbc5RumbleRam | Self::Mbc5RumbleRamBattery => 255,
         }
     }
 
+    /// The largest ROM the runtime can reach on this cartridge.
+    pub fn max_rom_bytes(self) -> usize {
+        match self {
+            // Both halves are fixed, so 32 KiB and no more.
+            Self::Rom => 0x8000,
+            _ => (self.max_bank() as usize + 1) * 0x4000,
+        }
+    }
+
+    /// Whether the cartridge has a switchable window at all.
     pub fn supports_banking(self) -> bool {
-        self.max_banks() > 0
+        self.max_bank() > 0
     }
 }
 
@@ -187,6 +211,8 @@ pub struct RomInfo {
 pub enum FixError {
     Io(std::io::Error),
     Parse(String),
+    /// The ROM is larger than the cartridge type can address.
+    RomTooLarge { bytes: usize, limit: usize },
 }
 
 impl std::fmt::Display for FixError {
@@ -194,6 +220,12 @@ impl std::fmt::Display for FixError {
         match self {
             FixError::Io(e) => write!(f, "{e}"),
             FixError::Parse(e) => write!(f, "{e}"),
+            FixError::RomTooLarge { bytes, limit } => write!(
+                f,
+                "ROM is {} KiB, over the {} KiB reachable on this cartridge type",
+                bytes / 1024,
+                limit / 1024,
+            ),
         }
     }
 }
@@ -241,6 +273,11 @@ pub fn fix(rom_path: &Path, header_toml: &Path) -> Result<RomInfo, FixError> {
         rom.resize(0x150, 0xFF);
     }
     pad_to_power_of_two(&mut rom);
+
+    let limit = header.cartridge_type.max_rom_bytes();
+    if rom.len() > limit {
+        return Err(FixError::RomTooLarge { bytes: rom.len(), limit });
+    }
 
     // 0x0104-0x0133: Nintendo logo
     rom[0x0104..0x0134].copy_from_slice(&NINTENDO_LOGO);

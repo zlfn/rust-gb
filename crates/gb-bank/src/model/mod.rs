@@ -89,7 +89,8 @@ gb_hram::hram! {
 ///
 /// Writes both the MBC bank register at `0x2000` (write-only on hardware) and the
 /// software bank shadow that interrupt handlers rely on to save and restore the
-/// mapped bank.
+/// mapped bank. Only `0x2000` is written, so MBC5 banks 256 and up, which also
+/// need the register at `0x3000`, are out of reach.
 ///
 /// Prefer the safe [`scope`] / [`Far`] API; this is the raw primitive for hand
 /// rolled control. After calling it, use [`Bank::assume`] to mint a matching
@@ -100,6 +101,10 @@ gb_hram::hram! {
 /// `bank` must be a valid bank for the cartridge's MBC, and the caller is
 /// responsible for restoring the previous bank and for any pointers that become
 /// invalid across the switch.
+///
+/// MBC1, MBC2, and MBC3 read a written `0` as `1`, so `switch_bank(0)` maps bank 1
+/// there while the shadow records 0, and an interrupt would restore the wrong bank.
+/// Only MBC5 maps bank 0 into the window.
 #[inline(never)]
 pub unsafe fn switch_bank(bank: u8) {
     // Shadow (immediate `ldh` via gb-hram), then the write-only MBC register.
@@ -293,9 +298,8 @@ pub fn scope<C: Group, G: Group, R: BankSafe>(
 ///
 /// Unlike [`scope`] it takes no [`Anchor`], so it stays crate-internal: its callers
 /// either thread an `Anchor` through (`scope` / [`there`](FarWith::there), whose `f`
-/// is a user closure) or run no user closure at all (`drive` / `invoke` invoke the
-/// banked function itself from a bank-0 `#[inline(never)]` trampoline, safe from
-/// any bank).
+/// is a user closure) or run no user closure at all (`drive` / `invoke` call the
+/// banked function themselves, taking [`switch_run_far`] when the caller is banked).
 #[inline]
 pub(crate) fn switch_run<C: Group, G: Group, R>(
     _outer: &mut Bank<C>,
@@ -313,4 +317,14 @@ pub(crate) fn switch_run<C: Group, G: Group, R>(
         }
         r
     }
+}
+
+/// [`switch_run`] for a caller that is itself banked, whose code leaves the window
+/// during the call: `#[inline(never)]` keeps the switch in a bank-0 trampoline.
+#[inline(never)]
+pub(crate) fn switch_run_far<C: Group, G: Group, R>(
+    outer: &mut Bank<C>,
+    f: impl FnOnce(&mut Bank<G>) -> R,
+) -> R {
+    switch_run(outer, f)
 }

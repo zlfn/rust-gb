@@ -32,8 +32,6 @@ pub struct LinkSummary {
 /// A failure during the banking pass.
 #[derive(Debug)]
 pub enum LinkError {
-    /// The cartridge type in the header does not support banking.
-    BankingUnsupported,
     /// One or more groups could not be placed (oversized, or too many banks).
     Layout(Vec<String>),
     /// An object file could not be read or patched.
@@ -43,7 +41,6 @@ pub enum LinkError {
 impl std::fmt::Display for LinkError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LinkError::BankingUnsupported => write!(f, "cartridge type does not support banking"),
             LinkError::Layout(errors) => write!(f, "{}", errors.join("; ")),
             LinkError::Io(e) => write!(f, "{e}"),
         }
@@ -63,6 +60,8 @@ impl From<std::io::Error> for LinkError {
 /// Patches the `BANK` markers in the objects in place, writes the `gb_banked.ld`
 /// linker fragment into `out_dir`, and returns the per-bank allocation.
 /// `header_toml`, when given, bounds the bank count by the cartridge's MBC type.
+/// With no MBC nothing is banked: the 32 KiB is fixed end to end, so splitting it
+/// at `0x4000` would only wall off the two halves.
 pub fn link(
     out_dir: &Path,
     obj_files: &[PathBuf],
@@ -70,22 +69,14 @@ pub fn link(
 ) -> Result<LinkSummary, LinkError> {
     let bank_size = 0x4000;
 
-    let max_banks: u16 = match header_toml {
-        Some(path) => match parse_header_for_mbc(path) {
-            Some((max, supports)) => {
-                if !supports {
-                    return Err(LinkError::BankingUnsupported);
-                }
-                max
-            }
-            None => 512,
-        },
-        None => 512,
-    };
+    // The highest bank `switch_bank` can select, or 0 with no MBC, in which case the
+    // packer leaves every group flat. Never above 255: the bank number is patched
+    // into a one-byte marker.
+    let max_bank: u16 = header_toml.and_then(parse_header_for_mbc).unwrap_or(255);
 
     let obj_paths: Vec<&Path> = obj_files.iter().map(|p| p.as_path()).collect();
     let layout =
-        packer::compute_layout(&obj_paths, bank_size, max_banks).map_err(LinkError::Layout)?;
+        packer::compute_layout(&obj_paths, bank_size, max_bank).map_err(LinkError::Layout)?;
 
     packer::apply_patches(&layout.patches)?;
 
@@ -112,7 +103,7 @@ pub fn link(
     Ok(LinkSummary { bank_size, banks })
 }
 
-fn parse_header_for_mbc(path: &Path) -> Option<(u16, bool)> {
+fn parse_header_for_mbc(path: &Path) -> Option<u16> {
     #[derive(serde::Deserialize)]
     struct HeaderConfig {
         #[serde(default, deserialize_with = "gb_header_fix::deserialize_cartridge_type")]
@@ -120,8 +111,5 @@ fn parse_header_for_mbc(path: &Path) -> Option<(u16, bool)> {
     }
     let content = std::fs::read_to_string(path).ok()?;
     let header: HeaderConfig = toml::from_str(&content).ok()?;
-    Some((
-        header.cartridge_type.max_banks(),
-        header.cartridge_type.supports_banking(),
-    ))
+    Some(header.cartridge_type.max_bank())
 }

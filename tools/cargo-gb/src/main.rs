@@ -165,11 +165,11 @@ fn build() -> Result<PathBuf, String> {
         }
     }
     match &summary {
-        Some(s) => {
+        Some(s) if !s.banks.is_empty() => {
             ui::status("Packed", &format!("{} bank(s)", s.banks.len()));
             ui::bank_bars(info.as_ref().map(|i| i.used), &s.banks, s.bank_size);
         }
-        None => {
+        _ => {
             ui::status("Packed", "1 bank");
             if let Some(i) = &info {
                 ui::rom_bar(i.used, i.limit);

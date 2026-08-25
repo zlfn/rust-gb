@@ -10,7 +10,7 @@
 
 use core::marker::{PhantomData, Tuple};
 
-use super::{DynFar, Bank, Far, FarCall, Group, GroupZero, switch_run};
+use super::{DynFar, Bank, Far, FarCall, Group, GroupZero, switch_run, switch_run_far};
 
 /// A value safe to carry across a bank switch: it embeds no pointer to banked code
 /// that the switch would unmap.
@@ -188,15 +188,22 @@ pub trait Warp {
     /// Run the call from any bank, leaving the caller's bank `C` as it was: the
     /// cross-bank counterpart of [`near`](Warp::near). A banked call switches into its
     /// bank and back (elided when `C` is already the target, or the target is
-    /// [`GroupZero`]); a bank-0 helper instead forwards `C` with no switch. Being
-    /// `#[inline(never)]`, the switch lives in a bank-0 trampoline, so this is safe to
-    /// drive even from a banked caller.
-    #[inline(never)]
+    /// [`GroupZero`]); a bank-0 helper instead forwards `C` with no switch.
+    ///
+    /// A resident caller inlines the switch, which lets the `Warp` collapse into a
+    /// plain call. A banked caller cannot: inlined switch code would unmap itself, so
+    /// it goes through a bank-0 trampoline instead.
+    #[inline]
     fn drive<C: Group>(self, outer: &mut Bank<C>) -> Self::Output
     where
         Self: Sized,
     {
-        switch_run(outer, |b: &mut Bank<Self::Group>| self.near(b))
+        let run = |b: &mut Bank<Self::Group>| self.near(b);
+        if C::FIXED {
+            switch_run(outer, run)
+        } else {
+            switch_run_far(outer, run)
+        }
     }
 }
 

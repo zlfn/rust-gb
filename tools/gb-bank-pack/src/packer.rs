@@ -110,7 +110,7 @@ struct PendingPatch {
 pub fn compute_layout(
     obj_files: &[&Path],
     max_bank_size: usize,
-    max_banks: u16,
+    max_bank: u16,
 ) -> Result<BankLayout, Vec<String>> {
     let mut section_sizes: HashMap<String, usize> = HashMap::new();
     let mut banked: Vec<BankedSym> = Vec::new();
@@ -179,6 +179,22 @@ pub fn compute_layout(
 
     bank_modules.sort();
     bank_modules.dedup();
+
+    // With no MBC the whole 32 KiB is fixed. Leaving every group unplaced sends its
+    // sections through the resident glob in gb.ld, so they lay out flat instead of
+    // being walled off at 0x4000, and each marker resolves to bank 0.
+    if max_bank == 0 {
+        return Ok(BankLayout {
+            bank_count: 0,
+            group_banks: HashMap::new(),
+            bank_sizes: HashMap::new(),
+            placements: HashMap::new(),
+            patches: pending
+                .into_iter()
+                .map(|p| Patch { obj: p.obj, file_offset: p.file_offset, bank: 0 })
+                .collect(),
+        });
+    }
 
     // Group placement sections by module.
     let mut group_sections: HashMap<String, Vec<String>> = HashMap::new();
@@ -254,8 +270,8 @@ pub fn compute_layout(
             while reserved.contains(&next_bank) {
                 next_bank += 1;
             }
-            if next_bank as u16 > max_banks {
-                return Err(vec![format!("too many banks needed (>{max_banks})")]);
+            if next_bank as u16 > max_bank {
+                return Err(vec![format!("too many banks needed, the limit is bank {max_bank}")]);
             }
             group_banks.insert(group.clone(), next_bank);
             *bank_sizes.entry(next_bank).or_insert(0) += size;
