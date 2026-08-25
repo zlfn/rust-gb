@@ -7,3 +7,4 @@ description = "Core Game Boy (SM83) runtime: startup code and linker script"
 
 [dependencies]
 gb-rt-macros = { workspace = true }
+critical-section = "1"

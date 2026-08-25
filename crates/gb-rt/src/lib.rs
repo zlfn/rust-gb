@@ -19,6 +19,11 @@ core::arch::global_asm!(include_str!("rrt0.s"));
 pub mod boot;
 pub mod builtin;
 
+/// Proof that interrupts are disabled, re-exported from `critical-section`.
+///
+/// A handler marked with [`macro@interrupt`] can take one as a parameter.
+pub use critical_section::CriticalSection;
+
 /// Attribute marking the program entry point. See [`macro@entry`].
 pub use gb_rt_macros::entry;
 
