@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 gb-bank-macros = { workspace = true }
-gb-hram = { workspace = true }
+gb-hram = { workspace = true, features = ["bank-safe"] }
+gb-bank-safe = { workspace = true }

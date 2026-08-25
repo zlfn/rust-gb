@@ -70,6 +70,7 @@ name = "gb-bank"
 version = "0.1.0"
 dependencies = [
  "gb-bank-macros",
+ "gb-bank-safe",
  "gb-hram",
 ]
 
@@ -84,10 +85,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gb-bank-safe"
+version = "0.1.0"
+
+[[package]]
 name = "gb-hram"
 version = "0.1.0"
 dependencies = [
  "critical-section",
+ "document-features",
+ "gb-bank-safe",
 ]
 
 [[package]]

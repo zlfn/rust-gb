@@ -258,7 +258,7 @@
 
 #![cfg_attr(not(test), no_std)]
 #![feature(asm_experimental_arch)]
-#![feature(negative_impls, with_negative_coherence, auto_traits)]
+#![feature(negative_impls, with_negative_coherence)]
 #![feature(fn_traits, unboxed_closures, tuple_trait, const_trait_impl, const_cmp)]
 
 // The runtime model (bank tokens, far pointers, the scope/switch primitives) lives

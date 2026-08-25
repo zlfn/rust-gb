@@ -28,6 +28,9 @@
 //! caller's business; a cell reached only from the main loop, never from an
 //! interrupt handler, still needs one.
 //!
+//! Both cells hold a [`CellValue`], which under the `bank-safe` feature also has to
+//! survive a bank switch.
+//!
 //! # Examples
 //!
 //! ```ignore
@@ -59,11 +62,30 @@
 //! required to clear `0xFF80..=0xFFFE` before `main`. A cell whose type has a
 //! valid all-zero bit pattern therefore starts at `0` and may be read before it
 //! is first written; any other type must be written first.
+//!
+//! # Feature flags
+#![doc = document_features::document_features!()]
 
 use core::cell::UnsafeCell;
 use core::mem::MaybeUninit;
 
 pub use critical_section::CriticalSection;
+
+/// What an HRAM cell may hold.
+///
+/// With the `bank-safe` feature a value must also be
+/// [`BankSafe`](gb_bank_safe::BankSafe): a cell outlives any bank switch, so a
+/// pointer to banked code left in one would dangle.
+#[cfg(feature = "bank-safe")]
+pub trait CellValue: Copy + gb_bank_safe::BankSafe {}
+#[cfg(feature = "bank-safe")]
+impl<T: Copy + gb_bank_safe::BankSafe> CellValue for T {}
+
+/// What an HRAM cell may hold. See the `bank-safe` feature.
+#[cfg(not(feature = "bank-safe"))]
+pub trait CellValue: Copy {}
+#[cfg(not(feature = "bank-safe"))]
+impl<T: Copy> CellValue for T {}
 
 /// Read and write an HRAM cell under a [`CriticalSection`].
 ///
@@ -72,7 +94,7 @@ pub use critical_section::CriticalSection;
 /// reach either kind through one interface.
 pub trait HramAccess {
     /// The stored type.
-    type Value: Copy;
+    type Value: CellValue;
 
     /// Read the cell.
     ///
@@ -113,13 +135,13 @@ pub const MAX_BYTES: usize = 8;
 /// Declare it with [`hram!`]; the accessors live on the handle that macro
 /// generates, not on this type. A wider type is a compile error.
 #[repr(transparent)]
-pub struct HramAtomicCell<T>(UnsafeCell<MaybeUninit<T>>);
+pub struct HramAtomicCell<T: CellValue>(UnsafeCell<MaybeUninit<T>>);
 
 // The Game Boy is single-core, so there is no cross-thread aliasing, and a
 // one-byte access cannot tear against an interrupt handler.
-unsafe impl<T> Sync for HramAtomicCell<T> {}
+unsafe impl<T: CellValue> Sync for HramAtomicCell<T> {}
 
-impl<T> HramAtomicCell<T> {
+impl<T: CellValue> HramAtomicCell<T> {
     /// Reserve a cell.
     ///
     /// # Safety
@@ -142,11 +164,11 @@ impl<T> HramAtomicCell<T> {
 /// generates, not on this type. An access wider than one byte is several `ldh`
 /// instructions, and the token is the proof that no interrupt lands between them.
 #[repr(transparent)]
-pub struct HramCell<T>(UnsafeCell<MaybeUninit<T>>);
+pub struct HramCell<T: CellValue>(UnsafeCell<MaybeUninit<T>>);
 
-unsafe impl<T> Sync for HramCell<T> {}
+unsafe impl<T: CellValue> Sync for HramCell<T> {}
 
-impl<T> HramCell<T> {
+impl<T: CellValue> HramCell<T> {
     /// Reserve a cell.
     ///
     /// # Safety
