@@ -10,6 +10,9 @@ default = ["bank"]
 # ROM banking (`gb::bank`). The HAL itself never banks, so a 32 KiB ROM can drop
 # this and skip building `gb-bank`.
 bank = ["dep:gb-bank", "dep:gb-bank-macros"]
+# Register a `critical-section` implementation, letting drivers built on that
+# crate link. Off by default: see the `gb::interrupt` docs for its cost.
+critical-section-impl = ["critical-section/restore-state-bool"]
 # Game Boy Color hardware: the CGB-only registers (VRAM/WRAM banking, VRAM DMA,
 # speed switch, color palettes, ...). Off by default for a DMG baseline.
 cgb = []

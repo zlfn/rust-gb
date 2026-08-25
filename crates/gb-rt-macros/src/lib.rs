@@ -24,6 +24,18 @@ fn rt_root() -> TokenStream2 {
     path.parse().expect("gb-rt root path")
 }
 
+/// Path to `gb::interrupt`, or `None` when the invoking crate has no `gb`. That
+/// module owns the `IME` mirror the interrupt wrapper has to keep in sync; a
+/// build without the HAL has no mirror to update.
+fn hal_interrupt_root() -> Option<TokenStream2> {
+    use proc_macro_crate::{crate_name, FoundCrate};
+    let path = match crate_name("rust-gb").or_else(|_| crate_name("gb")).ok()? {
+        FoundCrate::Itself => "crate::interrupt".to_string(),
+        FoundCrate::Name(n) => format!("::{}::interrupt", n.replace('-', "_")),
+    };
+    Some(path.parse().expect("gb::interrupt path"))
+}
+
 /// Mark the program entry point.
 ///
 /// Applied to `fn main`, it exports the function as the Game Boy entry symbol
@@ -168,18 +180,6 @@ pub fn interrupt(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
 
-    if !takes_cs {
-        func.sig.abi = Some(parse_quote!(extern "z80-interrupt"));
-        return quote! {
-            #[unsafe(export_name = #symbol)]
-            #func
-        }
-        .into();
-    }
-
-    // The CPU clears IME on dispatch, so the handler already runs with
-    // interrupts off and the token is sound. Minting it here keeps that
-    // assertion out of the handler body.
     let gb_rt = rt_root();
     let attrs = core::mem::take(&mut func.attrs);
     let vis = func.vis.clone();
@@ -187,13 +187,31 @@ pub fn interrupt(attr: TokenStream, item: TokenStream) -> TokenStream {
     func.sig.ident = parse_quote!(__gb_rt_isr_body);
     func.vis = syn::Visibility::Inherited;
 
+    // The CPU clears IME on dispatch, so the handler already runs with
+    // interrupts off and the token is sound. Minting it here keeps that
+    // assertion out of the handler body.
+    let call = if takes_cs {
+        quote!(__gb_rt_isr_body(unsafe { #gb_rt::CriticalSection::new() }))
+    } else {
+        quote!(__gb_rt_isr_body())
+    };
+
+    // The CPU clears IME on dispatch and `reti` sets it again, neither of which
+    // the HAL can observe.
+    let (enter, exit) = match hal_interrupt_root() {
+        Some(gb) => (quote!(#gb::__isr_enter();), quote!(#gb::__isr_exit();)),
+        None => (quote!(), quote!()),
+    };
+
     quote! {
         #(#attrs)*
         #[unsafe(export_name = #symbol)]
         #vis extern "z80-interrupt" fn #name() {
             #[inline(always)]
             #func
-            __gb_rt_isr_body(unsafe { #gb_rt::CriticalSection::new() })
+            #enter
+            #call;
+            #exit
         }
     }
     .into()

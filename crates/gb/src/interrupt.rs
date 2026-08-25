@@ -4,10 +4,66 @@ pub use critical_section::CriticalSection;
 
 use crate::mmio::{IE, IF, Interrupts};
 
+/// Interrupt entry: the CPU clears `IME` when it dispatches.
+///
+/// Called by the wrapper that `gb_rt::interrupt` generates.
+#[doc(hidden)]
+#[inline(always)]
+pub fn __isr_enter() {
+    mirror::set(false);
+}
+
+/// Interrupt exit: `reti` sets `IME` whatever the handler did to it.
+#[doc(hidden)]
+#[inline(always)]
+pub fn __isr_exit() {
+    mirror::set(true);
+}
+
+#[cfg(feature = "critical-section-impl")]
+mod mirror {
+    use gb_hram::{hram, prelude::*};
+
+    // The runtime clears HRAM and enters `main` with interrupts off, so the
+    // zero this starts at is already the right answer.
+    hram! {
+        static IME_ON: HramAtomicCell<bool>;
+    }
+
+    #[inline(always)]
+    pub fn set(on: bool) {
+        IME_ON.set(on);
+    }
+
+    struct SingleCore;
+    critical_section::set_impl!(SingleCore);
+
+    unsafe impl critical_section::Impl for SingleCore {
+        unsafe fn acquire() -> critical_section::RawRestoreState {
+            let was_on = IME_ON.get();
+            super::disable();
+            was_on
+        }
+
+        unsafe fn release(was_on: critical_section::RawRestoreState) {
+            if was_on {
+                unsafe { super::enable() };
+            }
+        }
+    }
+}
+
+#[cfg(not(feature = "critical-section-impl"))]
+mod mirror {
+    #[inline(always)]
+    pub fn set(_on: bool) {}
+}
+
 /// Clear IME with `di`: interrupts stop being serviced.
 #[inline]
 pub fn disable() {
     unsafe { core::arch::asm!("di") }
+    mirror::set(false);
 }
 
 /// Set IME with `ei`, effective after the next instruction.
@@ -17,6 +73,7 @@ pub fn disable() {
 /// Introduces preemption, breaking code that assumes interrupts stay off.
 #[inline]
 pub unsafe fn enable() {
+    mirror::set(true);
     unsafe { core::arch::asm!("ei") }
 }
 
@@ -31,6 +88,7 @@ pub unsafe fn enable() {
 /// Introduces preemption, breaking code that assumes interrupts stay off.
 #[inline]
 pub unsafe fn enable_and_halt() {
+    mirror::set(true);
     unsafe { core::arch::asm!("ei", "halt") }
 }
 
