@@ -1,5 +1,5 @@
-//! Port of GBDK's `hram` example: place a variable in High RAM (the `0xFF80` page
-//! reached with the immediate `ldh` instructions) and print its value and address.
+//! Port of GBDK's `hram` example: place a variable in High RAM and print its
+//! value and address.
 
 #![no_std]
 #![no_main]
@@ -9,8 +9,7 @@ use core::ffi::{c_char, c_int, c_uint};
 use gb_hram::{hram, prelude::*};
 use gbdk_sys::stdio::printf;
 
-// GBDK's `SFR my_hram_variable;`: an 8-bit cell in HRAM, read and written with the
-// immediate `ldh` form.
+// GBDK's `SFR my_hram_variable;`.
 hram! {
     static MY_HRAM_VARIABLE: HramAtomicCell<u8>;
 }

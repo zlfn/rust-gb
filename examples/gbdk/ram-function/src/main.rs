@@ -11,10 +11,10 @@ use gbdk_sys::stdio::{printf, puts};
 
 static mut COUNTER: u16 = 0;
 
-// `#[ram_fn]` keeps `inc` an ordinary Rust function but places it in its own
-// section so its length is known and its bytes can be copied. It is
-// position-independent because it only touches `COUNTER` by absolute address.
-// `max` caps its compiled size (checked when `cargo-gb` builds the ROM).
+// `#[ram_fn]` puts `inc` in its own section so its length is known and its bytes
+// can be copied. It is position-independent because it only touches `COUNTER` by
+// absolute address. `max` caps its compiled size, checked when `cargo-gb` builds
+// the ROM.
 #[ram_fn(max = 16)]
 fn inc() {
     unsafe {

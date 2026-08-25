@@ -66,8 +66,10 @@ impl Calc {
         }
     }
 
-    /// Next token: a number (reported as [`NUMBER`], value in `self.n`), an
-    /// operator (its own char), or end of line (`'\n'`).
+    /// Next token: a number, an operator (its own char), or end of line.
+    ///
+    /// A number is reported as [`NUMBER`] with its value in `self.n`; end of
+    /// line as `'\n'`.
     fn read_op(&mut self) -> u8 {
         if self.pos == 0 {
             unsafe { gets(self.line.as_mut_ptr()) };

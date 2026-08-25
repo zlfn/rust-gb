@@ -67,8 +67,9 @@ unsafe fn msg(s: &[u8]) {
     }
 }
 
-/// Print a compact pass/fail cell in a 3-column grid (just the test number, no
-/// label, to fit ~16 tests on the 18-row screen).
+/// Print a compact pass/fail cell in a 3-column grid.
+///
+/// Just the test number, no label, to fit ~16 tests on the 18-row screen.
 unsafe fn check(n: &mut u8, got: u8, expected: u8) -> bool {
     let i = *n;
     *n += 1;
@@ -155,7 +156,6 @@ fn main() -> ! {
             let keys = joypad();
             let pressed = keys & !prev;
 
-            // A: run the test suite.
             if pressed & J_A != 0 {
                 let v = acc;
                 acc = acc.wrapping_add(1);

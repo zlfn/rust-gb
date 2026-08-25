@@ -46,7 +46,7 @@ const NUM_PALETTES: u8 = 8;
 
 fn show_slide(slide: &Slide) {
     unsafe {
-        // Black out palettes
+        // Black out the palettes so the image draw stays hidden.
         if _cpu == CGB_TYPE {
             let black: [PaletteColor; 4] = [RGB_BLACK; 4];
             for i in 0..NUM_PALETTES {
@@ -56,10 +56,9 @@ fn show_slide(slide: &Slide) {
             BGP_REG.write(dmg_palette(DMG_BLACK, DMG_BLACK, DMG_BLACK, DMG_BLACK));
         }
 
-        // Load tile data (APA mode)
+        // draw_image switches to APA graphics mode.
         draw_image(slide.tiles.as_ptr() as *mut u8);
 
-        // Set CGB per-tile palette attributes
         if _cpu == CGB_TYPE {
             set_bkg_attributes(0, 0, 20, 18, slide.attributes.as_ptr());
         }
@@ -88,10 +87,8 @@ fn main() -> ! {
         loop {
             vsync();
 
-            // Wait for any button press
             let keys = joypad();
             if keys != 0 {
-                // Advance to next slide
                 current = (current + 1) % SLIDES.len();
                 show_slide(&SLIDES[current]);
 

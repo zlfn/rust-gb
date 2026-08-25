@@ -1,6 +1,6 @@
 //! GBDK serial link comm, a port of gbdk-2020/examples/gb/comm/comm.c.
 //!
-//! Link-cable demo over the serial port: A / B send / receive a single byte,
+//! Link-cable demo over the serial port. A / B send / receive a single byte,
 //! START / SELECT send / receive a string. Needs a second linked Game Boy.
 
 #![no_std]
@@ -36,7 +36,7 @@ fn main() -> ! {
         puts(cstr(b"  START  : Send\0"));
         puts(cstr(b"  SELECT : Receive\0"));
 
-        // Install the serial handler; only the serial interrupt is enabled.
+        // The handler chain must be installed with interrupts disabled.
         disable_interrupts();
         add_SIO(Some(nowait_int_handler));
         enable_interrupts();
@@ -48,7 +48,6 @@ fn main() -> ! {
             waitpadup();
 
             if key == J_A {
-                // Send one byte.
                 printf(cstr(b"Sending b... \0"));
                 core::ptr::write_volatile(&raw mut _io_out, n);
                 n = n.wrapping_add(1);
@@ -60,7 +59,6 @@ fn main() -> ! {
                     printf(cstr(b"#%d\n\0"), io_status() as i32);
                 }
             } else if key == J_B {
-                // Receive one byte.
                 printf(cstr(b"Receiving b... \0"));
                 receive_byte();
                 while io_status() == IO_RECEIVING && joypad() == 0 {}
@@ -70,7 +68,6 @@ fn main() -> ! {
                     printf(cstr(b"#%d\n\0"), io_status() as i32);
                 }
             } else if key == J_START {
-                // Send a string.
                 printf(cstr(b"Sending s... \0"));
                 let mut idx = 0usize;
                 loop {
@@ -96,7 +93,6 @@ fn main() -> ! {
                     printf(cstr(b"OK\n\0"));
                 }
             } else if key == J_SELECT {
-                // Receive a string.
                 printf(cstr(b"Receiving s... \0"));
                 let mut idx = 0usize;
                 loop {

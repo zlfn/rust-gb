@@ -15,7 +15,6 @@ use gbdk_sys::gb::cgb::*;
 use gbdk_sys::gb::gb::*;
 use gbdk_sys::rand::*;
 
-// Palette arrays
 #[rustfmt::skip]
 static BKG_P: [PaletteColor; 32] = [
     bkg::CGB_PAL0C0, bkg::CGB_PAL0C1, bkg::CGB_PAL0C2, bkg::CGB_PAL0C3,
@@ -209,7 +208,6 @@ unsafe fn init_score() {
 
 unsafe fn init_screen() {
     if device_supports_color() {
-        // Transfer color palettes
         set_bkg_palette(0, 1, BKG_P[0..].as_ptr());
         set_bkg_palette(1, 1, BKG_P[4..].as_ptr());
         set_bkg_palette(2, 1, BKG_P[8..].as_ptr());
@@ -227,7 +225,6 @@ unsafe fn init_screen() {
         set_sprite_palette(6, 1, OBJ_P[24..].as_ptr());
         set_sprite_palette(7, 1, OBJ_P[28..].as_ptr());
 
-        // Set attributes
         set_bkg_attr(0, 0, 20, 18, bkg_c::TILE_MAP.as_ptr());
         set_bkg_tiles(0, 0, 20, 18, bkg_c::TILE_MAP.as_ptr());
     } else {
@@ -477,7 +474,6 @@ unsafe fn enemys() {
                     if TF[j] != 0 {
                         if TY[j] > EY[i] - 2 && TY[j] < EY[i] + 2 {
                             if TX[j] > (EX[i] - SUB_EX0 - 5) && TX[j] < (EX[i] - SUB_EX1 + 5) {
-                                // Hit
                                 TF[j] = 0;
                                 TX[j] = j as u8 * 4 + DEF_TX;
                                 TY[j] = DEF_TY;

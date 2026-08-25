@@ -76,9 +76,8 @@ pub trait HramAccess {
 
     /// Read the cell.
     ///
-    /// The runtime zero-initialises HRAM (see the crate docs), so for a `Value`
-    /// whose every bit pattern is valid this may be called before the first
-    /// write and yields `0`; any other type must be written first.
+    /// HRAM starts zeroed, so a `Value` whose all-zero bit pattern is valid may
+    /// be read before its first write.
     fn get_cs(&self, cs: CriticalSection<'_>) -> Self::Value;
 
     /// Write the cell.
@@ -111,11 +110,8 @@ pub const MAX_BYTES: usize = 8;
 
 /// Storage for a one-byte cell, accessed without a [`CriticalSection`].
 ///
-/// A one-byte `ldh` is a single instruction, so an interrupt handler can never
-/// observe the cell mid-write. Declaring a wider type is a compile error.
-///
 /// Declare it with [`hram!`]; the accessors live on the handle that macro
-/// generates, not on this type.
+/// generates, not on this type. A wider type is a compile error.
 #[repr(transparent)]
 pub struct HramAtomicCell<T>(UnsafeCell<MaybeUninit<T>>);
 
@@ -142,12 +138,9 @@ impl<T> HramAtomicCell<T> {
 
 /// Storage for a cell read and written under a [`CriticalSection`].
 ///
-/// An access wider than one byte is several `ldh` instructions, so an interrupt
-/// landing between them sees the cell half updated. The token is the proof that
-/// no interrupt can.
-///
 /// Declare it with [`hram!`]; the accessors live on the handle that macro
-/// generates, not on this type.
+/// generates, not on this type. An access wider than one byte is several `ldh`
+/// instructions, and the token is the proof that no interrupt lands between them.
 #[repr(transparent)]
 pub struct HramCell<T>(UnsafeCell<MaybeUninit<T>>);
 

@@ -1,12 +1,25 @@
-//! Interrupt control.
+//! Interrupt control: the `IME` master switch and the `IE` / `IF` masks.
+//!
+//! Two gates stand between the hardware and a handler. `IME` is the CPU's master
+//! switch, flipped by [`enable`] and [`disable`]; `IE` picks which of the five
+//! sources may fire, and [`set_enabled`] writes it. Both must be open. The
+//! runtime enters `main` with `IME` off, so a program sees no interrupt until it
+//! opens them.
+//!
+//! Handlers are not installed here: write one with
+//! [`#[gb::rt::interrupt]`](macro@crate::rt::interrupt), which binds it straight
+//! to a vector.
+//!
+//! Turning interrupts on is `unsafe` throughout, since it introduces preemption
+//! that the surrounding code may have been written to rule out. With the
+//! `critical-section-impl` feature these functions are also the only sanctioned
+//! way to change `IME`, which the implementation mirrors in HRAM.
 
 pub use critical_section::CriticalSection;
 
 use crate::mmio::{IE, IF, Interrupts};
 
 /// Interrupt entry: the CPU clears `IME` when it dispatches.
-///
-/// Called by the wrapper that `gb_rt::interrupt` generates.
 #[doc(hidden)]
 #[inline(always)]
 pub fn __isr_enter() {
@@ -92,8 +105,7 @@ pub unsafe fn enable_and_halt() {
     unsafe { core::arch::asm!("ei", "halt") }
 }
 
-/// Sleep until an interrupt arrives. Never returns if no
-/// enabled interrupt can fire.
+/// Sleep until an interrupt arrives. Never returns if no enabled interrupt can fire.
 ///
 /// Emits `halt` followed by a `nop`, which covers the halt bug: with IME clear and
 /// an interrupt already pending, the CPU skips the sleep and reads the byte after
@@ -124,7 +136,7 @@ pub fn enabled() -> Interrupts {
     IE.read()
 }
 
-/// Read `IF`: the interrupts that have been requested. 
+/// Read `IF`: the interrupts that have been requested.
 #[inline]
 pub fn pending() -> Interrupts {
     IF.read()

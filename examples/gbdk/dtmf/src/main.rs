@@ -199,7 +199,6 @@ unsafe fn disp(str: &[u8]) {
 
     clr_disp();
 
-    // Count string length
     while (no as usize) < str.len() && str[no as usize] != 0 {
         no += 1;
     }
@@ -418,7 +417,6 @@ fn main() -> ! {
                 }
             } else {
                 if key1 & J_A != 0 {
-                    // button display handle
                     press_button(i, j);
 
                     // numeric key pad handling

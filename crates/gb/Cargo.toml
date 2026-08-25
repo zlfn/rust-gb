@@ -6,16 +6,23 @@ authors = ["zlfn <ung@zlfn.space>"]
 description = "Safe, idiomatic Game Boy hardware abstractions"
 
 [features]
-default = ["bank"]
-# ROM banking (`gb::bank`). The HAL itself never banks, so a 32 KiB ROM can drop
-# this and skip building `gb-bank`.
+default = []
+
+## Enable ROM banking: the `gb::bank` module and the `#[gb::bank]` attribute.
 bank = ["dep:gb-bank", "dep:gb-bank-macros"]
-# Register a `critical-section` implementation, letting drivers built on that
-# crate link. Off by default: see the `gb::interrupt` docs for its cost.
-critical-section-impl = ["critical-section/restore-state-bool"]
-# Game Boy Color hardware: the CGB-only registers (VRAM/WRAM banking, VRAM DMA,
-# speed switch, color palettes, ...). Off by default for a DMG baseline.
+
+## Enable Game Boy Color hardware features.
 cgb = []
+
+## Register an implementation of the [`critical-section`](https://docs.rs/critical-section)
+## crate.
+##
+## `IME` is write-only, so the implementation tracks every interrupt state change
+## in a mirror variable, which costs a store in each [`gb::interrupt`](crate::interrupt)
+## call and at the entry and exit of every handler. Turn it on only to link a
+## driver that requires it; in your own code use
+## [`free`](crate::interrupt::free) or the token a handler is already handed.
+critical-section-impl = ["critical-section/restore-state-bool"]
 
 [dependencies]
 gb-rt = { workspace = true }
@@ -27,6 +34,7 @@ voladdress = "1.4.0"
 critical-section = "1"
 bitflags = "2"
 bitfield-struct = "0.13.0"
+document-features = "0.2"
 
 # Build docs with all features so docs.rs shows the feature-gated API, and with
 # `--cfg docsrs` so `doc(cfg)` marks what each item needs.

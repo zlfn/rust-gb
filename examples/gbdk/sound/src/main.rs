@@ -1,10 +1,12 @@
 //! GBDK sound, a port of gbdk-2020/examples/gb/sound.
 //!
-//! An interactive APU register editor: pick a channel with SELECT, move the
-//! cursor with UP/DOWN, change a field with LEFT/RIGHT (hold A/B for bigger
-//! steps), play with START, and dump the registers with SELECT+A. The unpacked
-//! field state lives in `SoundReg`; the `nrNN` methods pack it into the hardware
-//! registers. MegaDuck's `translate_*` quirks are omitted (this targets the GB).
+//! An interactive APU register editor.
+//!
+//! SELECT picks a channel, UP/DOWN move the cursor, LEFT/RIGHT change a field
+//! (hold A/B for bigger steps), START plays, SELECT+A dumps the registers.
+//! The unpacked field state lives in `SoundReg`; the `nrNN` methods pack it into
+//! the hardware registers. MegaDuck's `translate_*` quirks are omitted (this
+//! targets the GB).
 
 #![no_std]
 #![no_main]
@@ -237,8 +239,9 @@ static mut SREG: SoundReg = SoundReg {
         to_so2: [1, 1, 1, 1], on: [0, 0, 0, 0], global_on: 1 },
 };
 
-/// The global register state as a place expression (single-threaded; no aliasing
-/// reference is created).
+/// The global register state as a place expression.
+///
+/// Goes through `&raw mut`, so no reference to the static is created.
 macro_rules! sr {
     () => {
         (*(&raw mut SREG))

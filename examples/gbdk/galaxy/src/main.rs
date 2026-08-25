@@ -337,7 +337,6 @@ unsafe fn scroll() {
     // Update window
     WPOSX.w = WPOSX.w.wrapping_add(WSPX.w);
     WPOSY.w = WPOSY.w.wrapping_add(WSPY.w);
-    // X position
     if WPOSX.b.h >= MAXWINX {
         WPOSX.b.h = MAXWINX;
         WSPX.w = (-(WSPX.w as i16)) as u16;
@@ -346,7 +345,6 @@ unsafe fn scroll() {
         WSPX.w = (-(WSPX.w as i16)) as u16;
     }
     WX_REG.write(WPOSX.b.h);
-    // Y position
     if WPOSY.b.h >= MAXWINY {
         WPOSY.b.h = MAXWINY;
         WSPY.w = (-(WSPY.w as i16)) as u16;
@@ -407,7 +405,6 @@ fn main() -> ! {
 
         DOORSTATE = CLOSED;
 
-        // Set palettes
         BGP_REG.write(0xE4);
         OBP0_REG.write(0xE4);
         OBP1_REG.write(0xE4);

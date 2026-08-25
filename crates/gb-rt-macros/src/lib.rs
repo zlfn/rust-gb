@@ -1,15 +1,13 @@
-//! Procedural macros for `gb-rt`, re-exported by the `gb-rt` crate and meant to
-//! be used through it (`#[gb_rt::entry]`).
+//! Procedural macros for `gb-rt`, meant to be used through it (`#[gb_rt::entry]`).
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{Ident, ItemFn, ReturnType, Type, parse_macro_input, parse_quote, spanned::Spanned};
 
-/// Path to `gb-rt` as the *invoking* crate can name it: directly when it depends
-/// on that crate, otherwise through the `gb` facade, which re-exports it at `rt`.
-/// Falling back to the plain name when neither is present lets the usual
-/// unresolved-import error name the crate the user is missing.
+/// Path to `gb-rt` as the *invoking* crate can name it, directly or through the
+/// `gb` facade. The last-resort plain name lets the usual unresolved-import error
+/// name the crate the user is missing.
 fn rt_root() -> TokenStream2 {
     use proc_macro_crate::{crate_name, FoundCrate};
     let path = match crate_name("gb-rt") {
@@ -25,8 +23,7 @@ fn rt_root() -> TokenStream2 {
 }
 
 /// Path to `gb::interrupt`, or `None` when the invoking crate has no `gb`. That
-/// module owns the `IME` mirror the interrupt wrapper has to keep in sync; a
-/// build without the HAL has no mirror to update.
+/// module owns the `IME` mirror the interrupt wrapper keeps in sync.
 fn hal_interrupt_root() -> Option<TokenStream2> {
     use proc_macro_crate::{crate_name, FoundCrate};
     let path = match crate_name("rust-gb").or_else(|_| crate_name("gb")).ok()? {
@@ -38,10 +35,9 @@ fn hal_interrupt_root() -> Option<TokenStream2> {
 
 /// Mark the program entry point.
 ///
-/// Applied to `fn main`, it exports the function as the Game Boy entry symbol
-/// (`#[no_mangle] pub extern "C" fn main`) and forces the gb-rt startup (rrt0)
-/// into the link. The signature must be `fn() -> !`: rrt0 jumps to it and never
-/// expects it back, so the program loops forever. Use it once per program:
+/// Exports the function as the Game Boy entry symbol and forces the gb-rt startup
+/// (rrt0) into the link. The signature must be `fn() -> !`, since rrt0 jumps to it
+/// and never expects it back. Use it once per program:
 ///
 /// ```ignore
 /// #[gb_rt::entry]
@@ -100,9 +96,9 @@ pub fn entry(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// The vector jumps straight to the handler, which the `z80-interrupt` calling
 /// convention compiles to save only the register pairs it clobbers and to return
-/// with `reti`. It returns nothing. The exported symbol is strong, overriding the
-/// weak or PROVIDE default, so this handler runs in place of any default for that
-/// vector. The defining crate needs `#![feature(abi_z80_interrupt)]`:
+/// with `reti`. The exported symbol is strong, so it wins over any weak or
+/// PROVIDE default for that vector. The defining crate needs
+/// `#![feature(abi_z80_interrupt)]`:
 ///
 /// ```ignore
 /// #![feature(abi_z80_interrupt)]
@@ -116,10 +112,10 @@ pub fn entry(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// # Critical section
 ///
 /// A handler may take one `CriticalSection` parameter.
+///
 /// The CPU clears IME when it dispatches an interrupt, so the handler already runs
-/// with interrupts off; the token records that and unlocks anything guarding state
-/// shared with the main loop, such as a wide `gb_hram` cell. It is zero-sized and
-/// the wrapper inlines away, so taking it costs nothing.
+/// with interrupts off. The token records that and unlocks anything guarding state
+/// shared with the main loop.
 ///
 /// ```ignore
 /// #[gb_rt::interrupt(Timer)]
@@ -129,7 +125,7 @@ pub fn entry(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// ```
 ///
 /// Enabling interrupts inside such a handler invalidates the token while it is
-/// still in scope, which is why doing so is `unsafe`.
+/// still in scope and can cause undefined behavior.
 #[proc_macro_attribute]
 pub fn interrupt(attr: TokenStream, item: TokenStream) -> TokenStream {
     let vector = parse_macro_input!(attr as Ident);

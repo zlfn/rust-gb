@@ -1,5 +1,7 @@
 //! `gb`: Game Boy hardware abstractions.
-
+//!
+//! # Feature flags
+#![doc = document_features::document_features!()]
 #![no_std]
 #![feature(asm_experimental_arch)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

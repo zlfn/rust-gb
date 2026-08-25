@@ -16,13 +16,10 @@ use gbdk_sys::stdio::printf;
 
 static OFFSETS: [u8; 16] = [0, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2, 3, 3, 2, 1, 0];
 
-/// Base index into [`OFFSETS`]; written by `main`, read by the ISR. No atomics on
-/// SM83, so a volatile byte is the shared channel.
+/// Base index into [`OFFSETS`]; written by `main`, read by the ISR.
 static mut BASE: u8 = 0;
 
-/// STAT (mode 0 / H-Blank) interrupt, installed directly at the vector: set the
-/// scroll offset for this scanline. This handler wins over GBDK's weak dispatcher;
-/// the `z80-interrupt` convention saves the pairs it clobbers and returns with `reti`.
+/// Set the scroll offset for this scanline.
 #[gb_rt::interrupt(LcdStat)]
 fn wobble() {
     let base = unsafe { core::ptr::read_volatile(&raw const BASE) } as usize;

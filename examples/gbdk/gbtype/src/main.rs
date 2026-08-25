@@ -17,8 +17,7 @@ fn main() -> ! {
     unsafe {
         gbdk_sys::init();
 
-        // Wait 4 frames
-        // For PAL SNES(SGB) this delay is required on startup
+        // A PAL SNES (SGB) needs this startup delay.
         for _ in 0..4u8 {
             vsync();
         }
@@ -29,7 +28,6 @@ fn main() -> ! {
         let is_sgb = sgb_check();
 
         if is_sgb != 0 {
-            // Super Game Boys
             if _cpu == DMG_TYPE {
                 printf(b"This is a SGB 1!\0".as_ptr() as *const c_char);
             } else if _cpu == MGB_TYPE {
@@ -40,7 +38,6 @@ fn main() -> ! {
         } else if _cpu == MGB_TYPE {
             printf(b"This is a MGB! (Game Boy Pocket / Light)\0".as_ptr() as *const c_char);
         } else if _cpu == CGB_TYPE {
-            // For Game Boy Color also check if it is a GBA in CGB mode
             if _is_GBA == GBA_DETECTED {
                 printf(b"This is a GBA in CGB mode!\0".as_ptr() as *const c_char);
             } else {

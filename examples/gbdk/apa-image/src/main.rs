@@ -29,9 +29,8 @@ fn main() -> ! {
             BGP_REG.write(dmg_palette(DMG_BLACK, DMG_BLACK, DMG_BLACK, DMG_BLACK));
         }
 
-        // Display the image
-        // This will automatically switch to APA graphics mode
-        // and install it's start and mid-frame ISRs.
+        // draw_image switches to APA graphics mode and installs its start and
+        // mid-frame ISRs.
         draw_image(SCENERY_TILES.as_ptr() as *mut u8);
         show_bkg();
 
@@ -44,10 +43,7 @@ fn main() -> ! {
             BGP_REG.write(dmg_palette(DMG_WHITE, DMG_LITE_GRAY, DMG_DARK_GRAY, DMG_BLACK));
         }
 
-        // Loop forever
         loop {
-            // Main processing goes here
-            // Done processing, yield CPU and wait for start of next frame
             vsync();
         }
     }

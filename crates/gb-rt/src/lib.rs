@@ -6,9 +6,7 @@
 //! Depending on this crate links the startup code in `rrt0.s` (reset entry, RST
 //! and interrupt vectors) and makes the linker script `gb.ld` available to the
 //! ROM build pipeline. Each interrupt vector jumps to an `_on_*` handler that
-//! defaults to a no-op and is overridden by defining a strong symbol; the
-//! [`entry`] and [`interrupt`] attribute macros and the [`boot`] and [`builtin`]
-//! modules are its Rust API.
+//! defaults to a no-op and is overridden by defining a strong symbol.
 
 // The startup is assembled by the compiler itself (no host assembler is invoked),
 // landing in this crate's object. Nothing references `_reset` from Rust, so the

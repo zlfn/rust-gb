@@ -1,7 +1,7 @@
 //! GBDK LCD ISR wobble, a port of gbdk-2020/examples/gb/lcd_isr_wobble.
 //!
 //! An LCD (STAT mode 0) interrupt nudges the background X scroll once per
-//! scanline, producing a horizontal wobble whose phase drifts over time.
+//! scanline. The resulting horizontal wobble drifts in phase over time.
 
 #![no_std]
 #![no_main]
@@ -12,8 +12,8 @@ use gbdk_sys::stdio::printf;
 
 static OFFSETS: [u8; 16] = [0, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2, 3, 3, 2, 1, 0];
 
-/// Base index into [`OFFSETS`]; written by `main`, read by the ISR. The Game Boy
-/// is single-core with no atomics, so a volatile byte is the shared channel.
+/// Base index into [`OFFSETS`]; written by `main`, read by the ISR. A one-byte
+/// access is a single instruction, so the ISR cannot catch it half written.
 static mut BASE: u8 = 0;
 
 /// STAT (mode 0 / H-Blank) interrupt: set the scroll offset for this scanline.
