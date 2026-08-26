@@ -95,9 +95,25 @@ fn build() -> Result<PathBuf, String> {
     let tc = Toolchain::discover()?;
     let proj = resolve_project()?;
 
-    // 1. Compile the Rust staticlib. cargo's own progress flows through.
-    let built = Command::new("cargo")
-        .args(["build", "--release", "--target", TARGET])
+    // 1. Compile the Rust staticlib. cargo's own progress flows through. Wide
+    //    banking changes the width of a bank number and how selecting one reaches
+    //    the cartridge, so it has to be settled before compiling; header.toml stays
+    //    the single place it is written.
+    let mut cargo = Command::new("cargo");
+    cargo.args(["build", "--release", "--target", TARGET]);
+    let limits = match proj.header.as_deref() {
+        Some(h) => gb_header_fix::bank_limits(h).map_err(|e| e.to_string())?,
+        None => None,
+    };
+    if let Some(kind) = limits.and_then(|l| l.wide_cfg) {
+        // Setting RUSTFLAGS supersedes `build.rustflags` from a config file, so a
+        // project that sets both loses the latter on a wide build.
+        let mut flags = std::env::var("RUSTFLAGS").unwrap_or_default();
+        flags.push_str(&format!(" --cfg gb_wide_bank=\"{kind}\""));
+        flags.push_str(" --check-cfg=cfg(gb_wide_bank,values(\"mbc1\",\"mbc5\"))");
+        cargo.env("RUSTFLAGS", flags);
+    }
+    let built = cargo
         .status()
         .map_err(|e| format!("failed to run cargo: {e}"))?;
     if !built.success() {

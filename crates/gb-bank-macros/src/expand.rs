@@ -304,16 +304,16 @@ fn rewrite_only(block: &mut syn::Block) {
 pub fn bank_module(input: TokenStream) -> TokenStream {
     let gb_bank = bank_root();
     // Optional pin: `bank::module!(N)` fixes this module to bank `N` instead of
-    // letting gb-bank-pack auto-assign. The marker's *initial* byte carries the pin
+    // letting gb-bank-pack auto-assign. The marker's *initial value* carries the pin
     // (0 = auto); the packer reads it, reserves bank `N`, and leaves it as-is.
-    let pin: u8 = if input.is_empty() {
+    let pin: u16 = if input.is_empty() {
         0
     } else {
         let lit = match parse2::<syn::LitInt>(input) {
             Ok(l) => l,
             Err(e) => return e.to_compile_error(),
         };
-        match lit.base10_parse::<u8>() {
+        match lit.base10_parse::<u16>() {
             Ok(0) => {
                 return syn::Error::new_spanned(
                     &lit,
@@ -325,6 +325,7 @@ pub fn bank_module(input: TokenStream) -> TokenStream {
             Err(e) => return e.to_compile_error(),
         }
     };
+    let pin = proc_macro2::Literal::u16_unsuffixed(pin);
     quote! {
         #[doc(hidden)]
         #[allow(non_camel_case_types)]
@@ -333,17 +334,27 @@ pub fn bank_module(input: TokenStream) -> TokenStream {
         impl #gb_bank::Group for __BankGroup {
             const FIXED: bool = false;
             #[inline(always)]
-            fn bank() -> u8 {
-                // gb-bank-pack finds this 1-byte marker by module path (its
-                // mangled symbol encodes the path) and patches the byte to the
-                // assigned bank number (or, for a pinned module, leaves the pin
-                // in place). The read must be volatile so the value is loaded from
-                // memory, not const-folded. (We cannot use the symbol's address as
-                // an immediate: this backend emits a section-relative relocation for
-                // the marker, which ignores the symbol's value.)
+            fn bank() -> #gb_bank::BankNumber {
+                // A pin wider than the marker would be truncated in silence: the
+                // overflowing-literal lint does not fire in macro-generated code.
+                const _: () = assert!(
+                    #pin <= #gb_bank::BankNumber::MAX,
+                    "bank::module! pin is above the highest bank this build can select",
+                );
+
+                // gb-bank-pack finds this marker by module path (its mangled symbol
+                // encodes the path) and patches it to the assigned bank number (or,
+                // for a pinned module, leaves the pin in place). Its width follows
+                // `BankRepr`, so a wide build needs no change here. The read must be
+                // volatile so the value is loaded from memory, not const-folded. (We
+                // cannot use the symbol's address as an immediate: this backend emits
+                // a section-relative relocation for the marker, which ignores the
+                // symbol's value.)
                 #[used]
-                static BANK: u8 = #pin;
-                unsafe { ::core::ptr::read_volatile(&BANK) }
+                static BANK: #gb_bank::BankRepr = #pin;
+                unsafe {
+                    #gb_bank::BankNumber::new_unchecked(::core::ptr::read_volatile(&BANK) as u16)
+                }
             }
         }
     }
@@ -444,7 +455,7 @@ fn warp_new(
     let gb_bank = bank_root();
     quote! {
         unsafe {
-            #gb_bank::BankedWarp::<#fn_ty, __BankGroup, #args_ty>::new(
+            #gb_bank::__private::BankedWarp::<#fn_ty, __BankGroup, #args_ty>::new(
                 ::core::mem::transmute::<unsafe #fn_ty, #fn_ty>(#callee as unsafe #fn_ty),
                 #args_val,
             )
@@ -825,7 +836,7 @@ fn resident_fn(func: ItemFn) -> TokenStream {
         #marker_def
 
         #[doc(hidden)]
-        impl #ig #gb_bank::FixedFn<#args_ty> for #marker_ty #wc {
+        impl #ig #gb_bank::__private::FixedFn<#args_ty> for #marker_ty #wc {
             type Output = #output;
             #[inline]
             fn run<__C: #gb_bank::Group>(
@@ -838,7 +849,7 @@ fn resident_fn(func: ItemFn) -> TokenStream {
         // which threads the caller's token into `run` (no bank switch).
         #[inline]
         #vis fn #name #ig (#inputs) -> impl #gb_bank::Warp<Output = #output> #wc {
-            #gb_bank::FixedWarp::<#marker_ty, #args_ty>::new(#args_val)
+            #gb_bank::__private::FixedWarp::<#marker_ty, #args_ty>::new(#args_val)
         }
 
         // Trampoline behind `far!`: save the caller's bank at runtime, run the body
@@ -849,7 +860,8 @@ fn resident_fn(func: ItemFn) -> TokenStream {
         #vis fn #dyn_name #ig (#inputs) -> #output #wc {
             let __saved = #gb_bank::current_bank();
             let mut __z = unsafe { #gb_bank::Bank::<#gb_bank::GroupZero>::assume() };
-            let __r = <#marker_ty as #gb_bank::FixedFn<#args_ty>>::run::<#gb_bank::GroupZero>(
+            let __r = <#marker_ty as #gb_bank::__private::FixedFn<#args_ty>>
+                ::run::<#gb_bank::GroupZero>(
                 #args_val, &mut __z,
             );
             unsafe { #gb_bank::switch_bank(__saved) };
@@ -1006,7 +1018,7 @@ fn resident_method(
         pub struct #marker;
 
         #[doc(hidden)]
-        impl #impl_lt #gb_bank::FixedFn<#args_ty> for #marker {
+        impl #impl_lt #gb_bank::__private::FixedFn<#args_ty> for #marker {
             type Output = #output;
             #[inline]
             fn run<__C: #gb_bank::Group>(
@@ -1023,7 +1035,7 @@ fn resident_method(
     let wrapper = quote! {
         #[inline]
         #vis fn #name(#inputs) -> impl #gb_bank::Warp<Output = #output> {
-            #gb_bank::FixedWarp::<#marker, _>::new(#args_val)
+            #gb_bank::__private::FixedWarp::<#marker, _>::new(#args_val)
         }
     };
 
@@ -1142,10 +1154,11 @@ mod tests {
     #[test]
     fn module_pin_marker() {
         let auto = bank_module(quote!()).to_string();
-        assert!(auto.contains("static BANK : u8 = 0u8"), "auto marker:\n{auto}");
+        assert!(auto.contains("static BANK : :: gb_bank :: BankRepr = 0"), "auto marker:\n{auto}");
 
         let pinned = bank_module(quote!(3)).to_string();
-        assert!(pinned.contains("static BANK : u8 = 3u8"), "pinned marker:\n{pinned}");
+        let want = "static BANK : :: gb_bank :: BankRepr = 3";
+        assert!(pinned.contains(want), "pinned marker:\n{pinned}");
 
         let zero = bank_module(quote!(0)).to_string();
         assert!(zero.contains("compile_error"), "bank 0 not rejected:\n{zero}");

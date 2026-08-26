@@ -40,6 +40,9 @@ pub enum CartridgeType {
     Mbc5RumbleRam,
     #[serde(alias = "MBC5+RUMBLE+RAM+BATTERY")]
     Mbc5RumbleRamBattery,
+    #[serde(alias = "MBC7")]
+    #[serde(alias = "MBC7+SENSOR+RUMBLE+RAM+BATTERY")]
+    Mbc7,
 }
 
 impl CartridgeType {
@@ -59,6 +62,7 @@ impl CartridgeType {
             Self::Mbc5 => 0x19,
             Self::Mbc5Ram => 0x1A,
             Self::Mbc5RamBattery => 0x1B,
+            Self::Mbc7 => 0x22,
             Self::Mbc5Rumble => 0x1C,
             Self::Mbc5RumbleRam => 0x1D,
             Self::Mbc5RumbleRamBattery => 0x1E,
@@ -84,48 +88,77 @@ impl CartridgeType {
             0x1C => Some(Self::Mbc5Rumble),
             0x1D => Some(Self::Mbc5RumbleRam),
             0x1E => Some(Self::Mbc5RumbleRamBattery),
+            0x22 => Some(Self::Mbc7),
             _ => None,
         }
     }
 
     /// The highest bank number `switch_bank` can select on this cartridge.
     ///
-    /// Each value is the width of the register at `0x2000`, which is the only one
-    /// the runtime writes. MBC1 and MBC5 reach further through a second register
-    /// (at `0x4000` and `0x3000`), so raising these means widening `switch_bank`
-    /// first.
+    /// The narrow values are the width of the register at `0x2000`, which is all the
+    /// runtime writes by default. `wide` reports what it reaches once the build also
+    /// writes the cartridge's second bank register, which `cargo-gb` enables from
+    /// `wide_banks` in `header.toml`.
     ///
     /// Bank 0 is never allocated: MBC1, MBC2, and MBC3 read a written `0` as `1`,
     /// and on MBC5, which does map it, bank 0 already holds the resident region.
-    pub fn max_bank(self) -> u16 {
+    pub fn max_bank(self, wide: bool) -> u16 {
         match self {
             // 0x4000-0x7FFF is fixed, so there is no bank to switch to.
             Self::Rom => 0,
-            // 5 bits.
-            Self::Mbc1 | Self::Mbc1Ram | Self::Mbc1RamBattery => 31,
+            // 5 bits, plus 2 more at 0x4000 in banking mode 0.
+            Self::Mbc1 | Self::Mbc1Ram | Self::Mbc1RamBattery => {
+                if wide { 127 } else { 31 }
+            }
             // 4 bits.
             Self::Mbc2 | Self::Mbc2Battery => 15,
             // 7 bits.
             Self::Mbc3 | Self::Mbc3TimerBattery | Self::Mbc3TimerRamBattery
-            | Self::Mbc3Ram | Self::Mbc3RamBattery => 127,
-            // 8 bits, the ninth sitting in the register at 0x3000.
+            | Self::Mbc3Ram | Self::Mbc3RamBattery | Self::Mbc7 => 127,
+            // 8 bits, plus the ninth at 0x3000.
             Self::Mbc5 | Self::Mbc5Ram | Self::Mbc5RamBattery
-            | Self::Mbc5Rumble | Self::Mbc5RumbleRam | Self::Mbc5RumbleRamBattery => 255,
+            | Self::Mbc5Rumble | Self::Mbc5RumbleRam | Self::Mbc5RumbleRamBattery => {
+                if wide { 511 } else { 255 }
+            }
+        }
+    }
+
+    /// Bank numbers within [`max_bank`](Self::max_bank) that the cartridge cannot map.
+    ///
+    /// Only MBC1 has any: its low five bits read as `1` when written `0`, so the
+    /// three numbers whose low bits are zero alias onto their successors.
+    pub fn excluded_banks(self, wide: bool) -> Vec<u16> {
+        match self {
+            Self::Mbc1 | Self::Mbc1Ram | Self::Mbc1RamBattery if wide => {
+                vec![0x20, 0x40, 0x60]
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// The `gb_wide_bank` cfg value for this cartridge, or `None` when it has no
+    /// second bank register.
+    pub fn wide_bank_cfg(self) -> Option<&'static str> {
+        match self {
+            Self::Mbc1 | Self::Mbc1Ram | Self::Mbc1RamBattery => Some("mbc1"),
+            Self::Mbc5 | Self::Mbc5Ram | Self::Mbc5RamBattery
+            | Self::Mbc5Rumble | Self::Mbc5RumbleRam | Self::Mbc5RumbleRamBattery => Some("mbc5"),
+            _ => None,
         }
     }
 
     /// The largest ROM the runtime can reach on this cartridge.
-    pub fn max_rom_bytes(self) -> usize {
+    pub fn max_rom_bytes(self, wide: bool) -> usize {
         match self {
             // Both halves are fixed, so 32 KiB and no more.
             Self::Rom => 0x8000,
-            _ => (self.max_bank() as usize + 1) * 0x4000,
+            _ => (self.max_bank(wide) as usize + 1) * 0x4000,
         }
     }
 
     /// Whether the cartridge has a switchable window at all.
     pub fn supports_banking(self) -> bool {
-        self.max_bank() > 0
+        self.max_bank(false) > 0
     }
 }
 
@@ -146,6 +179,54 @@ pub fn deserialize_cartridge_type<'de, D: serde::Deserializer<'de>>(d: D) -> Res
         _ => Err(D::Error::custom("cartridge_type must be a string or integer")),
     }
 }
+
+/// What `header.toml` says about banking, for the tools that need it before the
+/// ROM exists.
+#[derive(Clone, Debug)]
+pub struct BankLimits {
+    /// The highest bank the build can select.
+    pub max_bank: u16,
+    /// The `gb_wide_bank` cfg the cartridge needs, once `wide_banks` is on.
+    pub wide_cfg: Option<&'static str>,
+    /// Bank numbers within `max_bank` the cartridge cannot map.
+    pub excluded: Vec<u16>,
+}
+
+/// Read the banking limits `header.toml` implies.
+///
+/// Returns `Ok(None)` when the file cannot be read or parsed, leaving the caller to
+/// fall back; `wide_banks` on a cartridge with no second bank register is an error.
+pub fn bank_limits(header_toml: &Path) -> Result<Option<BankLimits>, FixError> {
+    #[derive(Deserialize)]
+    struct Banking {
+        #[serde(default, deserialize_with = "deserialize_cartridge_type")]
+        cartridge_type: CartridgeType,
+        #[serde(default)]
+        wide_banks: bool,
+    }
+    let Ok(content) = std::fs::read_to_string(header_toml) else {
+        return Ok(None);
+    };
+    let Ok(cfg) = toml::from_str::<Banking>(&content) else {
+        return Ok(None);
+    };
+    let wide_cfg = if cfg.wide_banks {
+        match cfg.cartridge_type.wide_bank_cfg() {
+            Some(kind) => Some(kind),
+            None => return Err(FixError::Parse(NO_SECOND_REGISTER.into())),
+        }
+    } else {
+        None
+    };
+    Ok(Some(BankLimits {
+        max_bank: cfg.cartridge_type.max_bank(cfg.wide_banks),
+        wide_cfg,
+        excluded: cfg.cartridge_type.excluded_banks(cfg.wide_banks),
+    }))
+}
+
+const NO_SECOND_REGISTER: &str =
+    "wide_banks needs a cartridge with a second bank register (MBC1 or MBC5)";
 
 const NINTENDO_LOGO: [u8; 48] = [
     0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
@@ -172,6 +253,8 @@ struct Header {
     new_licensee_code: Option<String>,
     #[serde(default)]
     version: u8,
+    #[serde(default)]
+    wide_banks: bool,
 }
 
 #[derive(Deserialize, Default, Clone, Copy, PartialEq, Eq)]
@@ -274,7 +357,11 @@ pub fn fix(rom_path: &Path, header_toml: &Path) -> Result<RomInfo, FixError> {
     }
     pad_to_power_of_two(&mut rom);
 
-    let limit = header.cartridge_type.max_rom_bytes();
+    if header.wide_banks && header.cartridge_type.wide_bank_cfg().is_none() {
+        return Err(FixError::Parse(NO_SECOND_REGISTER.into()));
+    }
+
+    let limit = header.cartridge_type.max_rom_bytes(header.wide_banks);
     if rom.len() > limit {
         return Err(FixError::RomTooLarge { bytes: rom.len(), limit });
     }

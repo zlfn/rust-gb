@@ -2,7 +2,7 @@
 //!
 //! It reads the linked objects, demangles their symbols, groups each banked
 //! function/static under its module's `BANK` marker, first-fit bin-packs the
-//! groups into 16 KiB banks, then patches every module's `BANK` byte to its
+//! groups into 16 KiB banks, then patches every module's `BANK` marker to its
 //! assigned bank number and emits a linker fragment placing each
 //! `.text`/`.rodata`/`.data.<sym>` section into its `.bankN` region. The resident
 //! region stays in bank 0; banked groups go to banks 1 and up.
@@ -14,7 +14,7 @@ mod packer;
 /// One banked ROM bank's allocation.
 pub struct BankInfo {
     /// Bank number (1 and up; bank 0 is the resident region).
-    pub bank: u8,
+    pub bank: u16,
     /// Bytes occupied by the groups placed in this bank.
     pub used: usize,
     /// Module paths whose code and data live in this bank, sorted.
@@ -70,13 +70,17 @@ pub fn link(
     let bank_size = 0x4000;
 
     // The highest bank `switch_bank` can select, or 0 with no MBC, in which case the
-    // packer leaves every group flat. Never above 255: the bank number is patched
-    // into a one-byte marker.
-    let max_bank: u16 = header_toml.and_then(parse_header_for_mbc).unwrap_or(255);
+    // packer leaves every group flat.
+    let limits = header_toml.and_then(|p| gb_header_fix::bank_limits(p).ok().flatten());
+    let (max_bank, excluded) = match limits {
+        Some(l) => (l.max_bank, l.excluded),
+        None => (255, Vec::new()),
+    };
+    let excluded = &excluded[..];
 
     let obj_paths: Vec<&Path> = obj_files.iter().map(|p| p.as_path()).collect();
-    let layout =
-        packer::compute_layout(&obj_paths, bank_size, max_bank).map_err(LinkError::Layout)?;
+    let layout = packer::compute_layout(&obj_paths, bank_size, max_bank, excluded)
+        .map_err(LinkError::Layout)?;
 
     packer::apply_patches(&layout.patches)?;
 
@@ -103,13 +107,3 @@ pub fn link(
     Ok(LinkSummary { bank_size, banks })
 }
 
-fn parse_header_for_mbc(path: &Path) -> Option<u16> {
-    #[derive(serde::Deserialize)]
-    struct HeaderConfig {
-        #[serde(default, deserialize_with = "gb_header_fix::deserialize_cartridge_type")]
-        cartridge_type: gb_header_fix::CartridgeType,
-    }
-    let content = std::fs::read_to_string(path).ok()?;
-    let header: HeaderConfig = toml::from_str(&content).ok()?;
-    Some(header.cartridge_type.max_bank())
-}

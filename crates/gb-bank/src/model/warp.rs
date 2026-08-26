@@ -10,7 +10,7 @@
 
 use core::marker::{PhantomData, Tuple};
 
-use super::{DynFar, Bank, Far, FarCall, Group, GroupZero, switch_run, switch_run_far};
+use super::{Bank, DynFar, Far, Group, GroupZero, switch_run, switch_run_far};
 
 pub use gb_bank_safe::BankSafe;
 
@@ -25,12 +25,16 @@ unsafe impl<T: ?Sized> BankSafe for DynFar<T> {}
 ///
 /// This is the [`Future`] of the banking world. A `#[bank]` function returns
 /// `impl Warp<Output = R>`; [`drive`](Warp::drive) is the `.await` that drives it,
-/// performing the bank switch, running the function, and restoring the caller.
+/// performing the bank switch, running the function, and restoring the caller. The
+/// concrete types are built by the macros and never named.
 ///
-/// Implemented by [`BankedWarp`] (what the macro builds) and, transitively, by any
-/// function that returns one, so a banked function value is itself a [`FarCall`].
+/// A `#[bank::zero]` function returns one too, and that one switches nothing: its
+/// body is in bank 0 and always reachable, so it threads the caller's token
+/// straight through, and any banked call inside switches `C` to its target and back
+/// to `C`. That is what makes a bank-0 helper safe to call from *any* bank, not
+/// only from bank 0.
 ///
-/// The attribute sits here rather than on [`BankedWarp`] / [`FixedWarp`] because a
+/// The `#[must_use]` sits on the trait rather than on the concrete types because a
 /// banked function returns `impl Warp`, and that lint reads the trait.
 #[must_use = "a Warp does nothing until `.drive()`"]
 pub trait Warp {
@@ -109,31 +113,11 @@ where
     type Group = G;
     #[inline]
     fn near(self, _here: &mut Bank<G>) -> F::Output {
-        // `_here` proves G is mapped; just run the function (no switch). `drive`
-        // is the default (scope into G, then `near`).
+        // `_here` proves G is mapped, so there is no switch to make.
         self.f.call(self.args)
     }
 }
 
-// `Far`/`DynFar` are not callable functions; stating it lets the blanket impl
-// below (for Warp-returning functions) coexist with their own `FarCall` impls
-// under `with_negative_coherence`.
-impl<F, G, Args: Tuple> !Fn<Args> for Far<F, G> {}
-impl<F, Args: Tuple> !Fn<Args> for DynFar<F> {}
-
-/// A [`Warp`]-returning function is itself a [`FarCall`], usable as a dispatch
-/// target like a [`Far`] / [`DynFar`].
-impl<T, Args: Tuple + BankSafe> FarCall<Args> for T
-where
-    T: Fn<Args>,
-    T::Output: Warp,
-{
-    type Output = <T::Output as Warp>::Output;
-    #[inline]
-    fn invoke<C: Group>(&self, outer: &mut Bank<C>, args: Args) -> Self::Output {
-        Fn::call(self, args).drive(outer)
-    }
-}
 
 /// The body of a bank-0 (`#[bank::zero]`) function, generic over the *caller's*
 /// bank group `C`.

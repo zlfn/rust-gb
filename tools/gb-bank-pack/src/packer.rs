@@ -7,9 +7,10 @@
 //!   `.rodata.<mangled>` / `.data.<mangled>`), named after a symbol whose
 //!   demangled path leaf is `__bank_fn_*`, `__bank_static_*`, or `__bank_*`
 //!   (a method).
-//! - Each banked module emits one `BANK` marker: a 1-byte static whose demangled
-//!   name is `<CRATE::MOD::__BankGroup as ..::Group>::bank::BANK`. Its module
-//!   path identifies the group; patching its byte sets the runtime bank number.
+//! - Each banked module emits one `BANK` marker: a static whose demangled name is
+//!   `<CRATE::MOD::__BankGroup as ..::Group>::bank::BANK`. Its module path
+//!   identifies the group, its symbol size gives the width `gb_bank::BankRepr`
+//!   was compiled at, and patching its bytes sets the runtime bank number.
 
 use object::read::elf::ElfFile32;
 use object::{Object, ObjectSection, ObjectSymbol};
@@ -19,12 +20,12 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct BankLayout {
-    pub bank_count: u8,
+    pub bank_count: u16,
     /// module path -> assigned bank.
-    pub group_banks: HashMap<String, u8>,
-    pub bank_sizes: HashMap<u8, usize>,
+    pub group_banks: HashMap<String, u16>,
+    pub bank_sizes: HashMap<u16, usize>,
     /// bank -> input section names to place there (deterministic order).
-    pub placements: HashMap<u8, Vec<String>>,
+    pub placements: HashMap<u16, Vec<String>>,
     /// `BANK` marker bytes to overwrite before linking.
     pub patches: Vec<Patch>,
 }
@@ -32,9 +33,20 @@ pub struct BankLayout {
 #[derive(Debug)]
 pub struct Patch {
     pub obj: PathBuf,
-    /// File offset of the marker's data byte (in its `.rodata.*` section).
+    /// File offset of the marker's data (in its `.rodata.*` section).
     pub file_offset: u64,
-    pub bank: u8,
+    /// Marker width in bytes, from the symbol's size: it follows `gb_bank::BankRepr`.
+    pub width: u8,
+    pub bank: u16,
+}
+
+/// Read a little-endian marker value of `width` bytes.
+fn read_le(data: &[u8], off: usize, width: u8) -> u16 {
+    let mut v = 0u16;
+    for i in 0..width as usize {
+        v |= (*data.get(off + i).unwrap_or(&0) as u16) << (8 * i);
+    }
+    v
 }
 
 /// Demangle a target symbol (drop the one leading `_` the target prepends),
@@ -103,6 +115,7 @@ struct BankedSym {
 struct PendingPatch {
     obj: PathBuf,
     file_offset: u64,
+    width: u8,
     module: String,
 }
 
@@ -111,13 +124,14 @@ pub fn compute_layout(
     obj_files: &[&Path],
     max_bank_size: usize,
     max_bank: u16,
+    excluded: &[u16],
 ) -> Result<BankLayout, Vec<String>> {
     let mut section_sizes: HashMap<String, usize> = HashMap::new();
     let mut banked: Vec<BankedSym> = Vec::new();
     let mut bank_modules: Vec<String> = Vec::new();
     let mut pending: Vec<PendingPatch> = Vec::new();
     // module -> pinned bank (from a `bank::module!(N)` marker whose initial byte is N).
-    let mut pinned: HashMap<String, u8> = HashMap::new();
+    let mut pinned: HashMap<String, u16> = HashMap::new();
 
     for obj_path in obj_files {
         let Ok(data) = std::fs::read(obj_path) else { continue };
@@ -144,16 +158,17 @@ pub fn compute_layout(
                     if let Ok(sec) = elf.section_by_index(idx) {
                         if let Some((off, _)) = sec.file_range() {
                             let fo = off + sym.address();
-                            // The marker's initial byte is the pin: non-zero means the
+                            let width = sym.size().clamp(1, 2) as u8;
+                            // The marker's initial value is the pin: non-zero means the
                             // module fixed itself to that bank via `bank::module!(N)`.
-                            if let Some(&byte) = data.get(fo as usize) {
-                                if byte != 0 {
-                                    pinned.insert(module.clone(), byte);
-                                }
+                            let pin = read_le(&data, fo as usize, width);
+                            if pin != 0 {
+                                pinned.insert(module.clone(), pin);
                             }
                             pending.push(PendingPatch {
                                 obj: obj_path.to_path_buf(),
                                 file_offset: fo,
+                                width,
                                 module,
                             });
                         }
@@ -191,7 +206,7 @@ pub fn compute_layout(
             placements: HashMap::new(),
             patches: pending
                 .into_iter()
-                .map(|p| Patch { obj: p.obj, file_offset: p.file_offset, bank: 0 })
+                .map(|p| Patch { obj: p.obj, file_offset: p.file_offset, width: p.width, bank: 0 })
                 .collect(),
         });
     }
@@ -234,21 +249,37 @@ pub fn compute_layout(
     // First-fit decreasing bin-packing.
     group_size.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
 
-    let mut group_banks: HashMap<String, u8> = HashMap::new();
-    let mut bank_sizes: HashMap<u8, usize> = HashMap::new();
+    let mut group_banks: HashMap<String, u16> = HashMap::new();
+    let mut bank_sizes: HashMap<u16, usize> = HashMap::new();
 
     // Pinned groups take their requested bank; those banks are reserved so the
     // auto-assigned groups never share them.
-    let reserved: HashSet<u8> = pinned.values().copied().collect();
+    let mut reserved: HashSet<u16> = pinned.values().copied().collect();
+    reserved.extend(excluded.iter().copied());
+    // A pin names its bank directly, so it has to be checked the way the auto
+    // assignment below is.
+    let mut errors = Vec::new();
     for (group, size) in &group_size {
         if let Some(&n) = pinned.get(group) {
+            if n > max_bank {
+                errors.push(format!(
+                    "'{group}' is pinned to bank {n}, above the limit of bank {max_bank}"
+                ));
+            } else if excluded.contains(&n) {
+                errors.push(format!(
+                    "'{group}' is pinned to bank {n}, which this cartridge cannot map"
+                ));
+            }
             group_banks.insert(group.clone(), n);
             *bank_sizes.entry(n).or_insert(0) += size;
         }
     }
+    if !errors.is_empty() {
+        return Err(errors);
+    }
 
     // Bin-pack the rest into the non-reserved banks.
-    let mut next_bank: u8 = 1;
+    let mut next_bank: u16 = 1;
     for (group, size) in &group_size {
         if pinned.contains_key(group) {
             continue;
@@ -270,7 +301,7 @@ pub fn compute_layout(
             while reserved.contains(&next_bank) {
                 next_bank += 1;
             }
-            if next_bank as u16 > max_bank {
+            if next_bank > max_bank {
                 return Err(vec![format!("too many banks needed, the limit is bank {max_bank}")]);
             }
             group_banks.insert(group.clone(), next_bank);
@@ -290,7 +321,7 @@ pub fn compute_layout(
     }
 
     // Placements per bank (sorted, deduped for deterministic output).
-    let mut placements: HashMap<u8, Vec<String>> = HashMap::new();
+    let mut placements: HashMap<u16, Vec<String>> = HashMap::new();
     for (group, secs) in &group_sections {
         let bank = group_banks[group];
         placements.entry(bank).or_default().extend(secs.iter().cloned());
@@ -306,6 +337,7 @@ pub fn compute_layout(
         .map(|p| Patch {
             obj: p.obj,
             file_offset: p.file_offset,
+            width: p.width,
             bank: group_banks.get(&p.module).copied().unwrap_or(0),
         })
         .collect();
@@ -331,8 +363,10 @@ pub fn apply_patches(patches: &[Patch]) -> std::io::Result<()> {
         let mut data = std::fs::read(obj)?;
         for p in ps {
             let off = p.file_offset as usize;
-            if off < data.len() {
-                data[off] = p.bank;
+            for i in 0..p.width as usize {
+                if let Some(b) = data.get_mut(off + i) {
+                    *b = (p.bank >> (8 * i)) as u8;
+                }
             }
         }
         std::fs::write(obj, data)?;

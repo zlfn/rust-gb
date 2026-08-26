@@ -130,6 +130,10 @@ pub fn bank(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// and drives banked code directly. Because it is the root, leaving a bank mapped
 /// after a call is harmless (the next call switches again).
 ///
+/// It expands to `#[gb_rt::entry]` around the rewritten body, so do not apply that
+/// attribute as well, and give the function the signature `gb-rt` requires:
+/// `fn() -> !`.
+///
 /// # Examples
 ///
 /// ```ignore

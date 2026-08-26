@@ -34,7 +34,7 @@
 //! struct Sound;
 //! impl Group for Sound {
 //!     const FIXED: bool = false;
-//!     fn bank() -> u8 { 2 }
+//!     fn bank() -> BankNumber { BankNumber::new(2) }
 //! }
 //!
 //! fn main_loop(anchor: Anchor, bank: &mut Bank<GroupZero>) {
@@ -60,37 +60,188 @@
 //! data) must save [`current_bank`] on entry and restore it before returning, so the
 //! interrupted code resumes with the bank its live token still claims is mapped. An
 //! ISR that is not bank-transparent breaks the invariant, just like a raw
-//! [`switch_bank`] that is not paired with a matching restore.
+//! [`switch_bank`] that is not paired with a matching restore. Under
+//! `gb_wide_bank="mbc5"` a handler must not switch banks at all; see
+//! [`switch_bank`].
 
 
 use core::{any::TypeId, marker::PhantomData};
 
 mod far;
-mod warp;
+pub(crate) mod warp;
 
 pub use far::{DynFar, Far, FarCall, FarWith};
-pub use warp::{Warp, BankedWarp, FixedFn, FixedWarp, BankSafe};
+pub use warp::{Warp, BankSafe};
 
 // ===== Low-level bank switch =====
 
-// The software bank shadow. The MBC bank register is write-only, so the mapped
-// bank is tracked here: a High RAM cell read and written with the immediate `ldh`
-// form through gb-hram. The runtime zero-initialises HRAM at reset (as gb-hram
-// requires), so it starts at 0. The `as "_current_bank"` exports the storage as
-// the `__current_bank` symbol that GBDK's C runtime also references (the target
-// adds the leading underscore).
-use gb_hram::prelude::*;
+/// The integer a [`BankNumber`] is stored in: one byte, or two under
+/// `gb_wide_bank="mbc5"`. Public only so the `bank::module!` marker can name it.
+#[doc(hidden)]
+#[cfg(not(gb_wide_bank = "mbc5"))]
+pub type BankRepr = u8;
+#[doc(hidden)]
+#[cfg(gb_wide_bank = "mbc5")]
+pub type BankRepr = u16;
 
-gb_hram::hram! {
-    static CURRENT_BANK as "_current_bank": HramAtomicCell<u8>;
+/// A ROM bank number, held as a `u8` or, under `gb_wide_bank="mbc5"`, a `u16`.
+///
+/// It is a type rather than a plain integer so that the storage width stays out of
+/// every signature: how wide a bank number is, and how selecting one reaches the
+/// cartridge, is a property of the build. `cargo-gb` derives it from `wide_banks`
+/// in `header.toml` and passes `--cfg gb_wide_bank`; [`MAX`](BankNumber::MAX) is
+/// all that changes between modes.
+///
+/// | `gb_wide_bank` | [`MAX`](BankNumber::MAX) | Bank register writes |
+/// |---|---|---|
+/// | unset | 255 | `0x2000` |
+/// | `"mbc1"` | 127 | `0x2000` (5 bits), `0x4000` (2 bits) |
+/// | `"mbc5"` | 511 | `0x3000` (bit 8), `0x2000` (low byte) |
+///
+/// This is the widest number the *build* can carry. The cartridge's own limit is
+/// tighter and `gb-bank-pack` enforces it at link time.
+///
+/// # Wide banking and GBDK
+///
+/// GBDK reaches the bank register through its own one-byte shadow, exported here
+/// as `_current_bank`, and writes only `0x2000`. `"mbc1"` keeps both, so linking
+/// `gbdk-sys` still works; the parts of GBDK that read the shadow (its far
+/// pointers, banked-call trampoline, and crash handler) would misread a bank above
+/// 31, and none of them are reachable from Rust. `"mbc5"` has no one-byte shadow to
+/// export, so a program linking `gbdk-sys` fails to link, and no interrupt handler
+/// may switch banks (see [`switch_bank`]).
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct BankNumber(BankRepr);
+
+impl BankNumber {
+    /// The highest bank number this build can represent.
+    #[cfg(not(any(gb_wide_bank = "mbc1", gb_wide_bank = "mbc5")))]
+    pub const MAX: u16 = 255;
+    /// The highest bank number this build can represent.
+    #[cfg(gb_wide_bank = "mbc1")]
+    pub const MAX: u16 = 127;
+    /// The highest bank number this build can represent.
+    #[cfg(gb_wide_bank = "mbc5")]
+    pub const MAX: u16 = 511;
+
+    /// Name a bank, rejecting one this build cannot represent.
+    ///
+    /// In a `const` context an out-of-range number is a compile error.
+    #[inline(always)]
+    pub const fn new(n: u16) -> Self {
+        assert!(n <= Self::MAX, "bank number is wider than this build carries");
+        BankNumber(n as BankRepr)
+    }
+
+    /// Name a bank without the range check.
+    ///
+    /// # Safety
+    ///
+    /// `n` must be no greater than [`MAX`](BankNumber::MAX); a wider number is
+    /// silently truncated and selects the wrong bank.
+    #[doc(hidden)]
+    #[inline(always)]
+    pub const unsafe fn new_unchecked(n: u16) -> Self {
+        BankNumber(n as BankRepr)
+    }
+
+    /// The bank number.
+    #[inline(always)]
+    pub(crate) const fn get(self) -> u16 {
+        self.0 as u16
+    }
+}
+
+// The software bank shadow. The MBC bank register is write-only, so the mapped
+// bank is tracked here: High RAM cells read and written with the immediate `ldh`
+// form through gb-hram. The runtime zero-initialises HRAM at reset (as gb-hram
+// requires), so it starts at 0.
+#[cfg(not(gb_wide_bank = "mbc5"))]
+mod shadow {
+    use super::BankNumber;
+    use gb_hram::prelude::*;
+
+    // `as "_current_bank"` exports the storage as the `__current_bank` symbol that
+    // GBDK's C runtime also references (the target adds the leading underscore).
+    gb_hram::hram! {
+        static CURRENT_BANK as "_current_bank": HramAtomicCell<u8>;
+    }
+
+    #[inline(always)]
+    pub fn set(bank: BankNumber) {
+        CURRENT_BANK.set(bank.get() as u8);
+    }
+
+    #[inline(always)]
+    pub fn get() -> BankNumber {
+        unsafe { BankNumber::new_unchecked(CURRENT_BANK.get() as u16) }
+    }
+}
+
+#[cfg(gb_wide_bank = "mbc5")]
+mod shadow {
+    use super::BankNumber;
+    use gb_hram::prelude::*;
+
+    // Two one-byte cells rather than one two-byte cell: each access stays a single
+    // `ldh`, and no interrupt handler may switch banks in this mode, so nothing
+    // observes the pair half updated. There is no `_current_bank` export because a
+    // one-byte symbol cannot describe a nine-bit bank.
+    gb_hram::hram! {
+        static CURRENT_BANK_LO: HramAtomicCell<u8>;
+        static CURRENT_BANK_HI: HramAtomicCell<u8>;
+    }
+
+    #[inline(always)]
+    pub fn set(bank: BankNumber) {
+        CURRENT_BANK_LO.set(bank.get() as u8);
+        CURRENT_BANK_HI.set((bank.get() >> 8) as u8);
+    }
+
+    #[inline(always)]
+    pub fn get() -> BankNumber {
+        let n = CURRENT_BANK_LO.get() as u16 | (CURRENT_BANK_HI.get() as u16) << 8;
+        unsafe { BankNumber::new_unchecked(n) }
+    }
+}
+
+// Writing the cartridge's bank register(s).
+#[cfg(not(any(gb_wide_bank = "mbc1", gb_wide_bank = "mbc5")))]
+#[inline(always)]
+unsafe fn select(bank: BankNumber) {
+    unsafe { core::ptr::write_volatile(0x2000 as *mut u8, bank.get() as u8) };
+}
+
+#[cfg(gb_wide_bank = "mbc1")]
+#[inline(always)]
+unsafe fn select(bank: BankNumber) {
+    // MBC1 splits the number: five bits at 0x2000 and two more at 0x4000. Those two
+    // extend the ROM bank only in banking mode 0, which is the power-on default, so
+    // a program that selects mode 1 for RAM banking cannot reach bank 32 and up.
+    let n = bank.get();
+    unsafe {
+        core::ptr::write_volatile(0x4000 as *mut u8, ((n >> 5) & 0x03) as u8);
+        core::ptr::write_volatile(0x2000 as *mut u8, (n & 0x1F) as u8);
+    }
+}
+
+#[cfg(gb_wide_bank = "mbc5")]
+#[inline(always)]
+unsafe fn select(bank: BankNumber) {
+    // The ninth bit lives in its own register at 0x3000.
+    let n = bank.get();
+    unsafe {
+        core::ptr::write_volatile(0x3000 as *mut u8, (n >> 8) as u8);
+        core::ptr::write_volatile(0x2000 as *mut u8, n as u8);
+    }
 }
 
 /// Switch the active ROM bank.
 ///
-/// Writes both the MBC bank register at `0x2000` (write-only on hardware) and the
-/// software bank shadow that interrupt handlers rely on to save and restore the
-/// mapped bank. Only `0x2000` is written, so MBC5 banks 256 and up, which also
-/// need the register at `0x3000`, are out of reach.
+/// Writes the cartridge's bank register (see [`BankNumber`] for which, and how many)
+/// and the software bank shadow that interrupt handlers rely on to save and
+/// restore the mapped bank.
 ///
 /// Prefer the safe [`scope`] / [`Far`] API; this is the raw primitive for hand
 /// rolled control. After calling it, use [`Bank::assume`] to mint a matching
@@ -102,14 +253,18 @@ gb_hram::hram! {
 /// responsible for restoring the previous bank and for any pointers that become
 /// invalid across the switch.
 ///
-/// MBC1, MBC2, and MBC3 read a written `0` as `1`, so `switch_bank(0)` maps bank 1
-/// there while the shadow records 0, and an interrupt would restore the wrong bank.
-/// Only MBC5 maps bank 0 into the window.
+/// MBC1, MBC2, and MBC3 read a written `0` as `1`, so `switch_bank(BankNumber::new(0))`
+/// maps bank 1 there while the shadow records 0, and an interrupt would restore the
+/// wrong bank. Only MBC5 maps bank 0 into the window.
+///
+/// Under `gb_wide_bank="mbc5"` the shadow spans two cells, so an interrupt landing
+/// between the two writes would afterwards read a bank that was never mapped. An
+/// interrupt handler must not call this in that mode, which also rules out `far!`
+/// and [`DynFar`] there, since those restore through [`current_bank`].
 #[inline(never)]
-pub unsafe fn switch_bank(bank: u8) {
-    // Shadow (immediate `ldh` via gb-hram), then the write-only MBC register.
-    CURRENT_BANK.set(bank);
-    unsafe { core::ptr::write_volatile(0x2000 as *mut u8, bank) };
+pub unsafe fn switch_bank(bank: BankNumber) {
+    shadow::set(bank);
+    unsafe { select(bank) };
 }
 
 /// Read the currently mapped bank from the software shadow.
@@ -119,8 +274,8 @@ pub unsafe fn switch_bank(bank: u8) {
 /// interrupt save/restore; the normal call path restores via the caller's group
 /// type and never needs it.
 #[inline]
-pub fn current_bank() -> u8 {
-    CURRENT_BANK.get()
+pub fn current_bank() -> BankNumber {
+    shadow::get()
 }
 
 // ===== Group brands =====
@@ -140,7 +295,7 @@ pub trait Group: 'static {
     const FIXED: bool;
 
     /// The physical bank number, resolved at link time by gb-bank-pack.
-    fn bank() -> u8;
+    fn bank() -> BankNumber;
 }
 
 /// Bank 0: the always-mapped region.
@@ -152,8 +307,8 @@ pub struct GroupZero;
 impl Group for GroupZero {
     const FIXED: bool = true;
     #[inline(always)]
-    fn bank() -> u8 {
-        0
+    fn bank() -> BankNumber {
+        BankNumber::new(0)
     }
 }
 
@@ -173,8 +328,6 @@ impl Group for GroupZero {
 /// # Examples
 ///
 /// ```ignore
-/// # use gb_bank::*;
-/// # struct Sound; impl Group for Sound { const FIXED: bool = false; fn bank() -> u8 { 2 } }
 /// fn play(b: &mut Bank<Sound>) {
 ///     let note = *b.local(&MELODY);   // `b` proves Sound is mapped
 ///     // ...
@@ -266,8 +419,6 @@ impl Anchor {
 /// # Examples
 ///
 /// ```ignore
-/// # use gb_bank::*;
-/// # struct Sound; impl Group for Sound { const FIXED: bool = false; fn bank() -> u8 { 2 } }
 /// fn run(anchor: Anchor, bank: &mut Bank<GroupZero>) {
 ///     let first = scope(anchor, bank, |b: &mut Bank<Sound>| *b.local(&MELODY).first().unwrap());
 ///     // back in the caller's bank here
@@ -278,7 +429,11 @@ impl Anchor {
 ///
 /// ```compile_fail
 /// # use gb_bank::*;
-/// # struct G; impl Group for G { const FIXED: bool = false; fn bank() -> u8 { 1 } }
+/// # struct G;
+/// # impl Group for G {
+/// #     const FIXED: bool = false;
+/// #     fn bank() -> BankNumber { BankNumber::new(1) }
+/// # }
 /// fn leak<'a>(anchor: Anchor, bank: &mut Bank<GroupZero>, data: &'a Far<u8, G>) -> &'a u8 {
 ///     scope(anchor, bank, |g| g.local(data)) // ERROR: the ref borrows the inner token
 /// }
