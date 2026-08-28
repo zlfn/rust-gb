@@ -25,6 +25,8 @@ gbdk-sys = { path = "crates/gbdk-sys" }
 gb-bank = { path = "crates/gb-bank" }
 gb-bank-macros = { path = "crates/gb-bank-macros" }
 gb-bank-safe = { path = "crates/gb-bank-safe" }
+gb-pak = { path = "crates/gb-pak" }
+gb-pak-macros = { path = "crates/gb-pak-macros" }
 # Shared third-party crates.
 syn = { version = "2", features = ["full"] }
 quote = "1"

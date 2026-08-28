@@ -5,3 +5,16 @@
 # not greyed out and still gets completion and diagnostics in the editor.
 [cargo]
 features = "all"
+
+# `gb-pak` gates each Game Pak peripheral on a cfg that `cargo-gb` derives from
+# `header.toml`, so without these the modules would not exist for analysis. The
+# first two are rust-analyzer's own defaults, which naming the key replaces.
+cfgs = [
+    "debug_assertions",
+    "miri",
+    "gb_pak_mbc=mbc5",
+    "gb_pak_sram",
+    "gb_pak_rtc",
+    "gb_pak_rumble",
+    "gb_pak_tilt",
+]

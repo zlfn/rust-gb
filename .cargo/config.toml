@@ -4,8 +4,15 @@
 target = "sm83-nintendo-none-elf"
 # `doc(cfg)` marks what each item needs; without this the marks are absent locally
 # while docs.rs (which passes the same flag) shows them.
-rustdocflags = ["--cfg", "docsrs"]
+# `--extern-html-root-url` points links at docs.rs, which `--no-deps` cannot build.
+rustdocflags = ["--cfg", "docsrs", "-Z", "unstable-options",
+    "--extern-html-root-url", "zerocopy=https://docs.rs/zerocopy/0.8"]
 
 [alias]
-# Feature-gated items are only documented when their feature is on.
-doc-all = "doc --all-features --no-deps"
+# Feature-gated items are only documented when their feature is on, and the Game
+# Pak peripherals are gated on cfgs `cargo-gb` normally derives from header.toml.
+doc-all = [
+    "doc", "--all-features", "--no-deps",
+    "--config", 'build.rustflags=["--cfg","gb_pak_sram","--cfg","gb_pak_rtc","--cfg","gb_pak_rumble","--cfg","gb_pak_tilt"]',
+    "--config", 'build.rustdocflags=["-Z","unstable-options","--extern-html-root-url","zerocopy=https://docs.rs/zerocopy/0.8","--cfg","docsrs","--cfg","gb_pak_sram","--cfg","gb_pak_rtc","--cfg","gb_pak_rumble","--cfg","gb_pak_tilt"]',
+]

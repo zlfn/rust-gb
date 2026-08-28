@@ -41,7 +41,7 @@ version = 0x00
 | `cgb_flag` | enum | `"None"` | `"None"` = DMG only, `"Hybrid"` = DMG+CGB, `"CgbOnly"` = CGB only |
 | `sgb_flag` | bool | `false` | Super Game Boy support |
 | `cartridge_type` | string/int | `"ROM"` | MBC type by name (`"MBC5"`), or the header byte; see `header.example.toml` for the accepted names |
-| `ram_size` | hex/int | `0x00` | External RAM size (0x00=None, 0x01=2KB, 0x02=8KB, 0x03=32KB) |
+| `ram_size` | hex/int | `0x00` | SRAM size: `0x00` none, `0x02` 8 KiB, `0x03` 32 KiB, `0x04` 128 KiB, `0x05` 64 KiB |
 | `destination` | enum | `"worldwide"` | `"japan"` or `"worldwide"` |
 | `old_licensee_code` | hex/int | `0x00` | Old licensee code |
 | `new_licensee_code` | string | (none) | 2 ASCII chars, automatically sets old_licensee_code to 0x33 |
@@ -54,6 +54,9 @@ A bank number is one byte by default, which reaches bank 31 on MBC1 and bank 255
 on MBC5: the width of each cartridge's first bank register. `wide_banks = true`
 brings in the second one (`0x4000` on MBC1, `0x3000` on MBC5) and raises those to
 127 and 511.
+
+On MBC1 the second register is also the SRAM bank number, so `wide_banks` and
+more than one SRAM bank cannot both be set.
 
 `cargo-gb` reads this field before compiling and passes `--cfg gb_wide_bank` to
 `gb-bank`, so changing it rebuilds the program. A wide build cannot link

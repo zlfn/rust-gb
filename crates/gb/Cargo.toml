@@ -9,7 +9,15 @@ description = "Safe, idiomatic Game Boy hardware abstractions"
 default = []
 
 ## Enable ROM banking: the `gb::bank` module and the `#[gb::bank]` attribute.
+##
+## A banked build needs a cartridge controller, but the code compiles without
+## one, so a crate can carry banked code that a 32 KiB program still links.
 bank = ["dep:gb-bank", "dep:gb-bank-macros"]
+
+## Enable the Game Pak's own hardware: `gb::pak`.
+##
+## Which peripherals a cartridge actually has comes from `header.toml`.
+pak = ["dep:gb-pak", "dep:gb-pak-macros"]
 
 ## Enable Game Boy Color hardware features.
 cgb = []
@@ -29,6 +37,8 @@ gb-rt = { workspace = true }
 gb-hram = { workspace = true }
 gb-bank = { workspace = true, optional = true }
 gb-bank-macros = { workspace = true, optional = true }
+gb-pak = { workspace = true, optional = true }
+gb-pak-macros = { workspace = true, optional = true }
 gb-ram-fn = { workspace = true }
 voladdress = "1.4.0"
 critical-section = "1"

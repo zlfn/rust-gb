@@ -1,0 +1,37 @@
+[package]
+name = "gb-pak"
+version = "0.1.0"
+edition = "2024"
+authors = ["zlfn <ung@zlfn.space>"]
+description = "Game Pak peripherals: SRAM, clock, rumble, tilt sensor"
+
+# `cargo-gb` sets these from `header.toml`; see the crate documentation.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(gb_pak_mbc, values("mbc1", "mbc2", "mbc3", "mbc5", "mbc7"))',
+    'cfg(gb_pak_sram)',
+    'cfg(gb_pak_sram_banks, values("4", "8", "16"))',
+    'cfg(gb_wide_bank, values("mbc1", "mbc5"))',
+    'cfg(gb_pak_rtc)',
+    'cfg(gb_pak_rumble)',
+    'cfg(gb_pak_tilt)',
+    'cfg(docsrs)',
+] }
+
+[dependencies]
+gb-pak-macros = { workspace = true }
+zerocopy = { version = "0.8", default-features = false }
+critical-section = "1"
+document-features = "0.2"
+
+# Every capability is cfg-gated, so document with them all defined.
+[package.metadata.docs.rs]
+rustdoc-args = [
+    "--cfg", "docsrs",
+    "--cfg", "gb_pak_mbc=\"mbc5\"",
+    "--cfg", "gb_pak_sram",
+    "--cfg", "gb_pak_sram_banks=\"16\"",
+    "--cfg", "gb_pak_rtc",
+    "--cfg", "gb_pak_rumble",
+    "--cfg", "gb_pak_tilt",
+]

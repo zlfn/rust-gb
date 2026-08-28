@@ -14,6 +14,9 @@ pub mod interrupt;
 #[cfg(feature = "bank")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bank")))]
 pub use gb_bank_macros::bank;
+#[cfg(feature = "pak")]
+#[cfg_attr(docsrs, doc(cfg(feature = "pak")))]
+pub use gb_pak_macros::sram;
 pub use gb_hram::hram;
 pub use gb_ram_fn::ram_fn;
 
@@ -21,6 +24,10 @@ pub use gb_ram_fn::ram_fn;
 #[cfg_attr(docsrs, doc(cfg(feature = "bank")))]
 #[doc(inline)]
 pub use gb_bank as bank;
+#[cfg(feature = "pak")]
+#[cfg_attr(docsrs, doc(cfg(feature = "pak")))]
+#[doc(inline)]
+pub use gb_pak as pak;
 #[doc(inline)]
 pub use gb_hram as hram;
 #[doc(inline)]
@@ -33,5 +40,8 @@ pub use gb_rt as rt;
 #[cfg(feature = "bank")]
 #[doc(hidden)]
 pub use gb_bank as __bank;
+#[cfg(feature = "pak")]
+#[doc(hidden)]
+pub use gb_pak as __pak;
 #[doc(hidden)]
 pub use gb_ram_fn as __ram_fn;
