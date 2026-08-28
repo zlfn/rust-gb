@@ -292,8 +292,9 @@
 //! only reach the ROM in banking mode 0, so selecting mode 1 for RAM banking gives
 //! up banks 32 and above.
 //!
-//! MBC6, MMM01, HuC1, HuC3, and the Pocket Camera and TAMA5 mappers are not
-//! supported for now.
+//! MBC6, MMM01, HuC1, HuC3, and the Pocket Camera and TAMA5 mappers are not built
+//! in for now. A custom cartridge that selects banks its own way implements
+//! [`Mapper`] and names it with [`set_mapper!`].
 //!
 
 #![no_std]

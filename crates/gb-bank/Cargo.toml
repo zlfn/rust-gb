@@ -5,7 +5,10 @@ edition = "2024"
 
 # `cargo-gb` sets this from `wide_banks` in header.toml; see `BankNumber`.
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(gb_wide_bank, values("mbc1", "mbc5"))'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(gb_wide_bank, values("mbc1", "mbc5"))',
+    'cfg(gb_custom_mapper)',
+] }
 
 [dependencies]
 gb-bank-macros = { workspace = true }

@@ -146,9 +146,9 @@ impl BankNumber {
         BankNumber(n as BankRepr)
     }
 
-    /// The bank number.
+    /// The bank number, for a [`Mapper`] writing it to the cartridge.
     #[inline(always)]
-    pub(crate) const fn get(self) -> u16 {
+    pub const fn get(self) -> u16 {
         self.0 as u16
     }
 }
@@ -206,35 +206,118 @@ mod shadow {
     }
 }
 
-// Writing the cartridge's bank register(s).
-#[cfg(not(any(gb_wide_bank = "mbc1", gb_wide_bank = "mbc5")))]
-#[inline(always)]
-unsafe fn select(bank: BankNumber) {
-    unsafe { core::ptr::write_volatile(0x2000 as *mut u8, bank.get() as u8) };
+/// How a cartridge maps a bank into `0x4000..0x8000`.
+///
+/// A program on a stock cartridge never touches this: `header.toml` picks the
+/// built-in that matches.
+///
+/// The controllers differ only in which registers a bank number is spread across,
+/// so that is all this covers. A custom cartridge implements it and names the
+/// implementation with [`set_mapper!`](crate::set_mapper).
+///
+/// # Safety
+///
+/// [`select`](Mapper::select) must leave bank `bank` mapped at `0x4000` and change
+/// nothing else the program can observe.
+pub unsafe trait Mapper {
+    /// Map `bank` into `0x4000..0x8000`.
+    ///
+    /// # Safety
+    ///
+    /// The cartridge must have that bank.
+    unsafe fn select(bank: BankNumber);
 }
 
-#[cfg(gb_wide_bank = "mbc1")]
-#[inline(always)]
-unsafe fn select(bank: BankNumber) {
-    // MBC1 splits the number: five bits at 0x2000 and two more at 0x4000. Those two
-    // extend the ROM bank only in banking mode 0, which is the power-on default, so
-    // a program that selects mode 1 for RAM banking cannot reach bank 32 and up.
-    let n = bank.get();
-    unsafe {
-        core::ptr::write_volatile(0x4000 as *mut u8, ((n >> 5) & 0x03) as u8);
-        core::ptr::write_volatile(0x2000 as *mut u8, (n & 0x1F) as u8);
+/// One register at `0x2000` takes the whole number: MBC1, MBC2 and MBC3, and MBC5
+/// below bank 256.
+#[doc(hidden)]
+pub struct MbcN;
+
+unsafe impl Mapper for MbcN {
+    #[inline(always)]
+    unsafe fn select(bank: BankNumber) {
+        unsafe { core::ptr::write_volatile(0x2000 as *mut u8, bank.get() as u8) };
     }
 }
 
-#[cfg(gb_wide_bank = "mbc5")]
-#[inline(always)]
-unsafe fn select(bank: BankNumber) {
-    // The ninth bit lives in its own register at 0x3000.
-    let n = bank.get();
-    unsafe {
-        core::ptr::write_volatile(0x3000 as *mut u8, (n >> 8) as u8);
-        core::ptr::write_volatile(0x2000 as *mut u8, n as u8);
+/// MBC1 above bank 31: five bits at `0x2000` and two more at `0x4000`.
+///
+/// Those two extend the ROM bank only in banking mode 0, which is the power-on
+/// default, so a program that selects mode 1 for RAM banking cannot reach bank 32
+/// and up.
+#[doc(hidden)]
+pub struct Mbc1Wide;
+
+unsafe impl Mapper for Mbc1Wide {
+    #[inline(always)]
+    unsafe fn select(bank: BankNumber) {
+        let n = bank.get();
+        unsafe {
+            core::ptr::write_volatile(0x4000 as *mut u8, ((n >> 5) & 0x03) as u8);
+            core::ptr::write_volatile(0x2000 as *mut u8, (n & 0x1F) as u8);
+        }
     }
+}
+
+/// MBC5 above bank 255: the ninth bit lives in its own register at `0x3000`.
+#[doc(hidden)]
+pub struct Mbc5Wide;
+
+unsafe impl Mapper for Mbc5Wide {
+    #[inline(always)]
+    unsafe fn select(bank: BankNumber) {
+        let n = bank.get();
+        unsafe {
+            core::ptr::write_volatile(0x3000 as *mut u8, (n >> 8) as u8);
+            core::ptr::write_volatile(0x2000 as *mut u8, n as u8);
+        }
+    }
+}
+
+/// Name the [`Mapper`] this program's cartridge uses.
+///
+/// Only a custom cartridge needs this; a stock one is picked from `header.toml`.
+///
+/// Write it once, anywhere in the program, and build with `--cfg gb_custom_mapper`
+/// so that `gb-bank` does not also name one.
+///
+/// ```ignore
+/// struct MyCart;
+///
+/// unsafe impl gb_bank::Mapper for MyCart {
+///     unsafe fn select(bank: gb_bank::BankNumber) {
+///         unsafe { core::ptr::write_volatile(0x2100 as *mut u8, bank.get() as u8) };
+///     }
+/// }
+///
+/// gb_bank::set_mapper!(MyCart);
+/// ```
+#[macro_export]
+macro_rules! set_mapper {
+    ($mapper:ty) => {
+        const _: () = {
+            #[unsafe(no_mangle)]
+            unsafe extern "Rust" fn __gb_bank_select(bank: $crate::BankNumber) {
+                unsafe { <$mapper as $crate::Mapper>::select(bank) }
+            }
+        };
+    };
+}
+
+unsafe extern "Rust" {
+    fn __gb_bank_select(bank: BankNumber);
+}
+
+// A cartridge with its own hardware sets `gb_custom_mapper` and names the
+// implementation itself; without it the built-in one for the cartridge is used.
+#[cfg(not(gb_custom_mapper))]
+mod builtin {
+    #[cfg(not(any(gb_wide_bank = "mbc1", gb_wide_bank = "mbc5")))]
+    crate::set_mapper!(super::MbcN);
+    #[cfg(gb_wide_bank = "mbc1")]
+    crate::set_mapper!(super::Mbc1Wide);
+    #[cfg(gb_wide_bank = "mbc5")]
+    crate::set_mapper!(super::Mbc5Wide);
 }
 
 /// Switch the active ROM bank.
@@ -264,7 +347,7 @@ unsafe fn select(bank: BankNumber) {
 #[inline(never)]
 pub unsafe fn switch_bank(bank: BankNumber) {
     shadow::set(bank);
-    unsafe { select(bank) };
+    unsafe { __gb_bank_select(bank) };
 }
 
 /// Read the currently mapped bank from the software shadow.
