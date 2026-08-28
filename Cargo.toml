@@ -38,4 +38,4 @@ check-cfg = ['cfg(rust_analyzer)']
 
 [profile.release]
 opt-level = "s"
-lto = false
+lto = "fat"
