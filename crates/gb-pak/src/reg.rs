@@ -23,34 +23,40 @@ pub const BANKS: u8 = 16;
 #[cfg(not(gb_pak_sram))]
 pub const BANKS: u8 = 0;
 
-/// The rumble bit shares the bank register, which cannot be read back, so its
-/// last value is kept here.
-#[cfg(gb_pak_rumble)]
-mod shadow {
-    use super::*;
-    use core::cell::UnsafeCell;
-
-    pub(super) struct Cell(UnsafeCell<u8>);
-    // The Game Boy runs one thread; an interrupt handler is the only other reader.
-    unsafe impl Sync for Cell {}
-
-    pub(super) static RAMB_VALUE: Cell = Cell(UnsafeCell::new(0));
-
-    #[inline(always)]
-    pub(super) fn get() -> u8 {
-        unsafe { *RAMB_VALUE.0.get() }
-    }
-
-    #[inline(always)]
-    pub(super) fn put(v: u8) {
-        unsafe { *RAMB_VALUE.0.get() = v };
-        unsafe { write_volatile(RAMB, v) };
-    }
-}
-
 /// The bank register's non-bank bit.
 #[cfg(gb_pak_rumble)]
 pub const RUMBLE: u8 = 0x08;
+
+/// The bank register is write-only, and its two fields are set from different
+/// places, so each remembers itself here. A byte at a time, so a handler racing
+/// the code it interrupts overwrites rather than tears.
+#[cfg(gb_pak_rumble)]
+mod remembered {
+    use core::sync::atomic::{AtomicU8, Ordering::Relaxed};
+
+    pub(super) static MOTOR: AtomicU8 = AtomicU8::new(0);
+    pub(super) static BANK: AtomicU8 = AtomicU8::new(0);
+
+    #[inline(always)]
+    pub(super) fn motor() -> u8 {
+        MOTOR.load(Relaxed)
+    }
+
+    #[inline(always)]
+    pub(super) fn bank() -> u8 {
+        BANK.load(Relaxed)
+    }
+
+    #[inline(always)]
+    pub(super) fn set_motor(bits: u8) {
+        MOTOR.store(bits, Relaxed);
+    }
+
+    #[inline(always)]
+    pub(super) fn set_bank(bits: u8) {
+        BANK.store(bits, Relaxed);
+    }
+}
 
 // The motor takes the bit that bank 8 and up would need.
 #[cfg(all(gb_pak_rumble, gb_pak_sram_banks = "16"))]
@@ -94,11 +100,11 @@ pub fn select(bank: u8) {
         };
 
         #[cfg(gb_pak_rumble)]
-        shadow::put((shadow::get() & RUMBLE) | bank);
-        #[cfg(not(gb_pak_rumble))]
-        unsafe {
-            write_volatile(RAMB, bank)
+        let bank = {
+            remembered::set_bank(bank);
+            bank | remembered::motor()
         };
+        unsafe { write_volatile(RAMB, bank) };
     }
 }
 
@@ -109,12 +115,13 @@ pub fn select_raw(value: u8) {
     unsafe { write_volatile(RAMB, value) };
 }
 
-/// Drive the motor, keeping the bank bits.
+/// Drive the motor, keeping the selected bank.
 #[cfg(gb_pak_rumble)]
 #[inline(always)]
 pub fn set_rumble(on: bool) {
-    let kept = shadow::get() & !RUMBLE;
-    shadow::put(if on { kept | RUMBLE } else { kept });
+    let bits = if on { RUMBLE } else { 0 };
+    remembered::set_motor(bits);
+    unsafe { write_volatile(RAMB, remembered::bank() | bits) };
 }
 
 /// Latch the clock: the transition, not the value, is what takes the snapshot.

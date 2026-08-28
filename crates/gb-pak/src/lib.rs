@@ -22,9 +22,10 @@
 //! ```
 //!
 //! An interrupt handler nests the same way without the code showing it, and one
-//! racing the interrupted code for the same bytes is a data race. Every operation
+//! racing a scope for the same bytes would be a data race. [`Sram::open`](sram::Sram::open)
 //! takes a [`CriticalSection`] to rule that out, from `gb::interrupt::free` or
-//! `critical_section::with`. It does not rule out the nesting above.
+//! `critical_section::with`. The rest only write registers, and the rule above is
+//! all that keeps a handler off them.
 //!
 //! # What a cartridge has
 //!

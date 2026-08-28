@@ -11,7 +11,7 @@
 //! registers arrive one at a time and the clock does not wait.
 //!
 //! ```ignore
-//! let (h, m) = gb_pak::rtc::latch(cs, |c| (c.hours(), c.minutes()));
+//! let (h, m) = gb_pak::rtc::latch(|c| (c.hours(), c.minutes()));
 //! ```
 //!
 //! # Trusting the time
@@ -20,7 +20,7 @@
 
 use core::ptr::{read_volatile, write_volatile};
 
-use crate::{CriticalSection, WINDOW, reg};
+use crate::{WINDOW, reg};
 
 const SECONDS: u8 = 0x08;
 const MINUTES: u8 = 0x09;
@@ -66,7 +66,7 @@ pub struct Latch(());
 ///
 /// The window holds one thing at a time, so `f` must not reach the save memory
 /// or latch again: the rest of `f` would look at whatever that left selected.
-pub fn latch<R>(_cs: CriticalSection<'_>, f: impl FnOnce(&Latch) -> R) -> R {
+pub fn latch<R>(f: impl FnOnce(&Latch) -> R) -> R {
     reg::enable();
     reg::latch();
     let r = f(&Latch(()));
@@ -76,8 +76,8 @@ pub fn latch<R>(_cs: CriticalSection<'_>, f: impl FnOnce(&Latch) -> R) -> R {
 
 /// Snapshot the clock and read all of it.
 #[inline]
-pub fn time(cs: CriticalSection<'_>) -> Time {
-    latch(cs, |c| c.time())
+pub fn time() -> Time {
+    latch(|c| c.time())
 }
 
 impl Latch {
@@ -133,7 +133,7 @@ impl Latch {
 /// Set the clock. Starts it if it was stopped, and clears [`Latch::overflowed`].
 ///
 /// Out-of-range fields are written as given.
-pub fn set(_cs: CriticalSection<'_>, time: Time) {
+pub fn set(time: Time) {
     reg::enable();
 
     // The clock has to be stopped across the writes, or it ticks between them and
@@ -151,7 +151,7 @@ pub fn set(_cs: CriticalSection<'_>, time: Time) {
 /// Stop the clock, or start it again.
 ///
 /// A stopped clock keeps its reading and does not count.
-pub fn set_halted(_cs: CriticalSection<'_>, halted: bool) {
+pub fn set_halted(halted: bool) {
     reg::enable();
     reg::latch();
     let flags = get(FLAGS);
@@ -160,7 +160,7 @@ pub fn set_halted(_cs: CriticalSection<'_>, halted: bool) {
 }
 
 /// Acknowledge a day-counter wrap.
-pub fn clear_overflow(_cs: CriticalSection<'_>) {
+pub fn clear_overflow() {
     reg::enable();
     reg::latch();
     let flags = get(FLAGS);

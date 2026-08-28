@@ -13,7 +13,7 @@
 
 use core::ptr::{read_volatile, write_volatile};
 
-use crate::{CriticalSection, WINDOW, reg};
+use crate::{WINDOW, reg};
 
 const PORT: *mut u8 = (WINDOW + 0x80) as *mut u8;
 
@@ -56,7 +56,7 @@ fn finish() {
 }
 
 /// Read one word.
-pub fn read(_cs: CriticalSection<'_>, address: u8) -> u16 {
+pub fn read(address: u8) -> u16 {
     reg::enable();
     reg::select_raw(0x40);
 
@@ -72,7 +72,7 @@ pub fn read(_cs: CriticalSection<'_>, address: u8) -> u16 {
 }
 
 /// Write one word. Does nothing until [`unlock`].
-pub fn write(_cs: CriticalSection<'_>, address: u8, word: u16) {
+pub fn write(address: u8, word: u16) {
     reg::enable();
     reg::select_raw(0x40);
 
@@ -91,7 +91,7 @@ pub fn write(_cs: CriticalSection<'_>, address: u8, word: u16) {
 }
 
 /// Allow writes.
-pub fn unlock(_cs: CriticalSection<'_>) {
+pub fn unlock() {
     reg::enable();
     reg::select_raw(0x40);
     command(0b00, 0b1100_0000);
@@ -100,7 +100,7 @@ pub fn unlock(_cs: CriticalSection<'_>) {
 }
 
 /// Refuse writes again.
-pub fn lock(_cs: CriticalSection<'_>) {
+pub fn lock() {
     reg::enable();
     reg::select_raw(0x40);
     command(0b00, 0b0000_0000);

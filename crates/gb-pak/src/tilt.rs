@@ -8,13 +8,13 @@
 //! `0x55` to clear, then `0xAA` to sample.
 //!
 //! ```ignore
-//! let t = gb_pak::tilt::read(cs);
+//! let t = gb_pak::tilt::read();
 //! let lean = t.x.wrapping_sub(gb_pak::tilt::CENTRE) as i16;
 //! ```
 
 use core::ptr::{read_volatile, write_volatile};
 
-use crate::{CriticalSection, WINDOW, reg};
+use crate::{WINDOW, reg};
 
 const CLEAR: *mut u8 = WINDOW as *mut u8;
 const SAMPLE: *mut u8 = (WINDOW + 0x10) as *mut u8;
@@ -37,7 +37,7 @@ pub struct Tilt {
 }
 
 /// Sample both axes.
-pub fn read(_cs: CriticalSection<'_>) -> Tilt {
+pub fn read() -> Tilt {
     reg::enable();
     reg::select_raw(0x40);
 
