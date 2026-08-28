@@ -13,6 +13,19 @@ use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 use toolchain::{TARGET, Toolchain};
 
+/// Declared so that a crate not reached by `gb-bank` or `gb-pak` still compiles
+/// without `unexpected_cfgs` firing on what they gate.
+const CHECK_CFG: &str = concat!(
+    " --check-cfg=cfg(gb_wide_bank,values(\"mbc1\",\"mbc5\"))",
+    " --check-cfg=cfg(gb_custom_mapper)",
+    " --check-cfg=cfg(gb_pak_mbc,values(\"mbc1\",\"mbc2\",\"mbc3\",\"mbc5\",\"mbc7\"))",
+    " --check-cfg=cfg(gb_pak_sram)",
+    " --check-cfg=cfg(gb_pak_sram_banks,values(\"4\",\"8\",\"16\"))",
+    " --check-cfg=cfg(gb_pak_rtc)",
+    " --check-cfg=cfg(gb_pak_rumble)",
+    " --check-cfg=cfg(gb_pak_tilt)",
+);
+
 fn main() {
     let cmd = std::env::args().nth(1).unwrap_or_else(|| "build".to_string());
     let result = match cmd.as_str() {
@@ -101,16 +114,36 @@ fn build() -> Result<PathBuf, String> {
     //    the single place it is written.
     let mut cargo = Command::new("cargo");
     cargo.args(["build", "--release", "--target", TARGET]);
-    let limits = match proj.header.as_deref() {
-        Some(h) => gb_header_fix::bank_limits(h).map_err(|e| e.to_string())?,
+    let cart = match proj.header.as_deref() {
+        Some(h) => gb_header_fix::read_cartridge(h).map_err(|e| e.to_string())?,
         None => None,
     };
-    if let Some(kind) = limits.and_then(|l| l.wide_cfg) {
+    if let Some(cart) = &cart {
         // Setting RUSTFLAGS supersedes `build.rustflags` from a config file, so a
-        // project that sets both loses the latter on a wide build.
+        // project that sets both loses the latter here.
         let mut flags = std::env::var("RUSTFLAGS").unwrap_or_default();
-        flags.push_str(&format!(" --cfg gb_wide_bank=\"{kind}\""));
-        flags.push_str(" --check-cfg=cfg(gb_wide_bank,values(\"mbc1\",\"mbc5\"))");
+        flags.push_str(CHECK_CFG);
+        if let Some(kind) = cart.wide {
+            flags.push_str(&format!(" --cfg gb_wide_bank=\"{kind}\""));
+        }
+        if let Some(mbc) = cart.mbc {
+            flags.push_str(&format!(" --cfg gb_pak_mbc=\"{mbc}\""));
+        }
+        if cart.sram_banks > 0 {
+            flags.push_str(" --cfg gb_pak_sram");
+            if cart.sram_banks > 1 {
+                flags.push_str(&format!(" --cfg gb_pak_sram_banks=\"{}\"", cart.sram_banks));
+            }
+        }
+        if cart.rtc {
+            flags.push_str(" --cfg gb_pak_rtc");
+        }
+        if cart.rumble {
+            flags.push_str(" --cfg gb_pak_rumble");
+        }
+        if cart.tilt {
+            flags.push_str(" --cfg gb_pak_tilt");
+        }
         cargo.env("RUSTFLAGS", flags);
     }
     let built = cargo

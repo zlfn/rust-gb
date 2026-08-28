@@ -63,6 +63,15 @@ more than one SRAM bank cannot both be set.
 `gbdk-sys`, whose runtime writes only the first register and keeps a one-byte
 shadow of the mapped bank.
 
+### What the compiler is told
+
+`cargo-gb` reads `cartridge_type` and `ram_size` before compiling and turns them
+into cfgs, so a program that reaches for hardware the cartridge lacks fails to
+compile rather than writing to a chip that is not there. It also refuses a
+`ram_size` the cartridge cannot carry.
+
+A cartridge whose type is not in the table above is not described this way yet.
+
 ### Auto-calculated fields
 
 These are not in `header.toml` — they are computed automatically:

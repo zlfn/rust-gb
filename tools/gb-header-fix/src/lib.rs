@@ -160,6 +160,76 @@ impl CartridgeType {
     pub fn supports_banking(self) -> bool {
         self.max_bank(false) > 0
     }
+
+    /// The controller's name, for the `gb_pak_mbc` cfg.
+    pub fn mbc(self) -> Option<&'static str> {
+        match self {
+            Self::Rom => None,
+            Self::Mbc1 | Self::Mbc1Ram | Self::Mbc1RamBattery => Some("mbc1"),
+            Self::Mbc2 | Self::Mbc2Battery => Some("mbc2"),
+            Self::Mbc3
+            | Self::Mbc3TimerBattery
+            | Self::Mbc3TimerRamBattery
+            | Self::Mbc3Ram
+            | Self::Mbc3RamBattery => Some("mbc3"),
+            Self::Mbc5
+            | Self::Mbc5Ram
+            | Self::Mbc5RamBattery
+            | Self::Mbc5Rumble
+            | Self::Mbc5RumbleRam
+            | Self::Mbc5RumbleRamBattery => Some("mbc5"),
+            Self::Mbc7 => Some("mbc7"),
+        }
+    }
+
+    /// Whether the cartridge carries a clock.
+    pub fn has_rtc(self) -> bool {
+        matches!(self, Self::Mbc3TimerBattery | Self::Mbc3TimerRamBattery)
+    }
+
+    /// Whether the cartridge carries a rumble motor.
+    pub fn has_rumble(self) -> bool {
+        matches!(
+            self,
+            Self::Mbc5Rumble | Self::Mbc5RumbleRam | Self::Mbc5RumbleRamBattery
+        )
+    }
+
+    /// Whether the cartridge carries the MBC7 sensor and its EEPROM.
+    pub fn has_tilt(self) -> bool {
+        matches!(self, Self::Mbc7)
+    }
+
+    /// The most 8 KiB save-RAM banks this cartridge can reach.
+    ///
+    /// Zero for one with no save RAM, which includes MBC2, whose 512 half-bytes
+    /// live inside the controller, and MBC7, which saves to an EEPROM instead.
+    /// A rumble cartridge reaches eight rather than sixteen, the motor having
+    /// taken the bank register's fourth bit.
+    pub fn max_sram_banks(self) -> u8 {
+        match self {
+            Self::Mbc1Ram | Self::Mbc1RamBattery => 4,
+            Self::Mbc3Ram | Self::Mbc3RamBattery | Self::Mbc3TimerRamBattery => 4,
+            Self::Mbc5Ram | Self::Mbc5RamBattery => 16,
+            Self::Mbc5RumbleRam | Self::Mbc5RumbleRamBattery => 8,
+            _ => 0,
+        }
+    }
+}
+
+/// The 8 KiB banks a `ram_size` header byte asks for, or `None` if no size uses it.
+///
+/// `0x01` is one of those: unofficial documents call it 2 KiB, but no cartridge
+/// ever carried a chip that size.
+pub fn sram_banks(ram_size: u8) -> Option<u8> {
+    match ram_size {
+        0x00 => Some(0),
+        0x02 => Some(1),
+        0x03 => Some(4),
+        0x04 => Some(16),
+        0x05 => Some(8),
+        _ => None,
+    }
 }
 
 /// Custom deserializer that accepts both string ("MBC5") and integer (0x19) formats.
@@ -180,53 +250,96 @@ pub fn deserialize_cartridge_type<'de, D: serde::Deserializer<'de>>(d: D) -> Res
     }
 }
 
-/// What `header.toml` says about banking, for the tools that need it before the
-/// ROM exists.
+/// What `header.toml` says about the cartridge, for the tools that need it before
+/// the ROM exists.
 #[derive(Clone, Debug)]
-pub struct BankLimits {
+pub struct Cartridge {
     /// The highest bank the build can select.
     pub max_bank: u16,
-    /// The `gb_wide_bank` cfg the cartridge needs, once `wide_banks` is on.
-    pub wide_cfg: Option<&'static str>,
-    /// Bank numbers within `max_bank` the cartridge cannot map.
+    /// Bank numbers within [`max_bank`](Self::max_bank) the cartridge cannot map.
     pub excluded: Vec<u16>,
+    /// The `gb_wide_bank` cfg the cartridge needs, once `wide_banks` is on.
+    pub wide: Option<&'static str>,
+    /// The controller's name, or `None` for a cartridge without one.
+    pub mbc: Option<&'static str>,
+    /// 8 KiB save-RAM banks, from `ram_size`.
+    pub sram_banks: u8,
+    /// The cartridge carries a clock.
+    pub rtc: bool,
+    /// The cartridge carries a rumble motor.
+    pub rumble: bool,
+    /// The cartridge carries the MBC7 sensor and its EEPROM.
+    pub tilt: bool,
 }
 
-/// Read the banking limits `header.toml` implies.
+/// Read what `header.toml` says about the cartridge.
 ///
 /// Returns `Ok(None)` when the file cannot be read or parsed, leaving the caller to
-/// fall back; `wide_banks` on a cartridge with no second bank register is an error.
-pub fn bank_limits(header_toml: &Path) -> Result<Option<BankLimits>, FixError> {
+/// fall back. A `ram_size` the cartridge cannot carry, or `wide_banks` on one with
+/// no second bank register, is an error.
+pub fn read_cartridge(header_toml: &Path) -> Result<Option<Cartridge>, FixError> {
     #[derive(Deserialize)]
-    struct Banking {
+    struct Fields {
         #[serde(default, deserialize_with = "deserialize_cartridge_type")]
         cartridge_type: CartridgeType,
+        #[serde(default)]
+        ram_size: u8,
         #[serde(default)]
         wide_banks: bool,
     }
     let Ok(content) = std::fs::read_to_string(header_toml) else {
         return Ok(None);
     };
-    let Ok(cfg) = toml::from_str::<Banking>(&content) else {
+    let Ok(f) = toml::from_str::<Fields>(&content) else {
         return Ok(None);
     };
-    let wide_cfg = if cfg.wide_banks {
-        match cfg.cartridge_type.wide_bank_cfg() {
-            Some(kind) => Some(kind),
+    let kind = f.cartridge_type;
+
+    let wide = if f.wide_banks {
+        match kind.wide_bank_cfg() {
+            Some(k) => Some(k),
             None => return Err(FixError::Parse(NO_SECOND_REGISTER.into())),
         }
     } else {
         None
     };
-    Ok(Some(BankLimits {
-        max_bank: cfg.cartridge_type.max_bank(cfg.wide_banks),
-        wide_cfg,
-        excluded: cfg.cartridge_type.excluded_banks(cfg.wide_banks),
+
+    let Some(banks) = sram_banks(f.ram_size) else {
+        return Err(FixError::Parse(format!(
+            "ram_size 0x{:02X} is not a size any cartridge carries",
+            f.ram_size
+        )));
+    };
+    let most = kind.max_sram_banks();
+    if banks > most {
+        return Err(FixError::Parse(if most == 0 {
+            format!("this cartridge has no save RAM, so ram_size must be 0x00")
+        } else {
+            format!("this cartridge reaches {most} save-RAM bank(s), and ram_size asks for {banks}")
+        }));
+    }
+    if wide == Some("mbc1") && banks > 1 {
+        return Err(FixError::Parse(MBC1_WIDE_AND_SRAM.into()));
+    }
+
+    Ok(Some(Cartridge {
+        max_bank: kind.max_bank(f.wide_banks),
+        excluded: kind.excluded_banks(f.wide_banks),
+        wide,
+        mbc: kind.mbc(),
+        sram_banks: banks,
+        rtc: kind.has_rtc(),
+        rumble: kind.has_rumble(),
+        tilt: kind.has_tilt(),
     }))
 }
 
 const NO_SECOND_REGISTER: &str =
     "wide_banks needs a cartridge with a second bank register (MBC1 or MBC5)";
+
+const MBC1_WIDE_AND_SRAM: &str =
+    "MBC1 spends the same two register bits on ROM banks above 512 KiB and on SRAM \
+     banks, so wide_banks and more than one save-RAM bank cannot both be set";
 
 const NINTENDO_LOGO: [u8; 48] = [
     0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,

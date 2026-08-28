@@ -71,7 +71,7 @@ pub fn link(
 
     // The highest bank `switch_bank` can select, or 0 with no MBC, in which case the
     // packer leaves every group flat.
-    let limits = header_toml.and_then(|p| gb_header_fix::bank_limits(p).ok().flatten());
+    let limits = header_toml.and_then(|p| gb_header_fix::read_cartridge(p).ok().flatten());
     let (max_bank, excluded) = match limits {
         Some(l) => (l.max_bank, l.excluded),
         None => (255, Vec::new()),
