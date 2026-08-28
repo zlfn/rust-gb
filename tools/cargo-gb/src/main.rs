@@ -18,6 +18,7 @@ use toolchain::{TARGET, Toolchain};
 const CHECK_CFG: &str = concat!(
     " --check-cfg=cfg(gb_wide_bank,values(\"mbc1\",\"mbc5\"))",
     " --check-cfg=cfg(gb_custom_mapper)",
+    " --check-cfg=cfg(gb_flat_rom)",
     " --check-cfg=cfg(gb_pak_mbc,values(\"mbc1\",\"mbc2\",\"mbc3\",\"mbc5\",\"mbc7\"))",
     " --check-cfg=cfg(gb_pak_sram)",
     " --check-cfg=cfg(gb_pak_sram_banks,values(\"4\",\"8\",\"16\"))",
@@ -123,6 +124,10 @@ fn build() -> Result<PathBuf, String> {
         // project that sets both loses the latter here.
         let mut flags = std::env::var("RUSTFLAGS").unwrap_or_default();
         flags.push_str(CHECK_CFG);
+        // ROM ONLY: no window to switch, so gb-bank leaves the switching out.
+        if cart.max_bank == 0 {
+            flags.push_str(" --cfg gb_flat_rom");
+        }
         if let Some(kind) = cart.wide {
             flags.push_str(&format!(" --cfg gb_wide_bank=\"{kind}\""));
         }

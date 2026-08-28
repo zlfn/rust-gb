@@ -253,7 +253,8 @@
 //! ```
 //!
 //! Bank 0 is the always-mapped region and cannot be pinned to. With no MBC at all
-//! the whole 32 KiB is fixed and there is no switching.
+//! the whole 32 KiB is fixed, and a build for such a cartridge carries no
+//! switching code at all.
 //!
 //! # Panics, unwinding, and interrupts
 //!
@@ -277,7 +278,7 @@
 //!
 //! | Cartridge | Switchable banks | ROM | with `wide_banks = true` |
 //! |---|---|---|---|
-//! | ROM ONLY | none, the 32 KiB is flat | 32 KiB | |
+//! | ROM ONLY | none | 32 KiB | |
 //! | MBC1 | 1-31 | 512 KiB | 1-127 minus `0x20`, `0x40`, `0x60`, 2 MiB |
 //! | MBC2 | 1-15 | 256 KiB | |
 //! | MBC3 | 1-127 | 2 MiB | |

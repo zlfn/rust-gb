@@ -332,7 +332,9 @@ pub fn bank_module(input: TokenStream) -> TokenStream {
         pub struct __BankGroup;
 
         impl #gb_bank::Group for __BankGroup {
-            const FIXED: bool = false;
+            // A ROM-ONLY cartridge maps this group at bank 0 like every other, so
+            // switching to it is a no-op.
+            const FIXED: bool = #gb_bank::FLAT_ROM;
             #[inline(always)]
             fn bank() -> #gb_bank::BankNumber {
                 // A pin wider than the marker would be truncated in silence: the
@@ -352,8 +354,14 @@ pub fn bank_module(input: TokenStream) -> TokenStream {
                 // symbol's value.)
                 #[used]
                 static BANK: #gb_bank::BankRepr = #pin;
-                unsafe {
-                    #gb_bank::BankNumber::new_unchecked(::core::ptr::read_volatile(&BANK) as u16)
+                // The marker stays for the packer either way, but on a flat ROM its
+                // value is known, and a volatile read would survive into the binary.
+                if #gb_bank::FLAT_ROM {
+                    #gb_bank::BankNumber::new(0)
+                } else {
+                    unsafe {
+                        #gb_bank::BankNumber::new_unchecked(::core::ptr::read_volatile(&BANK) as u16)
+                    }
                 }
             }
         }

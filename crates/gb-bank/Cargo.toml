@@ -10,6 +10,7 @@ description = "Compile-time-safe ROM bank switching for the Game Boy"
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(gb_wide_bank, values("mbc1", "mbc5"))',
     'cfg(gb_custom_mapper)',
+    'cfg(gb_flat_rom)',
 ] }
 
 [dependencies]

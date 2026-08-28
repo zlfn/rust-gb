@@ -330,6 +330,9 @@ mod builtin {
 /// rolled control. After calling it, use [`Bank::assume`] to mint a matching
 /// token.
 ///
+/// A cartridge with no switchable window has nothing to write, so this compiles
+/// to nothing.
+///
 /// # Safety
 ///
 /// `bank` must be a valid bank for the cartridge's MBC, and the caller is
@@ -344,10 +347,14 @@ mod builtin {
 /// between the two writes would afterwards read a bank that was never mapped. An
 /// interrupt handler must not call this in that mode, which also rules out `far!`
 /// and [`DynFar`] there, since those restore through [`current_bank`].
-#[inline(never)]
+// With nothing left in the body on a flat ROM, the call would be all that remains.
+#[cfg_attr(not(gb_flat_rom), inline(never))]
+#[cfg_attr(gb_flat_rom, inline(always))]
 pub unsafe fn switch_bank(bank: BankNumber) {
-    shadow::set(bank);
-    unsafe { __gb_bank_select(bank) };
+    if !FLAT_ROM {
+        shadow::set(bank);
+        unsafe { __gb_bank_select(bank) };
+    }
 }
 
 /// Read the currently mapped bank from the software shadow.
@@ -356,9 +363,16 @@ pub unsafe fn switch_bank(bank: BankNumber) {
 /// hardware; this returns the shadow maintained by [`switch_bank`]. Intended for
 /// interrupt save/restore; the normal call path restores via the caller's group
 /// type and never needs it.
+///
+/// On a cartridge with no switchable window this is always bank 0, and no shadow
+/// is kept.
 #[inline]
 pub fn current_bank() -> BankNumber {
-    shadow::get()
+    if FLAT_ROM {
+        BankNumber::new(0)
+    } else {
+        shadow::get()
+    }
 }
 
 // ===== Group brands =====
@@ -374,12 +388,21 @@ pub fn current_bank() -> BankNumber {
 pub trait Group: 'static {
     /// Whether this group is permanently mapped, so switching to it is a no-op.
     ///
-    /// `true` only for [`GroupZero`] (bank 0).
+    /// [`GroupZero`] always is, and so is every group on a cartridge with no
+    /// switchable window.
     const FIXED: bool;
 
     /// The physical bank number, resolved at link time by gb-bank-pack.
     fn bank() -> BankNumber;
 }
+
+/// Whether the cartridge has no switchable window, so every group sits in bank 0.
+///
+/// `cargo-gb` sets this from `cartridge_type` in `header.toml`. `bank::module!`
+/// reads it through this const rather than the cfg directly, so a crate using the
+/// macro does not have to declare the cfg itself.
+#[doc(hidden)]
+pub const FLAT_ROM: bool = cfg!(gb_flat_rom);
 
 /// Bank 0: the always-mapped region.
 ///
