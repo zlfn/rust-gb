@@ -61,13 +61,9 @@ fn main() -> ! {
         for _c in 0..144u8 {
             for b in 0..143u8 {
                 for a in 0..160u8 {
-                    core::arch::asm!("di");
                     let px = getpix(a, b+1);
-                    core::arch::asm!("ei");
                     color(px, WHITE, SOLID);
-                    core::arch::asm!("di");
                     plot_point(a, b);
-                    core::arch::asm!("ei");
                 }
                 color(WHITE, WHITE, SOLID);
             }
