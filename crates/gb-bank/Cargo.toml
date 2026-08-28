@@ -1,7 +1,9 @@
 [package]
 name = "gb-bank"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Compile-time-safe ROM bank switching for the Game Boy"
 
 # `cargo-gb` sets this from `wide_banks` in header.toml; see `BankNumber`.
 [lints.rust]

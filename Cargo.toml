@@ -13,28 +13,31 @@ members = [
 default-members = ["crates/*"]
 resolver = "3"
 
+[workspace.package]
+version = "0.2.0"
+edition = "2024"
+authors = ["zlfn <ung@zlfn.space>"]
+
 [workspace.dependencies]
 # Internal crates.
-gb = { path = "crates/gb" }
+gb-bank = { path = "crates/gb-bank" }
+gb-bank-macros = { path = "crates/gb-bank-macros" }
+gb-bank-safe = { path = "crates/gb-bank-safe" }
 gb-hram = { path = "crates/gb-hram" }
+gb-pak = { path = "crates/gb-pak" }
+gb-pak-macros = { path = "crates/gb-pak-macros" }
 gb-ram-fn = { path = "crates/gb-ram-fn" }
 gb-ram-fn-macros = { path = "crates/gb-ram-fn-macros" }
 gb-rt = { path = "crates/gb-rt" }
 gb-rt-macros = { path = "crates/gb-rt-macros" }
 gbdk-sys = { path = "crates/gbdk-sys" }
-gb-bank = { path = "crates/gb-bank" }
-gb-bank-macros = { path = "crates/gb-bank-macros" }
-gb-bank-safe = { path = "crates/gb-bank-safe" }
-gb-pak = { path = "crates/gb-pak" }
-gb-pak-macros = { path = "crates/gb-pak-macros" }
 # Shared third-party crates.
-syn = { version = "2", features = ["full"] }
-quote = "1"
+critical-section = "1"
+document-features = "0.2"
+proc-macro-crate = "3"
 proc-macro2 = "1"
-
-[workspace.lints.rust.unexpected_cfgs]
-level = "warn"
-check-cfg = ['cfg(rust_analyzer)']
+quote = "1"
+syn = { version = "2", features = ["full"] }
 
 [profile.release]
 opt-level = "s"

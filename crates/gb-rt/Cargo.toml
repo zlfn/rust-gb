@@ -1,10 +1,10 @@
 [package]
 name = "gb-rt"
-version = "0.1.0"
-edition = "2024"
-authors = ["zlfn <ung@zlfn.space>"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "Core Game Boy (SM83) runtime: startup code and linker script"
 
 [dependencies]
 gb-rt-macros = { workspace = true }
-critical-section = "1"
+critical-section = { workspace = true }

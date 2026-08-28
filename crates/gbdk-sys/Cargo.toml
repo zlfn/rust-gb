@@ -1,8 +1,8 @@
 [package]
 name = "gbdk-sys"
-version = "0.1.0"
-edition = "2024"
-authors = ["zlfn <ung@zlfn.space>"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "Raw FFI bindings to GBDK"
 
 [dependencies]

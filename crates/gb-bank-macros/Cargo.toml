@@ -1,16 +1,15 @@
 [package]
 name = "gb-bank-macros"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Procedural macros for gb-bank"
 
 [lib]
 proc-macro = true
 
-[features]
-ra-stubs = []
-
 [dependencies]
-proc-macro-crate = "3"
+proc-macro-crate = { workspace = true }
 syn = { workspace = true, features = ["visit-mut"] }
 quote = { workspace = true }
 proc-macro2 = { workspace = true }

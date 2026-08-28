@@ -1,8 +1,8 @@
 [package]
 name = "gb-pak"
-version = "0.1.0"
-edition = "2024"
-authors = ["zlfn <ung@zlfn.space>"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "Game Pak peripherals: SRAM, clock, rumble, tilt sensor"
 
 # `cargo-gb` sets these from `header.toml`; see the crate documentation.
@@ -21,8 +21,8 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 [dependencies]
 gb-pak-macros = { workspace = true }
 zerocopy = { version = "0.8", default-features = false }
-critical-section = "1"
-document-features = "0.2"
+critical-section = { workspace = true }
+document-features = { workspace = true }
 
 # Every capability is cfg-gated, so document with them all defined.
 [package.metadata.docs.rs]

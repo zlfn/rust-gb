@@ -234,7 +234,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-gb"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anstream",
  "anstyle",
@@ -480,7 +480,7 @@ dependencies = [
 
 [[package]]
 name = "gb-bank-pack"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-header-fix",
  "object",
@@ -491,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "gb-header-fix"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "toml",
@@ -499,7 +499,7 @@ dependencies = [
 
 [[package]]
 name = "gb-image-fx"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "image",
  "palette",

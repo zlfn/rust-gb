@@ -1,7 +1,9 @@
 [package]
 name = "gb-hram"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Typed handles to the Game Boy's High RAM"
 
 [features]
 ## Require every cell value to be `BankSafe`, so a pointer to banked code cannot be
@@ -10,8 +12,8 @@ bank-safe = ["dep:gb-bank-safe"]
 
 [dependencies]
 gb-bank-safe = { workspace = true, optional = true }
-critical-section = "1"
-document-features = "0.2"
+critical-section = { workspace = true }
+document-features = { workspace = true }
 
 # Build docs with all features so docs.rs shows the bounded form of the cells.
 [package.metadata.docs.rs]

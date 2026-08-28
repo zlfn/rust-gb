@@ -1,8 +1,8 @@
 [package]
 name = "gb"
-version = "0.1.0"
-edition = "2024"
-authors = ["zlfn <ung@zlfn.space>"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "Safe, idiomatic Game Boy hardware abstractions"
 
 [features]
@@ -41,10 +41,10 @@ gb-pak = { workspace = true, optional = true }
 gb-pak-macros = { workspace = true, optional = true }
 gb-ram-fn = { workspace = true }
 voladdress = "1.4.0"
-critical-section = "1"
+critical-section = { workspace = true }
 bitflags = "2"
 bitfield-struct = "0.13.0"
-document-features = "0.2"
+document-features = { workspace = true }
 
 # Build docs with all features so docs.rs shows the feature-gated API, and with
 # `--cfg docsrs` so `doc(cfg)` marks what each item needs.

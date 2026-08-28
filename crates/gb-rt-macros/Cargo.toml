@@ -1,8 +1,8 @@
 [package]
 name = "gb-rt-macros"
-version = "0.1.0"
-edition = "2024"
-authors = ["zlfn <ung@zlfn.space>"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "Procedural macros for gb-rt (the #[entry] attribute)"
 
 [lib]
@@ -12,4 +12,4 @@ proc-macro = true
 syn = { workspace = true }
 quote = { workspace = true }
 proc-macro2 = { workspace = true }
-proc-macro-crate = "3"
+proc-macro-crate = { workspace = true }

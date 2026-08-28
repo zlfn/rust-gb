@@ -1,6 +1,6 @@
 [package]
 name = "gb-bank-safe"
-version = "0.1.0"
-edition = "2024"
-authors = ["zlfn <ung@zlfn.space>"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "The BankSafe marker: a value that survives a Game Boy ROM bank switch"

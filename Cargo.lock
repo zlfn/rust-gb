@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "bank-test"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-bank",
  "gb-rt",
@@ -51,7 +51,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "gb"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bitfield-struct",
  "bitflags",
@@ -69,7 +69,7 @@ dependencies = [
 
 [[package]]
 name = "gb-bank"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-bank-macros",
  "gb-bank-safe",
@@ -78,7 +78,7 @@ dependencies = [
 
 [[package]]
 name = "gb-bank-macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -88,11 +88,11 @@ dependencies = [
 
 [[package]]
 name = "gb-bank-safe"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "gb-hram"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "critical-section",
  "document-features",
@@ -101,7 +101,7 @@ dependencies = [
 
 [[package]]
 name = "gb-pak"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "critical-section",
  "document-features",
@@ -111,7 +111,7 @@ dependencies = [
 
 [[package]]
 name = "gb-pak-macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -121,14 +121,14 @@ dependencies = [
 
 [[package]]
 name = "gb-ram-fn"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-ram-fn-macros",
 ]
 
 [[package]]
 name = "gb-ram-fn-macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -138,7 +138,7 @@ dependencies = [
 
 [[package]]
 name = "gb-rt"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "critical-section",
  "gb-rt-macros",
@@ -146,7 +146,7 @@ dependencies = [
 
 [[package]]
 name = "gb-rt-macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -156,7 +156,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-apa-image"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -164,7 +164,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-colorbar"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -172,7 +172,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-comm"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -180,7 +180,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-dscan"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -188,7 +188,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-dtmf"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -196,7 +196,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-filltest"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -204,7 +204,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-galaxy"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -212,7 +212,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-gbtype"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -220,7 +220,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-hram"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-hram",
  "gb-rt",
@@ -229,7 +229,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-isr-vector"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -237,7 +237,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-lcd-isr-wobble"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -245,7 +245,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-paint"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -253,7 +253,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-ram-function"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-hram",
  "gb-ram-fn",
@@ -263,7 +263,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-rand"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -271,7 +271,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-rpn"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -279,7 +279,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-sgb-pong"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -287,7 +287,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-sound"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -295,7 +295,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-sys"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-hram",
 ]
@@ -377,7 +377,7 @@ dependencies = [
 
 [[package]]
 name = "slideshow"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",
@@ -407,7 +407,7 @@ dependencies = [
 
 [[package]]
 name = "template"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gb-rt",
  "gbdk-sys",

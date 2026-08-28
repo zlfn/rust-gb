@@ -1,7 +1,9 @@
 [package]
 name = "gb-header-fix"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Game Boy ROM header configuration and patching"
 
 [dependencies]
 toml = "0.8"
