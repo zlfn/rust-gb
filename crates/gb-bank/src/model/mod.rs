@@ -440,17 +440,26 @@ impl Group for GroupZero {
 /// }
 /// ```
 ///
-/// The token is `!Send`: a "this bank is mapped" proof cannot cross threads.
+/// The token is `!Send` and `!Sync`: a "this bank is mapped" proof cannot cross
+/// threads, nor be parked in a `static` and read back later.
 ///
 /// ```compile_fail
 /// # use gb_bank::*;
 /// fn assert_send<T: Send>() {}
 /// assert_send::<Bank<GroupZero>>(); // ERROR: Bank is !Send
 /// ```
+///
+/// ```compile_fail
+/// # use gb_bank::*;
+/// fn assert_sync<T: Sync>() {}
+/// assert_sync::<Bank<GroupZero>>(); // ERROR: Bank is !Sync
+/// ```
 pub struct Bank<G: Group> {
     _bank: PhantomData<G>,
-    _not_send: PhantomData<*const ()>,
 }
+
+impl<G: Group> !Send for Bank<G> {}
+impl<G: Group> !Sync for Bank<G> {}
 
 impl<G: Group> Bank<G> {
     /// Mint a token, asserting that group `G`'s bank is already mapped.
@@ -465,12 +474,8 @@ impl<G: Group> Bank<G> {
     /// subsequent `local`/call through this token reads the wrong bank.
     #[inline(always)]
     pub const unsafe fn assume() -> Self {
-        Bank {
-            _bank: PhantomData,
-            _not_send: PhantomData,
-        }
+        Bank { _bank: PhantomData }
     }
-
 }
 
 /// Proof that the holder runs in bank 0 (the always-mapped region), and
