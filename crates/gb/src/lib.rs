@@ -4,10 +4,14 @@
 #![doc = document_features::document_features!()]
 #![no_std]
 #![feature(asm_experimental_arch)]
+#![feature(linkage)]
+#![feature(negative_impls)]
+#![feature(abi_z80_interrupt)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod mmio;
 pub mod interrupt;
+pub mod ppu;
 
 // Also at the root, so the attribute reads as `#[gb::bank]` rather than
 // `#[gb::bank::bank]`. A macro and a module may share a name.
@@ -45,3 +49,24 @@ pub use gb_bank as __bank;
 pub use gb_pak as __pak;
 #[doc(hidden)]
 pub use gb_ram_fn as __ram_fn;
+
+/// Whether the machine has the Game Boy Color's hardware.
+///
+/// From the value the boot ROM leaves in `A`, so it costs one load. A Game Boy
+/// Advance answers yes: it runs the same hardware.
+///
+/// A cartridge built for both machines needs this wherever a Color feature has
+/// nothing to fall back on.
+#[inline]
+pub fn is_cgb() -> bool {
+    rt::boot::a() == 0x11
+}
+
+/// Whether the machine is a Game Boy Advance running a Game Boy Color cartridge.
+///
+/// Programs usually ask in order to lighten their palettes, the Advance's screen
+/// being the darker of the two.
+#[inline]
+pub fn is_gba() -> bool {
+    is_cgb() && rt::boot::b() & 1 != 0
+}

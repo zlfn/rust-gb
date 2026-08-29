@@ -65,6 +65,34 @@ pub struct Infrared {
     pub read_enable: u8,
 }
 
+/// Per-cell tilemap attributes, in VRAM bank 1 at the tilemap addresses.
+///
+/// | Bit | Field | Access | Meaning |
+/// |-----|-------|--------|---------|
+/// | 7   | `priority` | R/W | Set draws this cell's color indices 1-3 over objects. |
+/// | 6   | `y_flip`   | R/W | Mirror vertically. |
+/// | 5   | `x_flip`   | R/W | Mirror horizontally. |
+/// | 4   | —          | R/W | Ignored by the hardware. |
+/// | 3   | `bank`     | R/W | Fetch this cell's tile from VRAM bank 1. |
+/// | 2-0 | `palette`  | R/W | Which of the eight background palettes. |
+#[bitfield(u8)]
+#[derive(PartialEq, Eq)]
+pub struct BgAttr {
+    /// Which of the eight background palettes.
+    #[bits(3)]
+    pub palette: u8,
+    /// Fetch this cell's tile from VRAM bank 1 rather than bank 0.
+    pub bank: bool,
+    #[bits(1)]
+    __: u8,
+    /// Mirror horizontally.
+    pub x_flip: bool,
+    /// Mirror vertically.
+    pub y_flip: bool,
+    /// Draw this cell's color indices 1-3 over objects.
+    pub priority: bool,
+}
+
 /// Color palette index (`BCPS` / `OCPS`).
 ///
 /// | Bit | Field | Access | Meaning |
