@@ -104,7 +104,7 @@ pub fn stream(dst: u16, src: &'static [u8]) -> Option<Stream> {
 ///   [`edit_attrs`](super::map::edit_attrs);
 /// - unmap the bank the source sits in;
 /// - execute `halt`, which stops the copier until the CPU wakes. That includes
-///   [`wait_vblank`](super::wait_vblank), so a frame paced with it will barely
+///   [`Vblank::wait`](super::Vblank::wait), so a frame paced with it will barely
 ///   advance the transfer.
 ///
 /// Dropping this leaves the transfer running. Nothing is torn by that; the

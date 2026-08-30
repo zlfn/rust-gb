@@ -15,7 +15,7 @@
 //!
 //! [`Direct`](Access::Direct) says the caller is already somewhere it will:
 //! inside a VBlank, or with the LCD switched off. It is the fast answer, and
-//! [`with_vblank`] and [`with_lcd_off`] are how one is come by. Nothing enforces
+//! [`Vblank::with`] and [`with_lcd_off`] are how one is come by. Nothing enforces
 //! the window's length, so a closure that runs past the end of a VBlank loses
 //! the rest of its writes.
 //!
@@ -26,8 +26,10 @@
 //! memory writes take.
 //!
 //! ```ignore
+//! let vblank = unsafe { Vblank::listen() };
+//!
 //! // A frame's worth of updates, taken inside the window
-//! ppu::with_vblank(|d| {
+//! vblank.with(|d| {
 //!     map::write(d, bg::map(), col % 32, 0, LEVEL.sub(col, 0, 1, 18));
 //!     obj::set(d, 0, player);
 //! });
@@ -39,7 +41,7 @@
 //! tile::write(Access::Polled, 5, &spark);
 //! ```
 //!
-//! Work that has to happen between frames belongs before [`with_vblank`], not
+//! Work that has to happen between frames belongs before [`Vblank::with`], not
 //! inside it: decide what to draw first, then take the window and spend it on
 //! writes.
 //!
@@ -63,7 +65,7 @@
 //! A program that uses this module links a weak `_on_vblank` advancing a frame
 //! counter. Writing `#[gb::rt::interrupt(VBlank)]` takes that vector instead,
 //! which nothing reports: such a handler must call [`frame_tick`], or
-//! [`wait_vblank`] never returns.
+//! [`Vblank::wait`] never returns.
 
 pub mod bg;
 #[cfg(feature = "cgb")]
@@ -81,7 +83,7 @@ use gb_hram::HramAtomicAccess;
 
 // One byte, so each access is a single `ldh` that cannot tear against the
 // handler, and the wrap every 256 frames is harmless to the inequality
-// `wait_vblank` compares with.
+// `Vblank::wait` compares with.
 crate::hram! {
     static FRAME: HramAtomicCell<u8>;
 }
@@ -108,14 +110,15 @@ pub enum Access<'a> {
     /// The caller is already inside a window where both are open, so writes go
     /// straight through.
     ///
-    /// Minted by [`with_vblank`] and [`with_lcd_off`], and bounded to the closure
+    /// Minted by [`Vblank::with`] and [`with_lcd_off`], and bounded to the closure
     /// they run. It is zero-sized and `Copy`, so the lifetime is the only thing
     /// stopping it being carried out of the window:
     ///
     /// ```compile_fail
-    /// # use gb::ppu::{self, Access};
+    /// # use gb::ppu::{Access, Vblank};
+    /// # let vblank = unsafe { Vblank::listen() };
     /// let mut saved: Option<Access> = None;
-    /// ppu::with_vblank(|d| { saved = Some(d); }); // ERROR: `d` escapes the closure
+    /// vblank.with(|d| { saved = Some(d); }); // ERROR: `d` escapes the closure
     /// ```
     #[non_exhaustive]
     Direct(PhantomData<&'a ()>),
@@ -137,7 +140,7 @@ impl<'a> !Sync for Access<'a> {}
 impl<'a> Access<'a> {
     /// Mint [`Direct`](Access::Direct), asserting that video memory is reachable.
     ///
-    /// The escape hatch for a context [`with_vblank`] cannot serve, such as a
+    /// The escape hatch for a context [`Vblank::with`] cannot serve, such as a
     /// VBlank handler, which is already inside the window it would wait for.
     ///
     /// # Safety
@@ -194,15 +197,6 @@ pub(crate) fn wait_blank() {
     ) {}
 }
 
-/// Frames counted since boot, wrapping at 256.
-///
-/// [`wrapping_sub`](u8::wrapping_sub) of two readings is the frames between
-/// them; a plain subtraction is what overflows across the wrap.
-#[inline(always)]
-pub fn frame_count() -> u8 {
-    FRAME.get()
-}
-
 /// Advance the frame counter.
 ///
 /// Needed only by a VBlank handler that replaced the one this module installs.
@@ -214,66 +208,105 @@ pub fn frame_tick() {
     FRAME.set(FRAME.get().wrapping_add(1));
 }
 
-/// Block until the next VBlank.
+/// The frame clock: proof that the VBlank interrupt is reaching the counter.
 ///
-/// The CPU sleeps while waiting.
-///
-/// Does not return if the LCD is off, if `IE` lacks `VBLANK`, or if interrupts
-/// are disabled: the counter only moves when the handler runs.
-pub fn wait_vblank() {
-    let seen = frame_count();
-    loop {
-        // VBlank is requested at dot 0 of line 144, so LY reading 143 can be a
-        // single dot away from it, and halting there would sleep through the
-        // frame being waited for. Every other line leaves at least 457 dots,
-        // against the ~60 this takes to reach the halt.
-        //
-        // LY is read before the counter so a VBlank landing between the two is
-        // caught by the counter read rather than missed. Volatile and `asm!`
-        // accesses keep that order.
-        let near_vblank = crate::mmio::LY.read() == 143;
-        if frame_count() != seen {
-            return;
+/// Everything that waits for a frame hangs without it.
+pub struct Vblank(());
+
+// A proof about the hardware's current state belongs to the context that made it.
+impl !Send for Vblank {}
+impl !Sync for Vblank {}
+
+impl Vblank {
+    /// Listen for the VBlank interrupt.
+    ///
+    /// # Safety
+    ///
+    /// Turns interrupts on. That is preemption, which the surrounding code may
+    /// have been written to rule out.
+    #[inline]
+    pub unsafe fn listen() -> Self {
+        // `IE` is read and written back, and another module may have turned
+        // interrupts on already, so the pair is kept off the air.
+        crate::interrupt::disable();
+        unsafe {
+            crate::interrupt::set_enabled(
+                crate::interrupt::enabled() | crate::mmio::Interrupts::VBLANK,
+            );
+            crate::interrupt::enable();
         }
-        if !near_vblank {
-            crate::interrupt::halt();
+        Vblank(())
+    }
+
+    /// Frames counted since boot, wrapping at 256.
+    ///
+    /// [`wrapping_sub`](u8::wrapping_sub) of two readings is the frames between
+    /// them; a plain subtraction is what overflows across the wrap.
+    #[inline(always)]
+    pub fn frame_count(&self) -> u8 {
+        FRAME.get()
+    }
+
+    /// Block until the next frame.
+    ///
+    /// The CPU sleeps while waiting. Does not return with the LCD off, since no
+    /// VBlank arrives then, nor where a replacement handler skips
+    /// [`frame_tick`].
+    pub fn wait(&self) {
+        let seen = FRAME.get();
+        loop {
+            // VBlank is requested at dot 0 of line 144, so LY reading 143 can be
+            // a single dot away from it, and halting there would sleep through
+            // the frame being waited for. Every other line leaves at least 457
+            // dots, against the ~60 this takes to reach the halt.
+            //
+            // LY is read before the counter so a VBlank landing between the two
+            // is caught by the counter read rather than missed. Volatile and
+            // `asm!` accesses keep that order.
+            let near_vblank = crate::mmio::LY.read() == 143;
+            if FRAME.get() != seen {
+                return;
+            }
+            if !near_vblank {
+                crate::interrupt::halt();
+            }
         }
     }
-}
 
-/// Wait for the next VBlank, then run `f` inside it.
-///
-/// Nothing enforces the window. `f` keeps running once the PPU has moved on, and
-/// writes past that point are dropped in silence.
-///
-/// ```ignore
-/// ppu::with_vblank(|d| {
-///     SCY.write(camera_y);
-///     OAM.index(0).write(player);
-/// });
-///
-/// // Overruns: the tail of the tileset lands after the window and is lost.
-/// // `with_lcd_off` has no deadline.
-/// ppu::with_vblank(|d| load_tileset(&TILES, d));
-/// ```
-///
-/// Waiting goes through [`wait_vblank`], so this does not return under the same
-/// conditions.
-pub fn with_vblank<R>(f: impl FnOnce(Access<'_>) -> R) -> R {
-    wait_vblank();
-    f(unsafe { Access::assume() })
+    /// Wait for the next frame, then run `f` inside its VBlank.
+    ///
+    /// Nothing enforces the window. `f` keeps running once the PPU has moved on,
+    /// and writes past that point are dropped in silence.
+    ///
+    /// ```ignore
+    /// vblank.with(|d| {
+    ///     bg::set_scroll(d, camera_x, camera_y);
+    ///     obj::set(d, 0, player);
+    /// });
+    ///
+    /// // Overruns: the tail of the tileset lands after the window and is lost.
+    /// // `with_lcd_off` has no deadline.
+    /// vblank.with(|d| load_tileset(&TILES, d));
+    /// ```
+    ///
+    /// Waiting goes through [`wait`](Self::wait), so this does not return under
+    /// the same conditions.
+    pub fn with<R>(&self, f: impl FnOnce(Access<'_>) -> R) -> R {
+        self.wait();
+        f(unsafe { Access::assume() })
+    }
 }
 
 /// Turn the LCD off for the length of `f`.
 ///
 /// The screen goes blank, and in exchange video memory stays reachable for as
-/// long as `f` runs rather than the roughly 1140 M-cycles [`with_vblank`]
+/// long as `f` runs rather than the roughly 1140 M-cycles [`Vblank::with`]
 /// allows. This is how a program loads more tiles than one VBlank fits.
 ///
-/// Unlike [`with_vblank`], the wait here is a poll and needs no interrupt, so
+/// Unlike [`Vblank::with`], the wait here is a poll and needs no interrupt, so
 /// this runs before a program has turned them on.
 ///
-/// [`wait_vblank`] does not return inside `f`, since no VBlank arrives with the LCD
+/// [`Vblank::wait`] does not return inside `f`, since no VBlank arrives with the LCD
 /// off. An LCD that was already off is left that way and `f` runs at once.
 ///
 /// Turning it back on restarts the PPU at line 0, and the screen stays blank
@@ -288,8 +321,8 @@ pub fn with_lcd_off<R>(f: impl FnOnce(Access<'_>) -> R) -> R {
     }
 
     // Clearing the enable bit outside VBlank can damage the panel, so wait for
-    // one. The line is polled rather than waited on through `wait_vblank`: this
-    // runs before interrupts are on, which is where a program loads its tiles,
+    // one. The line is polled rather than waited on through `Vblank`: this runs
+    // before interrupts are on, which is where a program loads its tiles,
     // and it leaves `IME` alone rather than ending a critical section it was
     // called inside.
     //
@@ -331,7 +364,7 @@ pub enum VramBank {
 /// [`tile`] or map write lands in a different place depending on this. Bracketing
 /// it keeps that visible at the call site and out of the surrounding code.
 ///
-/// `f` takes nothing: the [`Access`] an enclosing [`with_vblank`] or
+/// `f` takes nothing: the [`Access`] an enclosing [`Vblank::with`] or
 /// [`with_lcd_off`] handed out is still good here, since which bank is mapped and
 /// whether video memory is reachable are separate questions. The two scopes nest
 /// in either order.
