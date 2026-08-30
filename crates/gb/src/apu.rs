@@ -30,6 +30,8 @@
 //! so [`timer::reset_divider`](crate::timer::reset_divider) steps them early.
 //! Resetting it while sound is playing is audible.
 
+#[cfg(feature = "cgb")]
+use crate::mmio::cgb::{PCM12, PCM34};
 use crate::mmio::{
     AudioCtrl, Duty, Envelope, MasterVolume, NR10, NR11, NR12, NR13, NR14, NR21, NR22, NR23, NR24,
     NR30, NR31, NR32, NR33, NR34, NR41, NR42, NR43, NR44, NR50, NR51, NR52, NoiseCtrl, NoiseFreq,
@@ -522,5 +524,22 @@ pub fn playing(ch: Channel) -> bool {
         Channel::Two => status.ch2_on(),
         Channel::Three => status.ch3_on(),
         Channel::Four => status.ch4_on(),
+    }
+}
+
+/// What a channel is putting out, from 0 to 15.
+///
+/// This is the digital value on its way to the DAC, so it moves with the
+/// envelope and the waveform rather than with the volume the mixer applies. A
+/// program drawing its own sound reads it here.
+#[cfg(feature = "cgb")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cgb")))]
+#[inline]
+pub fn output(ch: Channel) -> u8 {
+    match ch {
+        Channel::One => PCM12.read().low(),
+        Channel::Two => PCM12.read().high(),
+        Channel::Three => PCM34.read().low(),
+        Channel::Four => PCM34.read().high(),
     }
 }
