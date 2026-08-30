@@ -8,9 +8,10 @@
 //! ask what changed rather than only what is held.
 //!
 //! ```ignore
+//! let vblank = unsafe { ppu::Vblank::listen() };
 //! let mut pad = Pad::new();
 //! loop {
-//!     ppu::wait_vblank();
+//!     vblank.wait();
 //!     pad.poll();
 //!
 //!     if pad.just_pressed.a() {
