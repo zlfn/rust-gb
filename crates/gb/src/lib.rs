@@ -14,6 +14,7 @@ pub mod apu;
 pub mod interrupt;
 pub mod joypad;
 pub mod ppu;
+pub mod serial;
 pub mod timer;
 
 // Also at the root, so the attribute reads as `#[gb::bank]` rather than
