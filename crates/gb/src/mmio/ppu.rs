@@ -143,7 +143,9 @@ pub struct Stat {
 pub enum Shade {
     /// Lightest.
     White = 0,
+    /// Lighter gray.
     LightGray = 1,
+    /// Darker gray.
     DarkGray = 2,
     /// Darkest.
     #[fallback]
