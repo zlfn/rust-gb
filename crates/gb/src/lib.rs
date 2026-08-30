@@ -10,6 +10,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod mmio;
+pub mod apu;
 pub mod interrupt;
 pub mod joypad;
 pub mod ppu;

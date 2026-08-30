@@ -114,7 +114,9 @@ pub fn divider() -> u8 {
 
 /// Reset the divider to zero.
 ///
-/// The timer shares the divider's counter, so this can advance it once.
+/// The timer shares the divider's counter, so this can advance it once. The APU
+/// counts its envelopes and length timers off the same place, so this can step
+/// those early as well.
 #[inline]
 pub fn reset_divider() {
     DIV.write(0);
