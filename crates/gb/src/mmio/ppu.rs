@@ -91,7 +91,7 @@ pub struct Lcdc {
 /// Current PPU mode (`STAT` bits 1-0).
 #[bitenum(all = false)]
 #[repr(u8)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PpuMode {
     /// Mode 0: horizontal blank.
     HBlank = 0,
@@ -139,7 +139,7 @@ pub struct Stat {
 /// One of the four DMG gray shades.
 #[bitenum(all = false)]
 #[repr(u8)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Shade {
     /// Lightest.
     White = 0,

@@ -6,7 +6,7 @@ use voladdress::{Safe, VolAddress, VolBlock};
 /// Square-wave duty cycle (`NR11` / `NR21` bits 7-6).
 #[bitenum(all = false)]
 #[repr(u8)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Duty {
     /// 12.5%.
     Eighth = 0,
@@ -22,7 +22,7 @@ pub enum Duty {
 /// Wave-channel output level (`NR32` bits 6-5).
 #[bitenum(all = false)]
 #[repr(u8)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WaveLevel {
     /// Muted.
     Mute = 0,
