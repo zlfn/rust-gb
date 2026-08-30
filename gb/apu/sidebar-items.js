@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Channel","Note"],"fn":["load_wave","output","playing","power_off","power_on","set_master","set_panning","silence","stop"],"struct":["Noise","Pulse","Wave"]};

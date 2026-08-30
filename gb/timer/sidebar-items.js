@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["divider","reset_divider","timer_tick"],"mod":["rate"],"struct":["Duration","Instant","Timer"],"trait":["Rate"]};

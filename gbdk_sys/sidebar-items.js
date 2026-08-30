@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init"],"macro":[["emu_breakpoint",1]],"mod":["ctype","gb","gbdk","rand","setjmp","stdio","stdlib","string","time","types"]};

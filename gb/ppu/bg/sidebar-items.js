@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["enabled","map","scroll","set_enabled","set_map","set_scroll","set_scroll_x","set_scroll_y"]};

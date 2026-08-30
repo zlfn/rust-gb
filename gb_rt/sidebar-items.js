@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"attr":["entry","interrupt"],"constant":["DOUBLE_SPEED"],"mod":["boot","builtin"],"struct":["CriticalSection"]};

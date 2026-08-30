@@ -1,0 +1,35 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Attribute installing an interrupt handler at its vector. See [`macro@interrupt`]. Install an interrupt handler directly at its vector."><title>interrupt in gb_rt - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="gb_rt" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-dev" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc attr"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">interrupt</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../gb_rt/index.html">gb_rt</a><span class="version">0.2.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">interrupt</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#critical-section" title="Critical section">Critical section</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate gb_<wbr>rt</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">gb_rt</a></div><h1>Attribute Macro <span class="attr">interrupt</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"></span></div><pre class="rust item-decl"><code>#[interrupt]</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Attribute installing an interrupt handler at its vector. See <a href="attr.interrupt.html" title="attr gb_rt::interrupt"><code>interrupt</code></a>.
+Install an interrupt handler directly at its vector.</p>
+<p>Takes the vector name and binds the function to the matching <code>_on_*</code> symbol:</p>
+<div><table><thead><tr><th>Argument</th><th>Symbol</th></tr></thead><tbody>
+<tr><td><code>VBlank</code></td><td><code>_on_vblank</code></td></tr>
+<tr><td><code>LcdStat</code></td><td><code>_on_lcd_stat</code></td></tr>
+<tr><td><code>Timer</code></td><td><code>_on_timer</code></td></tr>
+<tr><td><code>Serial</code></td><td><code>_on_serial</code></td></tr>
+<tr><td><code>Joypad</code></td><td><code>_on_joypad</code></td></tr>
+</tbody></table>
+</div>
+<p>The vector jumps straight to the handler, which the <code>z80-interrupt</code> calling
+convention compiles to save only the register pairs it clobbers and to return
+with <code>reti</code>. The exported symbol is strong, so it wins over any weak or
+PROVIDE default for that vector. The defining crate needs
+<code>#![feature(abi_z80_interrupt)]</code>:</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="attr">#![feature(abi_z80_interrupt)]
+
+#[gb_rt::interrupt(LcdStat)]
+</span><span class="kw">fn </span>wobble() {
+    <span class="comment">// runs on each STAT interrupt
+</span>}</code></pre></div><h2 id="critical-section"><a class="doc-anchor" href="#critical-section">§</a>Critical section</h2>
+<p>A handler may take one <code>CriticalSection</code> parameter.</p>
+<p>The CPU clears IME when it dispatches an interrupt, so the handler already runs
+with interrupts off. The token records that and unlocks anything guarding state
+shared with the main loop.</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="attr">#[gb_rt::interrupt(Timer)]
+</span><span class="kw">fn </span>tick(cs: CriticalSection) {
+    TICKS.set_cs(cs, TICKS.get_cs(cs).wrapping_add(<span class="number">1</span>));
+}</code></pre></div>
+<p>Enabling interrupts inside such a handler invalidates the token while it is
+still in scope and can cause undefined behavior.</p>
+</div></details></section></div></main></body></html>

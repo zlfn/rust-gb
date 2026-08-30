@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CLOCKS_PER_SEC"],"fn":["clock","time"],"type":["TimeT"]};

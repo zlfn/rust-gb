@@ -1,0 +1,232 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Compile-time-safe ROM bank switching for the Game Boy."><title>gb::bank - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gb" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-dev" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../crates.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate bank</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gb/index.html">gb</a><span class="version">0.2.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#the-problem" title="The problem">The problem</a></li><li><a href="#getting-started" title="Getting started">Getting started</a><ul><li><a href="#put-code-in-a-bank" title="Put code in a bank">Put code in a bank</a></li><li><a href="#call-it" title="Call it">Call it</a></li><li><a href="#read-its-data" title="Read its data">Read its data</a></li><li><a href="#inside-a-banked-function" title="Inside a banked function">Inside a banked function</a></li><li><a href="#runtime-dispatch" title="Runtime dispatch">Runtime dispatch</a></li></ul></li><li><a href="#where-the-switch-happens" title="Where the switch happens">Where the switch happens</a></li><li><a href="#the-model" title="The model">The model</a><ul><li><a href="#prior-art" title="Prior art">Prior art</a></li></ul></li><li><a href="#the-macros" title="The macros">The macros</a><ul><li><a href="#sugar" title="Sugar">Sugar</a></li><li><a href="#bank-layout" title="Bank layout">Bank layout</a></li></ul></li><li><a href="#panics-unwinding-and-interrupts" title="Panics, unwinding, and interrupts">Panics, unwinding, and interrupts</a></li><li><a href="#cartridges" title="Cartridges">Cartridges</a></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#macros" title="Macros">Macros</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#functions" title="Functions">Functions</a></li><li><a href="#attributes" title="Attribute Macros">Attribute Macros</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gb</a></div><h1>Crate <span>bank</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gb_bank/lib.rs.html#1-350">Source</a> </span></div><span class="item-info"><div class="stab portability">Available on <strong>crate feature <code>bank</code></strong> only.</div></span><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Compile-time-safe ROM bank switching for the Game Boy.</p>
+<p><code>gb-bank</code> is the user-facing front end of the banking toolchain: the runtime
+types, plus the macros that turn ordinary functions and statics into bank-safe
+ones.</p>
+<h2 id="the-problem"><a class="doc-anchor" href="#the-problem">§</a>The problem</h2>
+<p>A Game Boy cartridge maps one 16 KiB ROM <strong>bank</strong> at a time into the
+<code>0x4000..0x8000</code> window. Anything in another bank is unaddressable until it is
+switched in, and reading it anyway yields whichever bytes happen to be mapped,
+with nothing to fault on the way.</p>
+<p>This crate makes that a type error. Reaching banked code or data requires a
+token proving its bank is mapped, and the only way to get one is to perform the
+switch.</p>
+<h2 id="getting-started"><a class="doc-anchor" href="#getting-started">§</a>Getting started</h2><h3 id="put-code-in-a-bank"><a class="doc-anchor" href="#put-code-in-a-bank">§</a>Put code in a bank</h3>
+<p>One module is one bank group. <code>bank::module!()</code> declares it, <code>#[bank]</code> marks
+what goes in the bank.</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">mod </span>sound {
+    <span class="kw">use </span>gb_bank::<span class="kw-2">*</span>;
+    <span class="macro">bank::module!</span>();
+
+    <span class="attr">#[bank]
+    </span><span class="kw">pub static </span>NOTES: [u8; <span class="number">4</span>] = [<span class="number">60</span>, <span class="number">62</span>, <span class="number">64</span>, <span class="number">65</span>];
+
+    <span class="attr">#[bank]
+    </span><span class="kw">pub fn </span>play(i: u8) -&gt; u8 {
+        NOTES.local()[i <span class="kw">as </span>usize]
+    }
+}</code></pre></div>
+<p><code>gb-bank-pack</code> decides at link time which ROM bank the module lands in. Naming
+one yourself is optional (see <a href="#bank-layout">Bank layout</a>).</p>
+<h3 id="call-it"><a class="doc-anchor" href="#call-it">§</a>Call it</h3>
+<p>Your entry point is <code>#[bank::main]</code>, which lives in bank 0 and is always mapped.
+It stands in for <code>#[gb_rt::entry]</code>, so the signature is the one that macro
+wants, <code>fn() -&gt; !</code>.</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="attr">#[bank::main]
+</span><span class="kw">pub fn </span>main() -&gt; ! {
+    <span class="kw">loop </span>{
+        <span class="kw">let </span>note = sound::play(<span class="number">0</span>).drive();
+    }
+}</code></pre></div>
+<p><code>sound::play(0)</code> does not run the body. It captures the call, and <code>.drive()</code>
+runs it: switch into sound’s bank, call, switch back.</p>
+<h3 id="read-its-data"><a class="doc-anchor" href="#read-its-data">§</a>Read its data</h3>
+<p><code>#[bank] static</code> gives you a <a href="struct.Far.html" title="struct gb::bank::Far"><code>Far</code></a> pointer. Holding one is always fine;
+reading through it is what needs the bank mapped.</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="attr">#[bank::main]
+</span><span class="kw">pub fn </span>main() -&gt; ! {
+    <span class="kw">let </span>first = sound::NOTES.there(|n| n[<span class="number">0</span>]);
+    <span class="kw">loop </span>{}
+}</code></pre></div>
+<p><code>.there()</code> switches, lends your closure <code>&amp;[u8; 4]</code>, and switches back. Whatever
+the closure returns is copied out, so it must not be a pointer into the bank you
+just left; that is what <a href="trait.BankSafe.html" title="trait gb::bank::BankSafe"><code>BankSafe</code></a> checks.</p>
+<h3 id="inside-a-banked-function"><a class="doc-anchor" href="#inside-a-banked-function">§</a>Inside a banked function</h3>
+<p>A <code>#[bank]</code> body has one restriction, and it comes from the hardware: its own
+code sits in the switchable window, so it cannot perform a switch. The next
+instruction fetch would come from whatever bank replaced it.</p>
+<p>Calls are fine, because the switch happens in a bank-0 trampoline rather than in
+your function:</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="attr">#[bank]
+</span><span class="kw">pub fn </span>tick() -&gt; u8 {
+    NOTES.local()[<span class="number">0</span>]            <span class="comment">// same bank: no switch at all
+        </span>+ other::helper().drive() <span class="comment">// another bank: switches in bank 0
+</span>}</code></pre></div>
+<p><code>.there()</code> and <a href="fn.scope.html" title="fn gb::bank::scope"><code>scope</code></a> are not, because they run <em>your</em> closure while the
+other bank is mapped. Both are a compile error in a <code>#[bank]</code> body. Route them
+through a <code>#[bank::zero]</code> helper, which lives in bank 0 and can be called from
+any bank:</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="attr">#[bank::zero]
+</span><span class="kw">fn </span>notes() -&gt; [u8; <span class="number">4</span>] {
+    sound::NOTES.there(|n| <span class="kw-2">*</span>n)   <span class="comment">// bank 0: allowed
+</span>}
+
+<span class="attr">#[bank]
+</span><span class="kw">pub fn </span>tick() -&gt; u8 {
+    <span class="kw">let </span>n = notes().drive();     <span class="comment">// copied out; this bank is mapped again
+    </span>n[<span class="number">0</span>].wrapping_add(n[<span class="number">3</span>])
+}</code></pre></div><h3 id="runtime-dispatch"><a class="doc-anchor" href="#runtime-dispatch">§</a>Runtime dispatch</h3>
+<p>A <a href="struct.Far.html" title="struct gb::bank::Far"><code>Far&lt;T, G&gt;</code></a> carries its bank in the type, so pointers into different
+banks are different types. <a href="struct.Far.html#method.erase" title="method gb::bank::Far::erase"><code>erase</code></a> drops the type for a runtime
+number, letting a table hold entries from several banks.</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">let </span>table: [DynFar&lt;<span class="kw">fn</span>(u8) -&gt; u8&gt;; <span class="number">2</span>] = [
+    <span class="macro">far!</span>(enemy::ai).erase(),
+    <span class="macro">far!</span>(hud_tick).erase(),      <span class="comment">// a bank-0 helper works here too
+</span>];
+table[i].invoke(state)</code></pre></div><h2 id="where-the-switch-happens"><a class="doc-anchor" href="#where-the-switch-happens">§</a>Where the switch happens</h2>
+<p>Six operations reach banked code or data. Which one you can use depends on where
+you are; what it costs depends on whether it switches. The ones that do switch
+restore the caller’s bank on the way out.</p>
+<div><table><thead><tr><th></th><th>switches</th><th>usable from</th></tr></thead><tbody>
+<tr><td><a href="struct.Far.html#method.local" title="method gb::bank::Far::local"><code>local</code></a></td><td>no</td><td>any body, with a token for that bank</td></tr>
+<tr><td><a href="trait.Warp.html#tymethod.near" title="method gb::bank::Warp::near"><code>near</code></a></td><td>no</td><td>any body, with a token for that bank</td></tr>
+<tr><td><a href="trait.Warp.html#method.drive" title="method gb::bank::Warp::drive"><code>drive</code></a></td><td>yes</td><td>any body</td></tr>
+<tr><td><a href="trait.FarCall.html#tymethod.invoke" title="method gb::bank::FarCall::invoke"><code>invoke</code></a></td><td>yes</td><td>any body</td></tr>
+<tr><td><a href="trait.FarWith.html#tymethod.there" title="method gb::bank::FarWith::there"><code>there</code></a></td><td>yes</td><td>bank 0 only</td></tr>
+<tr><td><a href="fn.scope.html" title="fn gb::bank::scope"><code>scope</code></a></td><td>yes</td><td>bank 0 only</td></tr>
+</tbody></table>
+</div>
+<p><code>drive</code> and <code>invoke</code> run one whole function across the switch, so no code of
+yours is unmapped while it happens and they compile to a bank-0 trampoline.
+<code>there</code> and <code>scope</code> lend your closure instead, which is why they need to be in
+bank 0 to begin with.</p>
+<p><code>local</code> and <code>near</code> take a token for the exact group, so they never switch, and
+reaching the wrong bank through one is a type error. Use them to batch: open one
+<a href="fn.scope.html" title="fn gb::bank::scope"><code>scope</code></a> and work inside it.</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">let </span>r = scope(|b| {
+    <span class="kw">let </span>x = sound::play(v).near(b);   <span class="comment">// already in sound's bank
+    </span>sound::play(x).near(b)            <span class="comment">// still there: no second switch
+</span>});</code></pre></div>
+<p>A switch is also elided when it would be a no-op: when the target group is the
+caller’s own, and when either side is the always-mapped <a href="struct.GroupZero.html" title="struct gb::bank::GroupZero"><code>GroupZero</code></a>.</p>
+<h2 id="the-model"><a class="doc-anchor" href="#the-model">§</a>The model</h2>
+<p>A <a href="trait.Group.html" title="trait gb::bank::Group"><code>Group</code></a> is the compile-time identity of one bank, a zero-sized type that
+<code>bank::module!()</code> generates per module. A <a href="struct.Bank.html" title="struct gb::bank::Bank"><code>Bank&lt;G&gt;</code></a> is a zero-sized
+token, and holding one witnesses that <code>G</code>’s bank is mapped right now. The token
+is <code>!Send</code>, not <code>Clone</code>, and mintable only through <a href="fn.scope.html" title="fn gb::bank::scope"><code>scope</code></a> or the unsafe
+<a href="struct.Bank.html#method.assume" title="associated function gb::bank::Bank::assume"><code>assume</code></a>, so it cannot be fabricated.</p>
+<p><a href="fn.scope.html" title="fn gb::bank::scope"><code>scope</code></a> is the switch primitive everything else is built on. It also takes an
+<a href="struct.Anchor.html" title="struct gb::bank::Anchor"><code>Anchor</code></a>: a witness that the <em>calling</em> code is in bank 0, which is what makes
+it safe to run a closure while another bank is mapped. <code>#[bank::main]</code> and
+<code>#[bank::zero]</code> bodies hold one; a <code>#[bank]</code> body does not.</p>
+<p>A <a href="struct.Far.html" title="struct gb::bank::Far"><code>Far&lt;T, G&gt;</code></a> splits the address from the access. The address is a plain
+<a href="https://doc.rust-lang.org/nightly/core/marker/trait.Copy.html" title="trait core::marker::Copy"><code>Copy</code></a> value that survives any switch; reading it borrows a <a href="struct.Bank.html" title="struct gb::bank::Bank"><code>Bank&lt;G&gt;</code></a>.
+Since a switch needs that token by <code>&amp;mut</code>, a reference into a bank cannot outlive
+the switch away from it.</p>
+<p>A <a href="trait.Warp.html" title="trait gb::bank::Warp"><code>Warp</code></a> is a call captured but not yet run, so that the switch can take the
+<em>caller’s</em> token at the point it is driven.</p>
+<h3 id="prior-art"><a class="doc-anchor" href="#prior-art">§</a>Prior art</h3>
+<p><a href="struct.Bank.html" title="struct gb::bank::Bank"><code>Bank</code></a> and <a href="struct.Far.html" title="struct gb::bank::Far"><code>Far</code></a> follow <a href="https://plv.mpi-sws.org/rustbelt/ghostcell/">GhostCell</a>, which keeps a permission token apart
+from the data it guards, tied by a brand. gb-bank brands with a group <em>type</em>
+where GhostCell uses a lifetime, because a bank’s identity is fixed and reused
+across many functions, which a per-scope lifetime cannot express.</p>
+<p><a href="trait.Warp.html" title="trait gb::bank::Warp"><code>Warp</code></a> follows <a href="https://doc.rust-lang.org/nightly/core/future/future/trait.Future.html" title="trait core::future::future::Future"><code>Future</code></a>: an <code>async fn</code> returns something inert until
+<code>.await</code>, and a banked call is deferred for the same reason, except that
+<a href="trait.Warp.html#method.drive" title="method gb::bank::Warp::drive"><code>drive</code></a> takes a token rather than an executor.</p>
+<h2 id="the-macros"><a class="doc-anchor" href="#the-macros">§</a>The macros</h2>
+<ul>
+<li><a href="macro.module.html" title="macro gb::bank::module"><code>bank::module!()</code></a> declares the enclosing module as a bank
+group. <code>bank::module!(N)</code> pins it to bank <code>N</code> instead of auto-assigning.</li>
+<li><a href="macro.inherit.html" title="macro gb::bank::inherit"><code>bank::inherit!()</code></a> in a submodule folds it into its <em>parent</em>
+module’s group (<code>super</code> is a keyword, hence the name).</li>
+<li><a href="../attr.bank.html" title="attr gb::bank"><code>#[bank]</code></a> on a <code>fn</code> rewrites it to return <code>impl Warp</code>; on a
+<code>static</code> it exposes a <a href="struct.Far.html" title="struct gb::bank::Far"><code>Far</code></a>. Also works on an <code>impl</code> or <code>trait</code>. The return
+type must be <a href="trait.BankSafe.html" title="trait gb::bank::BankSafe"><code>BankSafe</code></a>.</li>
+<li><a href="attr.main.html" title="attr gb::bank::main"><code>#[bank::main]</code></a> marks the entry point in bank 0. It wraps
+<code>#[gb_rt::entry]</code>, so that attribute must not be applied as well.</li>
+<li><a href="attr.zero.html" title="attr gb::bank::zero"><code>#[bank::zero]</code></a> marks a bank-0 helper callable from any bank: it
+forwards the caller’s token, so its own banked calls restore the caller’s bank.</li>
+<li><a href="macro.far.html" title="macro gb::bank::far"><code>far!</code></a> takes a <a href="struct.Far.html" title="struct gb::bank::Far"><code>Far</code></a> to a banked function for dispatch tables.
+It works on a <code>#[bank::zero]</code> helper too, so a table can mix the two.</li>
+</ul>
+<h3 id="sugar"><a class="doc-anchor" href="#sugar">§</a>Sugar</h3>
+<p>Inside any <code>#[bank]</code> / <code>#[bank::main]</code> / <code>#[bank::zero]</code> body the macro injects
+the ambient bank token (and, in a bank-0 body, an <a href="struct.Anchor.html" title="struct gb::bank::Anchor"><code>Anchor</code></a>) as implicit leading
+arguments, so they never appear in your code:</p>
+<div><table><thead><tr><th>you write</th><th>the macro emits</th><th>where</th></tr></thead><tbody>
+<tr><td><code>enemy::ai(s).drive()</code></td><td><code>enemy::ai(s).drive(&amp;mut __bank)</code></td><td>any body</td></tr>
+<tr><td><code>enemy::ai(s).near()</code></td><td><code>enemy::ai(s).near(&amp;mut __bank)</code></td><td>any body</td></tr>
+<tr><td><code>table[i].invoke(s)</code></td><td><code>table[i].invoke(&amp;mut __bank, (s,))</code></td><td>any body</td></tr>
+<tr><td><code>NOTES.local()</code></td><td><code>NOTES.local(&amp;__bank)</code></td><td>any body</td></tr>
+<tr><td><code>NOTES.there(|t| ..)</code></td><td><code>NOTES.there(__anchor, &amp;mut __bank, |t| ..)</code></td><td>bank 0 only</td></tr>
+<tr><td><code>scope(|b| ..)</code></td><td><code>scope(__anchor, &amp;mut __bank, |b| ..)</code></td><td>bank 0 only</td></tr>
+</tbody></table>
+</div>
+<p>A <a href="fn.scope.html" title="fn gb::bank::scope"><code>scope</code></a> rebinds the ambient token to its own closure parameter <code>b</code>, so a
+nested <code>scope</code> or a <code>.drive()</code> / <code>.near()</code> / <code>.local()</code> <em>inside</em> it threads <code>b</code>,
+not the outer token; the <code>Anchor</code>, being <a href="https://doc.rust-lang.org/nightly/core/marker/trait.Copy.html" title="trait core::marker::Copy"><code>Copy</code></a>, flows in automatically. The
+ambient <code>__bank</code> is hidden and cannot be named, but <code>b</code> can.</p>
+<h4 id="threading-is-by-method-name-not-type"><a class="doc-anchor" href="#threading-is-by-method-name-not-type">§</a>Threading is by method name, not type</h4>
+<p>The rewrite runs before type checking, so it matches on the method <em>name</em> alone
+and threads the token into every <code>.drive()</code> / <code>.near()</code> / <code>.local()</code> /
+<code>.invoke()</code> / <code>.there(..)</code> (and <code>scope(..)</code>) in the body, whatever the receiver.
+The names are deliberately uncommon. If one does collide with an unrelated
+method, call that one as <code>Type::method(recv, args)</code>: a path call is not
+method-call sugar, so the macro leaves it alone.</p>
+<h3 id="bank-layout"><a class="doc-anchor" href="#bank-layout">§</a>Bank layout</h3>
+<p>By default gb-bank-pack bin-packs the banked modules into 16 KiB banks. Pin each
+module with <code>bank::module!(N)</code> for a deterministic one-module-per-bank layout, so
+a call from one module to another is always a genuine switch.</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">mod </span>audio   { <span class="kw">use </span>gb_bank::<span class="kw-2">*</span>; <span class="macro">bank::module!</span>(<span class="number">1</span>); <span class="comment">/* ... */ </span>}
+<span class="kw">mod </span>physics {
+    <span class="kw">use </span>gb_bank::<span class="kw-2">*</span>;
+    <span class="macro">bank::module!</span>(<span class="number">2</span>);
+    <span class="kw">pub mod </span>trig { <span class="kw">use </span>gb_bank::<span class="kw-2">*</span>; <span class="macro">bank::inherit!</span>(); <span class="comment">/* shares physics: bank 2 */ </span>}
+}</code></pre></div>
+<p>Bank 0 is the always-mapped region and cannot be pinned to. With no MBC at all
+the whole 32 KiB is fixed, and a build for such a cartridge carries no
+switching code at all.</p>
+<h2 id="panics-unwinding-and-interrupts"><a class="doc-anchor" href="#panics-unwinding-and-interrupts">§</a>Panics, unwinding, and interrupts</h2>
+<p>The bank restore in <a href="fn.scope.html" title="fn gb::bank::scope"><code>scope</code></a> (and the <a href="struct.Far.html" title="struct gb::bank::Far"><code>Far</code></a> call / borrow paths) runs <em>after</em>
+the closure returns, so an unwinding panic would skip it and leave the wrong
+bank mapped. This is sound on the Game Boy because the target aborts on panic
+(there is no unwinder), so a panic never resumes into a stale-bank token. These
+types are not designed to be unwind-safe on a hosted, unwinding target.</p>
+<p>The safety model also assumes nothing changes the mapped bank <em>behind the
+token’s back</em>. An interrupt handler that switches banks (e.g. to read banked
+data) must save <a href="fn.current_bank.html" title="fn gb::bank::current_bank"><code>current_bank</code></a> on entry and restore it before returning, so the
+interrupted code resumes with the bank its live token still claims is mapped. An
+ISR that is not bank-transparent breaks the invariant, just like a raw
+<a href="fn.switch_bank.html" title="fn gb::bank::switch_bank"><code>switch_bank</code></a> not paired with a matching restore.</p>
+<h2 id="cartridges"><a class="doc-anchor" href="#cartridges">§</a>Cartridges</h2>
+<p>Which banks exist at all is the cartridge’s business. <code>cargo-gb</code> reads the type
+from <code>header.toml</code> and refuses a build that needs more banks than it can map.</p>
+<div><table><thead><tr><th>Cartridge</th><th>Switchable banks</th><th>ROM</th><th>with <code>wide_banks = true</code></th></tr></thead><tbody>
+<tr><td>ROM ONLY</td><td>none</td><td>32 KiB</td><td></td></tr>
+<tr><td>MBC1</td><td>1-31</td><td>512 KiB</td><td>1-127 minus <code>0x20</code>, <code>0x40</code>, <code>0x60</code>, 2 MiB</td></tr>
+<tr><td>MBC2</td><td>1-15</td><td>256 KiB</td><td></td></tr>
+<tr><td>MBC3</td><td>1-127</td><td>2 MiB</td><td></td></tr>
+<tr><td>MBC5</td><td>1-255</td><td>4 MiB</td><td>1-511, 8 MiB</td></tr>
+<tr><td>MBC7</td><td>1-127</td><td>2 MiB</td><td></td></tr>
+</tbody></table>
+</div>
+<p>The ranges without <code>wide_banks</code> are what a single write to the register at
+<code>0x2000</code> selects, and that is all the runtime writes by default. <code>wide_banks</code>
+brings in the cartridge’s second bank register, which only MBC1 and MBC5 have;
+see <a href="struct.BankNumber.html" title="struct gb::bank::BankNumber"><code>BankNumber</code></a> for what that costs. The three banks MBC1 has to skip are the
+ones whose low five bits are zero, which it reads as bank 1, and its upper bits
+only reach the ROM in banking mode 0, so selecting mode 1 for RAM banking gives
+up banks 32 and above.</p>
+<p>MBC6, MMM01, HuC1, HuC3, and the Pocket Camera and TAMA5 mappers are not built
+in for now. A custom cartridge that selects banks its own way implements
+<a href="trait.Mapper.html" title="trait gb::bank::Mapper"><code>Mapper</code></a> and names it with <a href="macro.set_mapper.html" title="macro gb::bank::set_mapper"><code>set_mapper!</code></a>.</p>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="bank/index.html" title="mod gb::bank::bank">bank</a></dt><dd>The banking attribute macros, namespaced as <code>bank::*</code>.</dd><dt><a class="mod" href="prelude/index.html" title="mod gb::bank::prelude">prelude</a></dt><dd>Everything needed to write banked code in one import.</dd></dl><h2 id="macros" class="section-header">Macros<a href="#macros" class="anchor">§</a></h2><dl class="item-table"><dt><a class="macro" href="macro.far.html" title="macro gb::bank::far">far</a></dt><dd>Take a far pointer to a banked function, for heterogeneous dispatch.</dd><dt><a class="macro" href="macro.inherit.html" title="macro gb::bank::inherit">inherit</a></dt><dd>Declare a submodule as part of its <em>parent</em> module’s bank group.</dd><dt><a class="macro" href="macro.module.html" title="macro gb::bank::module">module</a></dt><dd>Declare the enclosing module as a ROM bank group.</dd><dt><a class="macro" href="macro.set_mapper.html" title="macro gb::bank::set_mapper">set_<wbr>mapper</a></dt><dd>Name the <a href="trait.Mapper.html" title="trait gb::bank::Mapper"><code>Mapper</code></a> this program’s cartridge uses.</dd></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Anchor.html" title="struct gb::bank::Anchor">Anchor</a></dt><dd>Proof that the holder runs in bank 0 (the always-mapped region), and
+so may run a closure across a bank switch via <a href="fn.scope.html" title="fn gb::bank::scope"><code>scope</code></a> / <a href="trait.FarWith.html#tymethod.there" title="method gb::bank::FarWith::there"><code>there</code></a>.</dd><dt><a class="struct" href="struct.Bank.html" title="struct gb::bank::Bank">Bank</a></dt><dd>A witness that group <code>G</code>’s bank is currently mapped.</dd><dt><a class="struct" href="struct.BankNumber.html" title="struct gb::bank::BankNumber">Bank<wbr>Number</a></dt><dd>A ROM bank number, held as a <code>u8</code> or, under <code>gb_wide_bank="mbc5"</code>, a <code>u16</code>.</dd><dt><a class="struct" href="struct.DynFar.html" title="struct gb::bank::DynFar">DynFar</a></dt><dd>A far pointer whose bank is known only at runtime: a group-erased <a href="struct.Far.html" title="struct gb::bank::Far"><code>Far</code></a>.</dd><dt><a class="struct" href="struct.Far.html" title="struct gb::bank::Far">Far</a></dt><dd>A pointer to a <code>T</code> living in group <code>G</code>’s bank.</dd><dt><a class="struct" href="struct.GroupZero.html" title="struct gb::bank::GroupZero">Group<wbr>Zero</a></dt><dd>Bank 0: the always-mapped region.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.BankSafe.html" title="trait gb::bank::BankSafe">Bank<wbr>Safe</a></dt><dd>A value safe to carry across a bank switch: it embeds no pointer to banked code
+that the switch would unmap.</dd><dt><a class="trait" href="trait.FarCall.html" title="trait gb::bank::FarCall">FarCall</a></dt><dd>A far pointer that can be <em>called</em> across a bank boundary.</dd><dt><a class="trait" href="trait.FarWith.html" title="trait gb::bank::FarWith">FarWith</a></dt><dd>Borrowing a far pointer’s <em>data</em> across a bank boundary.</dd><dt><a class="trait" href="trait.Group.html" title="trait gb::bank::Group">Group</a></dt><dd>The compile-time identity of a bank group.</dd><dt><a class="trait" href="trait.Mapper.html" title="trait gb::bank::Mapper">Mapper</a></dt><dd>How a cartridge maps a bank into <code>0x4000..0x8000</code>.</dd><dt><a class="trait" href="trait.Warp.html" title="trait gb::bank::Warp">Warp</a></dt><dd>A deferred banked call: a function applied to its arguments, not yet run.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.current_bank.html" title="fn gb::bank::current_bank">current_<wbr>bank</a></dt><dd>Read the currently mapped bank from the software shadow.</dd><dt><a class="fn" href="fn.scope.html" title="fn gb::bank::scope">scope</a></dt><dd>Enter group <code>G</code>’s bank for the duration of <code>f</code>, then restore the caller (<code>C</code>).</dd><dt><a class="fn" href="fn.switch_bank.html" title="fn gb::bank::switch_bank">switch_<wbr>bank</a><sup title="unsafe function">⚠</sup></dt><dd>Switch the active ROM bank.</dd></dl><h2 id="attributes" class="section-header">Attribute Macros<a href="#attributes" class="anchor">§</a></h2><dl class="item-table"><dt><a class="attr" href="attr.bank.html" title="attr gb::bank::bank">bank</a></dt><dd>Mark a function, static, impl block, or trait as banked.</dd><dt><a class="attr" href="attr.main.html" title="attr gb::bank::main">main</a></dt><dd>Mark the <strong>entry point</strong> (bank 0, the root of the call stack).</dd><dt><a class="attr" href="attr.zero.html" title="attr gb::bank::zero">zero</a></dt><dd>Mark a bank-0 <strong>helper</strong> that drives banked code.</dd></dl></section></div></main></body></html>

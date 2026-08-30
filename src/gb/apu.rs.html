@@ -1,0 +1,546 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/gb/src/apu.rs`."><title>apu.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gb" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-dev" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">gb/</div>apu.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! This module drives the four sound channels.
+<a href=#2 id=2 data-nosnippet>2</a>//!
+<a href=#3 id=3 data-nosnippet>3</a>//! Each channel has a configuration type: [`Pulse`] for channels 1 and 2,
+<a href=#4 id=4 data-nosnippet>4</a>//! [`Wave`] for channel 3, [`Noise`] for channel 4. Building one is a chain of
+<a href=#5 id=5 data-nosnippet>5</a>//! const methods, and `play` writes it out and starts the channel.
+<a href=#6 id=6 data-nosnippet>6</a>//!
+<a href=#7 id=7 data-nosnippet>7</a>//! ```ignore
+<a href=#8 id=8 data-nosnippet>8</a>//! const JUMP: Pulse = Pulse::new(12).note(Note::C, 5).length(8);
+<a href=#9 id=9 data-nosnippet>9</a>//!
+<a href=#10 id=10 data-nosnippet>10</a>//! JUMP.play_ch2();
+<a href=#11 id=11 data-nosnippet>11</a>//! ```
+<a href=#12 id=12 data-nosnippet>12</a>//!
+<a href=#13 id=13 data-nosnippet>13</a>//! A sound played from one place belongs in a constant. A set of them played
+<a href=#14 id=14 data-nosnippet>14</a>//! from the same place belongs in a table.
+<a href=#15 id=15 data-nosnippet>15</a>//!
+<a href=#16 id=16 data-nosnippet>16</a>//! See &lt;https://gbdev.io/pandocs/Audio.html&gt;.
+<a href=#17 id=17 data-nosnippet>17</a>//!
+<a href=#18 id=18 data-nosnippet>18</a>//! # Power
+<a href=#19 id=19 data-nosnippet>19</a>//!
+<a href=#20 id=20 data-nosnippet>20</a>//! The boot ROM leaves the APU on at full volume, so a program that only wants
+<a href=#21 id=21 data-nosnippet>21</a>//! sound has nothing to set up. It does leave channels 3 and 4 reaching the
+<a href=#22 id=22 data-nosnippet>22</a>//! left output alone, which [`set_panning`] settles.
+<a href=#23 id=23 data-nosnippet>23</a>//!
+<a href=#24 id=24 data-nosnippet>24</a>//! [`power_off`] draws less current and is worth having on a pause screen;
+<a href=#25 id=25 data-nosnippet>25</a>//! [`power_on`] comes back from it.
+<a href=#26 id=26 data-nosnippet>26</a>//!
+<a href=#27 id=27 data-nosnippet>27</a>//! # Writing to `DIV`
+<a href=#28 id=28 data-nosnippet>28</a>//!
+<a href=#29 id=29 data-nosnippet>29</a>//! Envelopes, length timers and the channel 1 sweep are all counted off `DIV`,
+<a href=#30 id=30 data-nosnippet>30</a>//! so [`timer::reset_divider`](crate::timer::reset_divider) steps them early.
+<a href=#31 id=31 data-nosnippet>31</a>//! Resetting it while sound is playing is audible.
+<a href=#32 id=32 data-nosnippet>32</a>
+<a href=#33 id=33 data-nosnippet>33</a></span><span class="attr">#[cfg(feature = <span class="string">"cgb"</span>)]
+<a href=#34 id=34 data-nosnippet>34</a></span><span class="kw">use </span><span class="kw">crate</span>::mmio::cgb::{PCM12, PCM34};
+<a href=#35 id=35 data-nosnippet>35</a><span class="kw">use </span><span class="kw">crate</span>::mmio::{
+<a href=#36 id=36 data-nosnippet>36</a>    AudioCtrl, Duty, Envelope, MasterVolume, NR10, NR11, NR12, NR13, NR14, NR21, NR22, NR23, NR24,
+<a href=#37 id=37 data-nosnippet>37</a>    NR30, NR31, NR32, NR33, NR34, NR41, NR42, NR43, NR44, NR50, NR51, NR52, NoiseCtrl, NoiseFreq,
+<a href=#38 id=38 data-nosnippet>38</a>    Panning, PeriodCtrl, PulseLengthDuty, Sweep, WAVE_RAM, WaveDac, WaveLevel, WaveOutput,
+<a href=#39 id=39 data-nosnippet>39</a>};
+<a href=#40 id=40 data-nosnippet>40</a>
+<a href=#41 id=41 data-nosnippet>41</a><span class="doccomment">/// Power the APU on.
+<a href=#42 id=42 data-nosnippet>42</a>///
+<a href=#43 id=43 data-nosnippet>43</a>/// [`power_off`] took the master volume and the panning down with everything
+<a href=#44 id=44 data-nosnippet>44</a>/// else, so [`set_master`] and [`set_panning`] have to follow this or nothing
+<a href=#45 id=45 data-nosnippet>45</a>/// reaches the output.
+<a href=#46 id=46 data-nosnippet>46</a></span><span class="attr">#[inline]
+<a href=#47 id=47 data-nosnippet>47</a></span><span class="kw">pub fn </span>power_on() {
+<a href=#48 id=48 data-nosnippet>48</a>    NR52.write(AudioCtrl::new().with_audio_on(<span class="bool-val">true</span>));
+<a href=#49 id=49 data-nosnippet>49</a>}
+<a href=#50 id=50 data-nosnippet>50</a>
+<a href=#51 id=51 data-nosnippet>51</a><span class="doccomment">/// Power the APU off.
+<a href=#52 id=52 data-nosnippet>52</a>///
+<a href=#53 id=53 data-nosnippet>53</a>/// Every audio register is cleared and stays read-only until [`power_on`]. Wave
+<a href=#54 id=54 data-nosnippet>54</a>/// RAM survives. All four DACs go off together, so this clicks unless the
+<a href=#55 id=55 data-nosnippet>55</a>/// channels were quiet already.
+<a href=#56 id=56 data-nosnippet>56</a></span><span class="attr">#[inline]
+<a href=#57 id=57 data-nosnippet>57</a></span><span class="kw">pub fn </span>power_off() {
+<a href=#58 id=58 data-nosnippet>58</a>    NR52.write(AudioCtrl::new());
+<a href=#59 id=59 data-nosnippet>59</a>}
+<a href=#60 id=60 data-nosnippet>60</a>
+<a href=#61 id=61 data-nosnippet>61</a><span class="doccomment">/// Set the master volume.
+<a href=#62 id=62 data-nosnippet>62</a>///
+<a href=#63 id=63 data-nosnippet>63</a>/// The output moves as the volume does, so this clicks unless everything is
+<a href=#64 id=64 data-nosnippet>64</a>/// already quiet. Fading a tune out with it is audible on top of the fade.
+<a href=#65 id=65 data-nosnippet>65</a></span><span class="attr">#[inline]
+<a href=#66 id=66 data-nosnippet>66</a></span><span class="kw">pub fn </span>set_master(master: MasterVolume) {
+<a href=#67 id=67 data-nosnippet>67</a>    NR50.write(master);
+<a href=#68 id=68 data-nosnippet>68</a>}
+<a href=#69 id=69 data-nosnippet>69</a>
+<a href=#70 id=70 data-nosnippet>70</a><span class="doccomment">/// Set which channels reach which output.
+<a href=#71 id=71 data-nosnippet>71</a>///
+<a href=#72 id=72 data-nosnippet>72</a>/// Taking a channel whose DAC is on off an output, or putting it back, moves
+<a href=#73 id=73 data-nosnippet>73</a>/// that output and clicks. Panning a channel that is playing is heard.
+<a href=#74 id=74 data-nosnippet>74</a></span><span class="attr">#[inline]
+<a href=#75 id=75 data-nosnippet>75</a></span><span class="kw">pub fn </span>set_panning(panning: Panning) {
+<a href=#76 id=76 data-nosnippet>76</a>    NR51.write(panning);
+<a href=#77 id=77 data-nosnippet>77</a>}
+<a href=#78 id=78 data-nosnippet>78</a>
+<a href=#79 id=79 data-nosnippet>79</a><span class="doccomment">/// One of the twelve semitones.
+<a href=#80 id=80 data-nosnippet>80</a></span><span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+<a href=#81 id=81 data-nosnippet>81</a>#[repr(u8)]
+<a href=#82 id=82 data-nosnippet>82</a></span><span class="kw">pub enum </span>Note {
+<a href=#83 id=83 data-nosnippet>83</a>    C,
+<a href=#84 id=84 data-nosnippet>84</a>    Cs,
+<a href=#85 id=85 data-nosnippet>85</a>    D,
+<a href=#86 id=86 data-nosnippet>86</a>    Ds,
+<a href=#87 id=87 data-nosnippet>87</a>    E,
+<a href=#88 id=88 data-nosnippet>88</a>    F,
+<a href=#89 id=89 data-nosnippet>89</a>    Fs,
+<a href=#90 id=90 data-nosnippet>90</a>    G,
+<a href=#91 id=91 data-nosnippet>91</a>    Gs,
+<a href=#92 id=92 data-nosnippet>92</a>    A,
+<a href=#93 id=93 data-nosnippet>93</a>    As,
+<a href=#94 id=94 data-nosnippet>94</a>    B,
+<a href=#95 id=95 data-nosnippet>95</a>}
+<a href=#96 id=96 data-nosnippet>96</a>
+<a href=#97 id=97 data-nosnippet>97</a><span class="doccomment">/// The eighth octave in millihertz. Lower ones come from shifting this down,
+<a href=#98 id=98 data-nosnippet>98</a>/// which keeps the division that follows precise.
+<a href=#99 id=99 data-nosnippet>99</a></span><span class="kw">const </span>OCTAVE_8: [u32; <span class="number">12</span>] = [
+<a href=#100 id=100 data-nosnippet>100</a>    <span class="number">4_186_009</span>, <span class="number">4_434_922</span>, <span class="number">4_698_636</span>, <span class="number">4_978_032</span>, <span class="number">5_274_041</span>, <span class="number">5_587_652</span>, <span class="number">5_919_911</span>, <span class="number">6_271_927</span>,
+<a href=#101 id=101 data-nosnippet>101</a>    <span class="number">6_644_875</span>, <span class="number">7_040_000</span>, <span class="number">7_458_620</span>, <span class="number">7_902_133</span>,
+<a href=#102 id=102 data-nosnippet>102</a>];
+<a href=#103 id=103 data-nosnippet>103</a>
+<a href=#104 id=104 data-nosnippet>104</a><span class="doccomment">/// The period value that comes nearest `note` at `octave`, for a channel whose
+<a href=#105 id=105 data-nosnippet>105</a>/// waveform repeats `clock` times a second at a period value of one.
+<a href=#106 id=106 data-nosnippet>106</a></span><span class="kw">const fn </span>period(note: Note, octave: u8, clock: u32) -&gt; u16 {
+<a href=#107 id=107 data-nosnippet>107</a>    <span class="kw">let </span>octave = <span class="kw">if </span>octave &gt; <span class="number">8 </span>{ <span class="number">8 </span>} <span class="kw">else </span>{ octave };
+<a href=#108 id=108 data-nosnippet>108</a>    <span class="kw">let </span>millihertz = OCTAVE_8[note <span class="kw">as </span>usize] &gt;&gt; (<span class="number">8 </span>- octave);
+<a href=#109 id=109 data-nosnippet>109</a>    <span class="kw">let </span>divider = (clock + millihertz / <span class="number">2</span>) / millihertz;
+<a href=#110 id=110 data-nosnippet>110</a>    <span class="kw">if </span>divider &gt;= <span class="number">2048 </span>{
+<a href=#111 id=111 data-nosnippet>111</a>        <span class="number">0
+<a href=#112 id=112 data-nosnippet>112</a>    </span>} <span class="kw">else </span>{
+<a href=#113 id=113 data-nosnippet>113</a>        (<span class="number">2048 </span>- divider) <span class="kw">as </span>u16
+<a href=#114 id=114 data-nosnippet>114</a>    }
+<a href=#115 id=115 data-nosnippet>115</a>}
+<a href=#116 id=116 data-nosnippet>116</a>
+<a href=#117 id=117 data-nosnippet>117</a><span class="doccomment">/// Turn `ticks` of a length timer into the value the register takes, which
+<a href=#118 id=118 data-nosnippet>118</a>/// counts up to `limit` from what is written.
+<a href=#119 id=119 data-nosnippet>119</a></span><span class="kw">const fn </span>length_from(ticks: u16, limit: u16) -&gt; u8 {
+<a href=#120 id=120 data-nosnippet>120</a>    <span class="kw">let </span>ticks = <span class="kw">if </span>ticks == <span class="number">0 </span>{
+<a href=#121 id=121 data-nosnippet>121</a>        <span class="number">1
+<a href=#122 id=122 data-nosnippet>122</a>    </span>} <span class="kw">else if </span>ticks &gt; limit {
+<a href=#123 id=123 data-nosnippet>123</a>        limit
+<a href=#124 id=124 data-nosnippet>124</a>    } <span class="kw">else </span>{
+<a href=#125 id=125 data-nosnippet>125</a>        ticks
+<a href=#126 id=126 data-nosnippet>126</a>    };
+<a href=#127 id=127 data-nosnippet>127</a>    (limit - ticks) <span class="kw">as </span>u8
+<a href=#128 id=128 data-nosnippet>128</a>}
+<a href=#129 id=129 data-nosnippet>129</a>
+<a href=#130 id=130 data-nosnippet>130</a><span class="doccomment">/// A pulse channel's settings.
+<a href=#131 id=131 data-nosnippet>131</a>///
+<a href=#132 id=132 data-nosnippet>132</a>/// Channels 1 and 2 differ only in that 1 has a frequency sweep, so one of
+<a href=#133 id=133 data-nosnippet>133</a>/// these plays on either.
+<a href=#134 id=134 data-nosnippet>134</a></span><span class="attr">#[derive(Clone, Copy, PartialEq, Eq)]
+<a href=#135 id=135 data-nosnippet>135</a></span><span class="kw">pub struct </span>Pulse {
+<a href=#136 id=136 data-nosnippet>136</a>    length_duty: PulseLengthDuty,
+<a href=#137 id=137 data-nosnippet>137</a>    envelope: Envelope,
+<a href=#138 id=138 data-nosnippet>138</a>    period_low: u8,
+<a href=#139 id=139 data-nosnippet>139</a>    period_ctrl: PeriodCtrl,
+<a href=#140 id=140 data-nosnippet>140</a>}
+<a href=#141 id=141 data-nosnippet>141</a>
+<a href=#142 id=142 data-nosnippet>142</a><span class="kw">impl </span>Pulse {
+<a href=#143 id=143 data-nosnippet>143</a>    <span class="doccomment">/// A 50% square wave at `volume`, out of 15, and the lowest period.
+<a href=#144 id=144 data-nosnippet>144</a>    ///
+<a href=#145 id=145 data-nosnippet>145</a>    /// A volume of 0 is not a quiet sound but a stopped channel: it turns the
+<a href=#146 id=146 data-nosnippet>146</a>    /// DAC off, and a channel whose DAC is off will not start.
+<a href=#147 id=147 data-nosnippet>147</a>    </span><span class="attr">#[inline]
+<a href=#148 id=148 data-nosnippet>148</a>    </span><span class="kw">pub const fn </span>new(volume: u8) -&gt; <span class="self">Self </span>{
+<a href=#149 id=149 data-nosnippet>149</a>        Pulse {
+<a href=#150 id=150 data-nosnippet>150</a>            length_duty: PulseLengthDuty::new().with_duty(Duty::Half),
+<a href=#151 id=151 data-nosnippet>151</a>            envelope: Envelope::new().with_volume(<span class="kw">if </span>volume &gt; <span class="number">15 </span>{ <span class="number">15 </span>} <span class="kw">else </span>{ volume }),
+<a href=#152 id=152 data-nosnippet>152</a>            period_low: <span class="number">0</span>,
+<a href=#153 id=153 data-nosnippet>153</a>            period_ctrl: PeriodCtrl::new().with_trigger(<span class="bool-val">true</span>),
+<a href=#154 id=154 data-nosnippet>154</a>        }
+<a href=#155 id=155 data-nosnippet>155</a>    }
+<a href=#156 id=156 data-nosnippet>156</a>
+<a href=#157 id=157 data-nosnippet>157</a>    <span class="doccomment">/// Tune to `note` at `octave`.
+<a href=#158 id=158 data-nosnippet>158</a>    ///
+<a href=#159 id=159 data-nosnippet>159</a>    /// C2 through B5 comes out within about five cents. There is nothing below
+<a href=#160 id=160 data-nosnippet>160</a>    /// C2 to reach and the pitch stops there; above B5 the period value runs
+<a href=#161 id=161 data-nosnippet>161</a>    /// out of resolution and drifts, a quarter tone off by the eighth octave.
+<a href=#162 id=162 data-nosnippet>162</a>    </span><span class="attr">#[inline]
+<a href=#163 id=163 data-nosnippet>163</a>    </span><span class="kw">pub const fn </span>note(<span class="self">self</span>, note: Note, octave: u8) -&gt; <span class="self">Self </span>{
+<a href=#164 id=164 data-nosnippet>164</a>        <span class="self">self</span>.at_period(period(note, octave, <span class="number">131_072_000</span>))
+<a href=#165 id=165 data-nosnippet>165</a>    }
+<a href=#166 id=166 data-nosnippet>166</a>
+<a href=#167 id=167 data-nosnippet>167</a>    <span class="doccomment">/// Tune to a period value, which counts up rather than down: the larger it
+<a href=#168 id=168 data-nosnippet>168</a>    /// is, the higher the pitch. At most `$7FF`.
+<a href=#169 id=169 data-nosnippet>169</a>    </span><span class="attr">#[inline]
+<a href=#170 id=170 data-nosnippet>170</a>    </span><span class="kw">pub const fn </span>at_period(<span class="self">self</span>, period: u16) -&gt; <span class="self">Self </span>{
+<a href=#171 id=171 data-nosnippet>171</a>        <span class="kw">let </span>period = <span class="kw">if </span>period &gt; <span class="number">0x7FF </span>{ <span class="number">0x7FF </span>} <span class="kw">else </span>{ period };
+<a href=#172 id=172 data-nosnippet>172</a>        Pulse {
+<a href=#173 id=173 data-nosnippet>173</a>            period_low: period <span class="kw">as </span>u8,
+<a href=#174 id=174 data-nosnippet>174</a>            period_ctrl: <span class="self">self</span>.period_ctrl.with_period_high((period &gt;&gt; <span class="number">8</span>) <span class="kw">as </span>u8 &amp; <span class="number">7</span>),
+<a href=#175 id=175 data-nosnippet>175</a>            ..<span class="self">self
+<a href=#176 id=176 data-nosnippet>176</a>        </span>}
+<a href=#177 id=177 data-nosnippet>177</a>    }
+<a href=#178 id=178 data-nosnippet>178</a>
+<a href=#179 id=179 data-nosnippet>179</a>    <span class="doccomment">/// Set the fraction of each cycle the wave spends high.
+<a href=#180 id=180 data-nosnippet>180</a>    </span><span class="attr">#[inline]
+<a href=#181 id=181 data-nosnippet>181</a>    </span><span class="kw">pub const fn </span>duty(<span class="self">self</span>, duty: Duty) -&gt; <span class="self">Self </span>{
+<a href=#182 id=182 data-nosnippet>182</a>        Pulse {
+<a href=#183 id=183 data-nosnippet>183</a>            length_duty: <span class="self">self</span>.length_duty.with_duty(duty),
+<a href=#184 id=184 data-nosnippet>184</a>            ..<span class="self">self
+<a href=#185 id=185 data-nosnippet>185</a>        </span>}
+<a href=#186 id=186 data-nosnippet>186</a>    }
+<a href=#187 id=187 data-nosnippet>187</a>
+<a href=#188 id=188 data-nosnippet>188</a>    <span class="doccomment">/// Step the volume every `pace` ticks of a 64 Hz count, up or down.
+<a href=#189 id=189 data-nosnippet>189</a>    ///
+<a href=#190 id=190 data-nosnippet>190</a>    /// A pace of 0 holds the volume where [`Pulse::new`] put it.
+<a href=#191 id=191 data-nosnippet>191</a>    </span><span class="attr">#[inline]
+<a href=#192 id=192 data-nosnippet>192</a>    </span><span class="kw">pub const fn </span>envelope(<span class="self">self</span>, pace: u8, increase: bool) -&gt; <span class="self">Self </span>{
+<a href=#193 id=193 data-nosnippet>193</a>        Pulse {
+<a href=#194 id=194 data-nosnippet>194</a>            envelope: <span class="self">self
+<a href=#195 id=195 data-nosnippet>195</a>                </span>.envelope
+<a href=#196 id=196 data-nosnippet>196</a>                .with_pace(<span class="kw">if </span>pace &gt; <span class="number">7 </span>{ <span class="number">7 </span>} <span class="kw">else </span>{ pace })
+<a href=#197 id=197 data-nosnippet>197</a>                .with_increase(increase),
+<a href=#198 id=198 data-nosnippet>198</a>            ..<span class="self">self
+<a href=#199 id=199 data-nosnippet>199</a>        </span>}
+<a href=#200 id=200 data-nosnippet>200</a>    }
+<a href=#201 id=201 data-nosnippet>201</a>
+<a href=#202 id=202 data-nosnippet>202</a>    <span class="doccomment">/// Stop the channel after `ticks` of a 256 Hz count, at most 64.
+<a href=#203 id=203 data-nosnippet>203</a>    </span><span class="attr">#[inline]
+<a href=#204 id=204 data-nosnippet>204</a>    </span><span class="kw">pub const fn </span>length(<span class="self">self</span>, ticks: u8) -&gt; <span class="self">Self </span>{
+<a href=#205 id=205 data-nosnippet>205</a>        Pulse {
+<a href=#206 id=206 data-nosnippet>206</a>            length_duty: <span class="self">self</span>.length_duty.with_length(length_from(ticks <span class="kw">as </span>u16, <span class="number">64</span>)),
+<a href=#207 id=207 data-nosnippet>207</a>            period_ctrl: <span class="self">self</span>.period_ctrl.with_length_enable(<span class="bool-val">true</span>),
+<a href=#208 id=208 data-nosnippet>208</a>            ..<span class="self">self
+<a href=#209 id=209 data-nosnippet>209</a>        </span>}
+<a href=#210 id=210 data-nosnippet>210</a>    }
+<a href=#211 id=211 data-nosnippet>211</a>
+<a href=#212 id=212 data-nosnippet>212</a>    <span class="doccomment">/// Play on channel 1, with `sweep` bending the pitch as it goes.
+<a href=#213 id=213 data-nosnippet>213</a>    ///
+<a href=#214 id=214 data-nosnippet>214</a>    /// The sweep is asked for because it belongs to the channel rather than to
+<a href=#215 id=215 data-nosnippet>215</a>    /// these settings, and one left over from an earlier sound would bend this
+<a href=#216 id=216 data-nosnippet>216</a>    /// one. [`Sweep::new`] leaves the pitch alone.
+<a href=#217 id=217 data-nosnippet>217</a>    ///
+<a href=#218 id=218 data-nosnippet>218</a>    /// Whether a sweep runs at all is settled here and nowhere else: a note
+<a href=#219 id=219 data-nosnippet>219</a>    /// triggered without one cannot be given one part way through.
+<a href=#220 id=220 data-nosnippet>220</a>    ///
+<a href=#221 id=221 data-nosnippet>221</a>    /// A rising sweep is checked against the top as the note is triggered, so a
+<a href=#222 id=222 data-nosnippet>222</a>    /// step that would carry a high note past `$7FF` in one move cuts it before
+<a href=#223 id=223 data-nosnippet>223</a>    /// anything is heard. The smaller the step number, the larger the move. A
+<a href=#224 id=224 data-nosnippet>224</a>    /// falling sweep cannot reach the top and is never cut.
+<a href=#225 id=225 data-nosnippet>225</a>    </span><span class="attr">#[inline]
+<a href=#226 id=226 data-nosnippet>226</a>    </span><span class="kw">pub fn </span>play_ch1(<span class="kw-2">&amp;</span><span class="self">self</span>, sweep: Sweep) {
+<a href=#227 id=227 data-nosnippet>227</a>        NR10.write(sweep);
+<a href=#228 id=228 data-nosnippet>228</a>        NR11.write(<span class="self">self</span>.length_duty);
+<a href=#229 id=229 data-nosnippet>229</a>        NR12.write(<span class="self">self</span>.envelope);
+<a href=#230 id=230 data-nosnippet>230</a>        NR13.write(<span class="self">self</span>.period_low);
+<a href=#231 id=231 data-nosnippet>231</a>        NR14.write(<span class="self">self</span>.period_ctrl);
+<a href=#232 id=232 data-nosnippet>232</a>    }
+<a href=#233 id=233 data-nosnippet>233</a>
+<a href=#234 id=234 data-nosnippet>234</a>    <span class="doccomment">/// Play on channel 2.
+<a href=#235 id=235 data-nosnippet>235</a>    </span><span class="attr">#[inline]
+<a href=#236 id=236 data-nosnippet>236</a>    </span><span class="kw">pub fn </span>play_ch2(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#237 id=237 data-nosnippet>237</a>        NR21.write(<span class="self">self</span>.length_duty);
+<a href=#238 id=238 data-nosnippet>238</a>        NR22.write(<span class="self">self</span>.envelope);
+<a href=#239 id=239 data-nosnippet>239</a>        NR23.write(<span class="self">self</span>.period_low);
+<a href=#240 id=240 data-nosnippet>240</a>        NR24.write(<span class="self">self</span>.period_ctrl);
+<a href=#241 id=241 data-nosnippet>241</a>    }
+<a href=#242 id=242 data-nosnippet>242</a>
+<a href=#243 id=243 data-nosnippet>243</a>    <span class="doccomment">/// Change the pitch on channel 1 without starting the note over.
+<a href=#244 id=244 data-nosnippet>244</a>    ///
+<a href=#245 id=245 data-nosnippet>245</a>    /// A running sweep holds its own copy of the pitch and writes that back at
+<a href=#246 id=246 data-nosnippet>246</a>    /// its next step, so this reaches a channel playing without one.
+<a href=#247 id=247 data-nosnippet>247</a>    </span><span class="attr">#[inline]
+<a href=#248 id=248 data-nosnippet>248</a>    </span><span class="kw">pub fn </span>retune_ch1(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#249 id=249 data-nosnippet>249</a>        NR13.write(<span class="self">self</span>.period_low);
+<a href=#250 id=250 data-nosnippet>250</a>        NR14.write(<span class="self">self</span>.period_ctrl.with_trigger(<span class="bool-val">false</span>));
+<a href=#251 id=251 data-nosnippet>251</a>    }
+<a href=#252 id=252 data-nosnippet>252</a>
+<a href=#253 id=253 data-nosnippet>253</a>    <span class="doccomment">/// Change the pitch on channel 2 without starting the note over.
+<a href=#254 id=254 data-nosnippet>254</a>    ///
+<a href=#255 id=255 data-nosnippet>255</a>    /// The envelope and the waveform carry on from where they are, which is
+<a href=#256 id=256 data-nosnippet>256</a>    /// what a slide or a vibrato wants. [`Pulse::play_ch2`] restarts both.
+<a href=#257 id=257 data-nosnippet>257</a>    </span><span class="attr">#[inline]
+<a href=#258 id=258 data-nosnippet>258</a>    </span><span class="kw">pub fn </span>retune_ch2(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#259 id=259 data-nosnippet>259</a>        NR23.write(<span class="self">self</span>.period_low);
+<a href=#260 id=260 data-nosnippet>260</a>        NR24.write(<span class="self">self</span>.period_ctrl.with_trigger(<span class="bool-val">false</span>));
+<a href=#261 id=261 data-nosnippet>261</a>    }
+<a href=#262 id=262 data-nosnippet>262</a>
+<a href=#263 id=263 data-nosnippet>263</a>    <span class="doccomment">/// Change the duty on channel 1 without starting the note over.
+<a href=#264 id=264 data-nosnippet>264</a>    ///
+<a href=#265 id=265 data-nosnippet>265</a>    /// The length timer shares the register and starts over with it.
+<a href=#266 id=266 data-nosnippet>266</a>    </span><span class="attr">#[inline]
+<a href=#267 id=267 data-nosnippet>267</a>    </span><span class="kw">pub fn </span>set_duty_ch1(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#268 id=268 data-nosnippet>268</a>        NR11.write(<span class="self">self</span>.length_duty);
+<a href=#269 id=269 data-nosnippet>269</a>    }
+<a href=#270 id=270 data-nosnippet>270</a>
+<a href=#271 id=271 data-nosnippet>271</a>    <span class="doccomment">/// Change the duty on channel 2 without starting the note over.
+<a href=#272 id=272 data-nosnippet>272</a>    ///
+<a href=#273 id=273 data-nosnippet>273</a>    /// The length timer shares the register and starts over with it.
+<a href=#274 id=274 data-nosnippet>274</a>    </span><span class="attr">#[inline]
+<a href=#275 id=275 data-nosnippet>275</a>    </span><span class="kw">pub fn </span>set_duty_ch2(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#276 id=276 data-nosnippet>276</a>        NR21.write(<span class="self">self</span>.length_duty);
+<a href=#277 id=277 data-nosnippet>277</a>    }
+<a href=#278 id=278 data-nosnippet>278</a>}
+<a href=#279 id=279 data-nosnippet>279</a>
+<a href=#280 id=280 data-nosnippet>280</a><span class="doccomment">/// Channel 3's settings, which play whatever [`load_wave`] last put in wave RAM.
+<a href=#281 id=281 data-nosnippet>281</a>///
+<a href=#282 id=282 data-nosnippet>282</a>/// There is no envelope here, and the volume is the four steps of [`WaveLevel`].
+<a href=#283 id=283 data-nosnippet>283</a></span><span class="attr">#[derive(Clone, Copy, PartialEq, Eq)]
+<a href=#284 id=284 data-nosnippet>284</a></span><span class="kw">pub struct </span>Wave {
+<a href=#285 id=285 data-nosnippet>285</a>    length: u8,
+<a href=#286 id=286 data-nosnippet>286</a>    output: WaveOutput,
+<a href=#287 id=287 data-nosnippet>287</a>    period_low: u8,
+<a href=#288 id=288 data-nosnippet>288</a>    period_ctrl: PeriodCtrl,
+<a href=#289 id=289 data-nosnippet>289</a>}
+<a href=#290 id=290 data-nosnippet>290</a>
+<a href=#291 id=291 data-nosnippet>291</a><span class="kw">impl </span>Wave {
+<a href=#292 id=292 data-nosnippet>292</a>    <span class="doccomment">/// The wave at `level`, at the lowest period.
+<a href=#293 id=293 data-nosnippet>293</a>    </span><span class="attr">#[inline]
+<a href=#294 id=294 data-nosnippet>294</a>    </span><span class="kw">pub const fn </span>new(level: WaveLevel) -&gt; <span class="self">Self </span>{
+<a href=#295 id=295 data-nosnippet>295</a>        Wave {
+<a href=#296 id=296 data-nosnippet>296</a>            length: <span class="number">0</span>,
+<a href=#297 id=297 data-nosnippet>297</a>            output: WaveOutput::new().with_level(level),
+<a href=#298 id=298 data-nosnippet>298</a>            period_low: <span class="number">0</span>,
+<a href=#299 id=299 data-nosnippet>299</a>            period_ctrl: PeriodCtrl::new().with_trigger(<span class="bool-val">true</span>),
+<a href=#300 id=300 data-nosnippet>300</a>        }
+<a href=#301 id=301 data-nosnippet>301</a>    }
+<a href=#302 id=302 data-nosnippet>302</a>
+<a href=#303 id=303 data-nosnippet>303</a>    <span class="doccomment">/// Tune to `note` at `octave`.
+<a href=#304 id=304 data-nosnippet>304</a>    ///
+<a href=#305 id=305 data-nosnippet>305</a>    /// This channel reads its waveform half as fast as a pulse channel, so its
+<a href=#306 id=306 data-nosnippet>306</a>    /// range sits an octave below theirs: C1 through B4 within about five
+<a href=#307 id=307 data-nosnippet>307</a>    /// cents, nothing lower to reach, and the same drift above.
+<a href=#308 id=308 data-nosnippet>308</a>    </span><span class="attr">#[inline]
+<a href=#309 id=309 data-nosnippet>309</a>    </span><span class="kw">pub const fn </span>note(<span class="self">self</span>, note: Note, octave: u8) -&gt; <span class="self">Self </span>{
+<a href=#310 id=310 data-nosnippet>310</a>        <span class="self">self</span>.at_period(period(note, octave, <span class="number">65_536_000</span>))
+<a href=#311 id=311 data-nosnippet>311</a>    }
+<a href=#312 id=312 data-nosnippet>312</a>
+<a href=#313 id=313 data-nosnippet>313</a>    <span class="doccomment">/// Tune to a period value, which counts up rather than down: the larger it
+<a href=#314 id=314 data-nosnippet>314</a>    /// is, the higher the pitch. At most `$7FF`.
+<a href=#315 id=315 data-nosnippet>315</a>    </span><span class="attr">#[inline]
+<a href=#316 id=316 data-nosnippet>316</a>    </span><span class="kw">pub const fn </span>at_period(<span class="self">self</span>, period: u16) -&gt; <span class="self">Self </span>{
+<a href=#317 id=317 data-nosnippet>317</a>        <span class="kw">let </span>period = <span class="kw">if </span>period &gt; <span class="number">0x7FF </span>{ <span class="number">0x7FF </span>} <span class="kw">else </span>{ period };
+<a href=#318 id=318 data-nosnippet>318</a>        Wave {
+<a href=#319 id=319 data-nosnippet>319</a>            period_low: period <span class="kw">as </span>u8,
+<a href=#320 id=320 data-nosnippet>320</a>            period_ctrl: <span class="self">self</span>.period_ctrl.with_period_high((period &gt;&gt; <span class="number">8</span>) <span class="kw">as </span>u8 &amp; <span class="number">7</span>),
+<a href=#321 id=321 data-nosnippet>321</a>            ..<span class="self">self
+<a href=#322 id=322 data-nosnippet>322</a>        </span>}
+<a href=#323 id=323 data-nosnippet>323</a>    }
+<a href=#324 id=324 data-nosnippet>324</a>
+<a href=#325 id=325 data-nosnippet>325</a>    <span class="doccomment">/// Stop the channel after `ticks` of a 256 Hz count, at most 256.
+<a href=#326 id=326 data-nosnippet>326</a>    </span><span class="attr">#[inline]
+<a href=#327 id=327 data-nosnippet>327</a>    </span><span class="kw">pub const fn </span>length(<span class="self">self</span>, ticks: u16) -&gt; <span class="self">Self </span>{
+<a href=#328 id=328 data-nosnippet>328</a>        Wave {
+<a href=#329 id=329 data-nosnippet>329</a>            length: length_from(ticks, <span class="number">256</span>),
+<a href=#330 id=330 data-nosnippet>330</a>            period_ctrl: <span class="self">self</span>.period_ctrl.with_length_enable(<span class="bool-val">true</span>),
+<a href=#331 id=331 data-nosnippet>331</a>            ..<span class="self">self
+<a href=#332 id=332 data-nosnippet>332</a>        </span>}
+<a href=#333 id=333 data-nosnippet>333</a>    }
+<a href=#334 id=334 data-nosnippet>334</a>
+<a href=#335 id=335 data-nosnippet>335</a>    <span class="doccomment">/// Play on channel 3.
+<a href=#336 id=336 data-nosnippet>336</a>    ///
+<a href=#337 id=337 data-nosnippet>337</a>    /// Triggering the channel while it is already playing can corrupt wave RAM
+<a href=#338 id=338 data-nosnippet>338</a>    /// on an original Game Boy. [`stop`] first avoids that and costs a click.
+<a href=#339 id=339 data-nosnippet>339</a>    </span><span class="attr">#[inline]
+<a href=#340 id=340 data-nosnippet>340</a>    </span><span class="kw">pub fn </span>play(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#341 id=341 data-nosnippet>341</a>        NR30.write(WaveDac::new().with_dac_on(<span class="bool-val">true</span>));
+<a href=#342 id=342 data-nosnippet>342</a>        NR31.write(<span class="self">self</span>.length);
+<a href=#343 id=343 data-nosnippet>343</a>        NR32.write(<span class="self">self</span>.output);
+<a href=#344 id=344 data-nosnippet>344</a>        NR33.write(<span class="self">self</span>.period_low);
+<a href=#345 id=345 data-nosnippet>345</a>        NR34.write(<span class="self">self</span>.period_ctrl);
+<a href=#346 id=346 data-nosnippet>346</a>    }
+<a href=#347 id=347 data-nosnippet>347</a>
+<a href=#348 id=348 data-nosnippet>348</a>    <span class="doccomment">/// Change the pitch without starting the waveform over.
+<a href=#349 id=349 data-nosnippet>349</a>    </span><span class="attr">#[inline]
+<a href=#350 id=350 data-nosnippet>350</a>    </span><span class="kw">pub fn </span>retune(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#351 id=351 data-nosnippet>351</a>        NR33.write(<span class="self">self</span>.period_low);
+<a href=#352 id=352 data-nosnippet>352</a>        NR34.write(<span class="self">self</span>.period_ctrl.with_trigger(<span class="bool-val">false</span>));
+<a href=#353 id=353 data-nosnippet>353</a>    }
+<a href=#354 id=354 data-nosnippet>354</a>
+<a href=#355 id=355 data-nosnippet>355</a>    <span class="doccomment">/// Change the output level without starting the waveform over.
+<a href=#356 id=356 data-nosnippet>356</a>    ///
+<a href=#357 id=357 data-nosnippet>357</a>    /// Channel 3 has no envelope, so this is how its volume moves during a
+<a href=#358 id=358 data-nosnippet>358</a>    /// note.
+<a href=#359 id=359 data-nosnippet>359</a>    </span><span class="attr">#[inline]
+<a href=#360 id=360 data-nosnippet>360</a>    </span><span class="kw">pub fn </span>set_level(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#361 id=361 data-nosnippet>361</a>        NR32.write(<span class="self">self</span>.output);
+<a href=#362 id=362 data-nosnippet>362</a>    }
+<a href=#363 id=363 data-nosnippet>363</a>}
+<a href=#364 id=364 data-nosnippet>364</a>
+<a href=#365 id=365 data-nosnippet>365</a><span class="doccomment">/// Load the 32 four-bit samples channel 3 plays, high nibble of each byte first.
+<a href=#366 id=366 data-nosnippet>366</a>///
+<a href=#367 id=367 data-nosnippet>367</a>/// Channel 3 stops first, because wave RAM reached while it is playing does not
+<a href=#368 id=368 data-nosnippet>368</a>/// answer for the address asked for. That means a click if it was playing, so
+<a href=#369 id=369 data-nosnippet>369</a>/// this belongs in a quiet moment. Play a [`Wave`] to start it again.
+<a href=#370 id=370 data-nosnippet>370</a></span><span class="attr">#[inline]
+<a href=#371 id=371 data-nosnippet>371</a></span><span class="kw">pub fn </span>load_wave(samples: <span class="kw-2">&amp;</span>[u8; <span class="number">16</span>]) {
+<a href=#372 id=372 data-nosnippet>372</a>    NR30.write(WaveDac::new());
+<a href=#373 id=373 data-nosnippet>373</a>    <span class="kw">let </span><span class="kw-2">mut </span>i = <span class="number">0</span>;
+<a href=#374 id=374 data-nosnippet>374</a>    <span class="kw">while </span>i &lt; <span class="number">16 </span>{
+<a href=#375 id=375 data-nosnippet>375</a>        WAVE_RAM.index(i).write(samples[i]);
+<a href=#376 id=376 data-nosnippet>376</a>        i += <span class="number">1</span>;
+<a href=#377 id=377 data-nosnippet>377</a>    }
+<a href=#378 id=378 data-nosnippet>378</a>}
+<a href=#379 id=379 data-nosnippet>379</a>
+<a href=#380 id=380 data-nosnippet>380</a><span class="doccomment">/// Channel 4's settings.
+<a href=#381 id=381 data-nosnippet>381</a>///
+<a href=#382 id=382 data-nosnippet>382</a>/// The pitch is a clock divider and shift rather than a note, since what comes
+<a href=#383 id=383 data-nosnippet>383</a>/// out is noise and is chosen by ear.
+<a href=#384 id=384 data-nosnippet>384</a></span><span class="attr">#[derive(Clone, Copy, PartialEq, Eq)]
+<a href=#385 id=385 data-nosnippet>385</a></span><span class="kw">pub struct </span>Noise {
+<a href=#386 id=386 data-nosnippet>386</a>    length: u8,
+<a href=#387 id=387 data-nosnippet>387</a>    envelope: Envelope,
+<a href=#388 id=388 data-nosnippet>388</a>    freq: NoiseFreq,
+<a href=#389 id=389 data-nosnippet>389</a>    ctrl: NoiseCtrl,
+<a href=#390 id=390 data-nosnippet>390</a>}
+<a href=#391 id=391 data-nosnippet>391</a>
+<a href=#392 id=392 data-nosnippet>392</a><span class="kw">impl </span>Noise {
+<a href=#393 id=393 data-nosnippet>393</a>    <span class="doccomment">/// Noise at `volume`, out of 15, clocked at `262144 / (divider &lt;&lt; shift)`
+<a href=#394 id=394 data-nosnippet>394</a>    /// hertz, where a divider of 0 counts as a half.
+<a href=#395 id=395 data-nosnippet>395</a>    ///
+<a href=#396 id=396 data-nosnippet>396</a>    /// A volume of 0 is not a quiet sound but a stopped channel: it turns the
+<a href=#397 id=397 data-nosnippet>397</a>    /// DAC off, and a channel whose DAC is off will not start.
+<a href=#398 id=398 data-nosnippet>398</a>    ///
+<a href=#399 id=399 data-nosnippet>399</a>    /// A shift of 14 or 15 stops the clock, and neither is reachable here.
+<a href=#400 id=400 data-nosnippet>400</a>    </span><span class="attr">#[inline]
+<a href=#401 id=401 data-nosnippet>401</a>    </span><span class="kw">pub const fn </span>new(volume: u8, divider: u8, shift: u8) -&gt; <span class="self">Self </span>{
+<a href=#402 id=402 data-nosnippet>402</a>        Noise {
+<a href=#403 id=403 data-nosnippet>403</a>            length: <span class="number">0</span>,
+<a href=#404 id=404 data-nosnippet>404</a>            envelope: Envelope::new().with_volume(<span class="kw">if </span>volume &gt; <span class="number">15 </span>{ <span class="number">15 </span>} <span class="kw">else </span>{ volume }),
+<a href=#405 id=405 data-nosnippet>405</a>            freq: NoiseFreq::new()
+<a href=#406 id=406 data-nosnippet>406</a>                .with_divider(<span class="kw">if </span>divider &gt; <span class="number">7 </span>{ <span class="number">7 </span>} <span class="kw">else </span>{ divider })
+<a href=#407 id=407 data-nosnippet>407</a>                .with_shift(<span class="kw">if </span>shift &gt; <span class="number">13 </span>{ <span class="number">13 </span>} <span class="kw">else </span>{ shift }),
+<a href=#408 id=408 data-nosnippet>408</a>            ctrl: NoiseCtrl::new().with_trigger(<span class="bool-val">true</span>),
+<a href=#409 id=409 data-nosnippet>409</a>        }
+<a href=#410 id=410 data-nosnippet>410</a>    }
+<a href=#411 id=411 data-nosnippet>411</a>
+<a href=#412 id=412 data-nosnippet>412</a>    <span class="doccomment">/// Run the shift register seven bits wide, which repeats often enough to
+<a href=#413 id=413 data-nosnippet>413</a>    /// carry a pitch.
+<a href=#414 id=414 data-nosnippet>414</a>    </span><span class="attr">#[inline]
+<a href=#415 id=415 data-nosnippet>415</a>    </span><span class="kw">pub const fn </span>short_lfsr(<span class="self">self</span>) -&gt; <span class="self">Self </span>{
+<a href=#416 id=416 data-nosnippet>416</a>        Noise {
+<a href=#417 id=417 data-nosnippet>417</a>            freq: <span class="self">self</span>.freq.with_short_lfsr(<span class="bool-val">true</span>),
+<a href=#418 id=418 data-nosnippet>418</a>            ..<span class="self">self
+<a href=#419 id=419 data-nosnippet>419</a>        </span>}
+<a href=#420 id=420 data-nosnippet>420</a>    }
+<a href=#421 id=421 data-nosnippet>421</a>
+<a href=#422 id=422 data-nosnippet>422</a>    <span class="doccomment">/// Step the volume every `pace` ticks of a 64 Hz count, up or down.
+<a href=#423 id=423 data-nosnippet>423</a>    ///
+<a href=#424 id=424 data-nosnippet>424</a>    /// A pace of 0 holds the volume where [`Noise::new`] put it.
+<a href=#425 id=425 data-nosnippet>425</a>    </span><span class="attr">#[inline]
+<a href=#426 id=426 data-nosnippet>426</a>    </span><span class="kw">pub const fn </span>envelope(<span class="self">self</span>, pace: u8, increase: bool) -&gt; <span class="self">Self </span>{
+<a href=#427 id=427 data-nosnippet>427</a>        Noise {
+<a href=#428 id=428 data-nosnippet>428</a>            envelope: <span class="self">self
+<a href=#429 id=429 data-nosnippet>429</a>                </span>.envelope
+<a href=#430 id=430 data-nosnippet>430</a>                .with_pace(<span class="kw">if </span>pace &gt; <span class="number">7 </span>{ <span class="number">7 </span>} <span class="kw">else </span>{ pace })
+<a href=#431 id=431 data-nosnippet>431</a>                .with_increase(increase),
+<a href=#432 id=432 data-nosnippet>432</a>            ..<span class="self">self
+<a href=#433 id=433 data-nosnippet>433</a>        </span>}
+<a href=#434 id=434 data-nosnippet>434</a>    }
+<a href=#435 id=435 data-nosnippet>435</a>
+<a href=#436 id=436 data-nosnippet>436</a>    <span class="doccomment">/// Stop the channel after `ticks` of a 256 Hz count, at most 64.
+<a href=#437 id=437 data-nosnippet>437</a>    </span><span class="attr">#[inline]
+<a href=#438 id=438 data-nosnippet>438</a>    </span><span class="kw">pub const fn </span>length(<span class="self">self</span>, ticks: u8) -&gt; <span class="self">Self </span>{
+<a href=#439 id=439 data-nosnippet>439</a>        Noise {
+<a href=#440 id=440 data-nosnippet>440</a>            length: length_from(ticks <span class="kw">as </span>u16, <span class="number">64</span>),
+<a href=#441 id=441 data-nosnippet>441</a>            ctrl: <span class="self">self</span>.ctrl.with_length_enable(<span class="bool-val">true</span>),
+<a href=#442 id=442 data-nosnippet>442</a>            ..<span class="self">self
+<a href=#443 id=443 data-nosnippet>443</a>        </span>}
+<a href=#444 id=444 data-nosnippet>444</a>    }
+<a href=#445 id=445 data-nosnippet>445</a>
+<a href=#446 id=446 data-nosnippet>446</a>    <span class="doccomment">/// Play on channel 4.
+<a href=#447 id=447 data-nosnippet>447</a>    </span><span class="attr">#[inline]
+<a href=#448 id=448 data-nosnippet>448</a>    </span><span class="kw">pub fn </span>play(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#449 id=449 data-nosnippet>449</a>        NR41.write(<span class="self">self</span>.length);
+<a href=#450 id=450 data-nosnippet>450</a>        NR42.write(<span class="self">self</span>.envelope);
+<a href=#451 id=451 data-nosnippet>451</a>        NR43.write(<span class="self">self</span>.freq);
+<a href=#452 id=452 data-nosnippet>452</a>        NR44.write(<span class="self">self</span>.ctrl);
+<a href=#453 id=453 data-nosnippet>453</a>    }
+<a href=#454 id=454 data-nosnippet>454</a>}
+<a href=#455 id=455 data-nosnippet>455</a>
+<a href=#456 id=456 data-nosnippet>456</a><span class="doccomment">/// One of the four sound channels.
+<a href=#457 id=457 data-nosnippet>457</a></span><span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+<a href=#458 id=458 data-nosnippet>458</a></span><span class="kw">pub enum </span>Channel {
+<a href=#459 id=459 data-nosnippet>459</a>    <span class="doccomment">/// Pulse, with a frequency sweep.
+<a href=#460 id=460 data-nosnippet>460</a>    </span>One,
+<a href=#461 id=461 data-nosnippet>461</a>    <span class="doccomment">/// Pulse.
+<a href=#462 id=462 data-nosnippet>462</a>    </span>Two,
+<a href=#463 id=463 data-nosnippet>463</a>    <span class="doccomment">/// Wave.
+<a href=#464 id=464 data-nosnippet>464</a>    </span>Three,
+<a href=#465 id=465 data-nosnippet>465</a>    <span class="doccomment">/// Noise.
+<a href=#466 id=466 data-nosnippet>466</a>    </span>Four,
+<a href=#467 id=467 data-nosnippet>467</a>}
+<a href=#468 id=468 data-nosnippet>468</a>
+<a href=#469 id=469 data-nosnippet>469</a><span class="doccomment">/// Take a channel down to nothing without stopping it.
+<a href=#470 id=470 data-nosnippet>470</a>///
+<a href=#471 id=471 data-nosnippet>471</a>/// The DAC stays on, which is the difference from [`stop`]: switching one off
+<a href=#472 id=472 data-nosnippet>472</a>/// moves the output enough to click.
+<a href=#473 id=473 data-nosnippet>473</a>///
+<a href=#474 id=474 data-nosnippet>474</a>/// On channels 1 and 2 the pitch goes down with the volume, so playing again is
+<a href=#475 id=475 data-nosnippet>475</a>/// how one of those comes back.
+<a href=#476 id=476 data-nosnippet>476</a></span><span class="attr">#[inline]
+<a href=#477 id=477 data-nosnippet>477</a></span><span class="kw">pub fn </span>silence(ch: Channel) {
+<a href=#478 id=478 data-nosnippet>478</a>    <span class="comment">// Volume 0 rising, rather than a plain 0, is what keeps the DAC on. The
+<a href=#479 id=479 data-nosnippet>479</a>    // channel then has to be triggered for the new volume to reach it.
+<a href=#480 id=480 data-nosnippet>480</a>    </span><span class="kw">const </span>QUIET: Envelope = Envelope::new().with_increase(<span class="bool-val">true</span>);
+<a href=#481 id=481 data-nosnippet>481</a>    <span class="kw">const </span>RETRIGGER: PeriodCtrl = PeriodCtrl::new().with_trigger(<span class="bool-val">true</span>);
+<a href=#482 id=482 data-nosnippet>482</a>    <span class="kw">match </span>ch {
+<a href=#483 id=483 data-nosnippet>483</a>        Channel::One =&gt; {
+<a href=#484 id=484 data-nosnippet>484</a>            NR12.write(QUIET);
+<a href=#485 id=485 data-nosnippet>485</a>            NR14.write(RETRIGGER);
+<a href=#486 id=486 data-nosnippet>486</a>        }
+<a href=#487 id=487 data-nosnippet>487</a>        Channel::Two =&gt; {
+<a href=#488 id=488 data-nosnippet>488</a>            NR22.write(QUIET);
+<a href=#489 id=489 data-nosnippet>489</a>            NR24.write(RETRIGGER);
+<a href=#490 id=490 data-nosnippet>490</a>        }
+<a href=#491 id=491 data-nosnippet>491</a>        <span class="comment">// Channel 3 has an output level instead of an envelope, and it takes
+<a href=#492 id=492 data-nosnippet>492</a>        // effect where it is written.
+<a href=#493 id=493 data-nosnippet>493</a>        </span>Channel::Three =&gt; NR32.write(WaveOutput::new().with_level(WaveLevel::Mute)),
+<a href=#494 id=494 data-nosnippet>494</a>        Channel::Four =&gt; {
+<a href=#495 id=495 data-nosnippet>495</a>            NR42.write(QUIET);
+<a href=#496 id=496 data-nosnippet>496</a>            NR44.write(NoiseCtrl::new().with_trigger(<span class="bool-val">true</span>));
+<a href=#497 id=497 data-nosnippet>497</a>        }
+<a href=#498 id=498 data-nosnippet>498</a>    }
+<a href=#499 id=499 data-nosnippet>499</a>}
+<a href=#500 id=500 data-nosnippet>500</a>
+<a href=#501 id=501 data-nosnippet>501</a><span class="doccomment">/// Stop a channel by turning its DAC off.
+<a href=#502 id=502 data-nosnippet>502</a>///
+<a href=#503 id=503 data-nosnippet>503</a>/// Clicks, so [`silence`] is the one to reach for between notes.
+<a href=#504 id=504 data-nosnippet>504</a></span><span class="attr">#[inline]
+<a href=#505 id=505 data-nosnippet>505</a></span><span class="kw">pub fn </span>stop(ch: Channel) {
+<a href=#506 id=506 data-nosnippet>506</a>    <span class="kw">match </span>ch {
+<a href=#507 id=507 data-nosnippet>507</a>        Channel::One =&gt; NR12.write(Envelope::new()),
+<a href=#508 id=508 data-nosnippet>508</a>        Channel::Two =&gt; NR22.write(Envelope::new()),
+<a href=#509 id=509 data-nosnippet>509</a>        Channel::Three =&gt; NR30.write(WaveDac::new()),
+<a href=#510 id=510 data-nosnippet>510</a>        Channel::Four =&gt; NR42.write(Envelope::new()),
+<a href=#511 id=511 data-nosnippet>511</a>    }
+<a href=#512 id=512 data-nosnippet>512</a>}
+<a href=#513 id=513 data-nosnippet>513</a>
+<a href=#514 id=514 data-nosnippet>514</a><span class="doccomment">/// Whether a channel is still running.
+<a href=#515 id=515 data-nosnippet>515</a>///
+<a href=#516 id=516 data-nosnippet>516</a>/// A channel stops when a length timer set by [`Pulse::length`] and its
+<a href=#517 id=517 data-nosnippet>517</a>/// counterparts expires, when its DAC goes off, or, on channel 1, when the
+<a href=#518 id=518 data-nosnippet>518</a>/// sweep carries the pitch past the top.
+<a href=#519 id=519 data-nosnippet>519</a></span><span class="attr">#[inline]
+<a href=#520 id=520 data-nosnippet>520</a></span><span class="kw">pub fn </span>playing(ch: Channel) -&gt; bool {
+<a href=#521 id=521 data-nosnippet>521</a>    <span class="kw">let </span>status = NR52.read();
+<a href=#522 id=522 data-nosnippet>522</a>    <span class="kw">match </span>ch {
+<a href=#523 id=523 data-nosnippet>523</a>        Channel::One =&gt; status.ch1_on(),
+<a href=#524 id=524 data-nosnippet>524</a>        Channel::Two =&gt; status.ch2_on(),
+<a href=#525 id=525 data-nosnippet>525</a>        Channel::Three =&gt; status.ch3_on(),
+<a href=#526 id=526 data-nosnippet>526</a>        Channel::Four =&gt; status.ch4_on(),
+<a href=#527 id=527 data-nosnippet>527</a>    }
+<a href=#528 id=528 data-nosnippet>528</a>}
+<a href=#529 id=529 data-nosnippet>529</a>
+<a href=#530 id=530 data-nosnippet>530</a><span class="doccomment">/// What a channel is putting out, from 0 to 15.
+<a href=#531 id=531 data-nosnippet>531</a>///
+<a href=#532 id=532 data-nosnippet>532</a>/// This is the digital value on its way to the DAC, so it moves with the
+<a href=#533 id=533 data-nosnippet>533</a>/// envelope and the waveform rather than with the volume the mixer applies. A
+<a href=#534 id=534 data-nosnippet>534</a>/// program drawing its own sound reads it here.
+<a href=#535 id=535 data-nosnippet>535</a></span><span class="attr">#[cfg(feature = <span class="string">"cgb"</span>)]
+<a href=#536 id=536 data-nosnippet>536</a>#[cfg_attr(docsrs, doc(cfg(feature = <span class="string">"cgb"</span>)))]
+<a href=#537 id=537 data-nosnippet>537</a>#[inline]
+<a href=#538 id=538 data-nosnippet>538</a></span><span class="kw">pub fn </span>output(ch: Channel) -&gt; u8 {
+<a href=#539 id=539 data-nosnippet>539</a>    <span class="kw">match </span>ch {
+<a href=#540 id=540 data-nosnippet>540</a>        Channel::One =&gt; PCM12.read().low(),
+<a href=#541 id=541 data-nosnippet>541</a>        Channel::Two =&gt; PCM12.read().high(),
+<a href=#542 id=542 data-nosnippet>542</a>        Channel::Three =&gt; PCM34.read().low(),
+<a href=#543 id=543 data-nosnippet>543</a>        Channel::Four =&gt; PCM34.read().high(),
+<a href=#544 id=544 data-nosnippet>544</a>    }
+<a href=#545 id=545 data-nosnippet>545</a>}
+</code></pre></div></section></main></body></html>

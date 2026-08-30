@@ -1,0 +1,57 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Typed handles to the Game Boy’s High RAM (HRAM, `0xFF80..=0xFFFE`)."><title>gb_hram - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="gb_hram" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-dev" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate gb_hram</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../gb_hram/index.html">gb_hram</a><span class="version">0.2.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#which-kind-to-declare" title="Which kind to declare">Which kind to declare</a></li><li><a href="#examples" title="Examples">Examples</a></li><li><a href="#zero-initialisation" title="Zero initialisation">Zero initialisation</a></li><li><a href="#feature-flags" title="Feature flags">Feature flags</a></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#macros" title="Macros">Macros</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#traits" title="Traits">Traits</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1>Crate <span>gb_hram</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/gb_hram/lib.rs.html#1-429">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Typed handles to the Game Boy’s High RAM (HRAM, <code>0xFF80..=0xFFFE</code>).</p>
+<p>HRAM is a 127-byte region the CPU can still reach while an OAM DMA holds the
+bus, and the <code>ldh</code> instructions address it in a single byte. Cells declared
+with the <a href="macro.hram.html" title="macro gb_hram::hram"><code>hram!</code></a> macro are read and written with the <strong>immediate</strong> <code>ldh (n)</code>
+form (2 bytes / 3 cycles): the linker assigns each cell a fixed HRAM address
+and the low byte is baked into the instruction. That is faster and smaller
+than the 3-byte / 4-cycle absolute <code>ld (nn)</code> used for WRAM.</p>
+<h2 id="which-kind-to-declare"><a class="doc-anchor" href="#which-kind-to-declare">§</a>Which kind to declare</h2>
+<p>An access one byte wide is a single instruction, and the CPU takes interrupts
+only between instructions, so it cannot be observed half done. A wider access
+is several instructions and an interrupt landing in the middle leaves the
+reader with a value that never existed. The three kinds differ in what they do
+about that.</p>
+<div><table><thead><tr><th>Kind</th><th>Width</th><th>Access</th></tr></thead><tbody>
+<tr><td><a href="struct.HramAtomicCell.html" title="struct gb_hram::HramAtomicCell"><code>HramAtomicCell&lt;T&gt;</code></a></td><td>one byte</td><td><code>get()</code> / <code>set()</code></td></tr>
+<tr><td><a href="struct.HramCell.html" title="struct gb_hram::HramCell"><code>HramCell&lt;T&gt;</code></a></td><td>up to <a href="constant.MAX_BYTES.html" title="constant gb_hram::MAX_BYTES"><code>MAX_BYTES</code></a></td><td><code>get(cs)</code> / <code>set(cs, v)</code></td></tr>
+<tr><td><a href="struct.HramArea.html" title="struct gb_hram::HramArea"><code>HramArea&lt;N&gt;</code></a></td><td>any</td><td>raw pointers</td></tr>
+</tbody></table>
+</div>
+<p><a href="struct.HramCell.html" title="struct gb_hram::HramCell"><code>HramCell</code></a> takes a <a href="struct.CriticalSection.html" title="struct gb_hram::CriticalSection"><code>CriticalSection</code></a> because nothing else can make a
+multi-instruction access indivisible on this CPU. Obtaining the token is the
+caller’s business; a cell reached only from the main loop, never from an
+interrupt handler, still needs one.</p>
+<p>Both cells hold a <a href="trait.CellValue.html" title="trait gb_hram::CellValue"><code>CellValue</code></a>, which under the <code>bank-safe</code> feature also has to
+survive a bank switch.</p>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="attr">#![feature(asm_experimental_arch)]
+</span><span class="kw">use </span>gb_hram::hram;
+
+<span class="macro">hram!</span> {
+    <span class="doccomment">/// Frames elapsed, bumped by the VBlank handler.
+    </span><span class="kw">pub static </span>FRAME: HramAtomicCell&lt;u8&gt;;
+    <span class="kw">static </span>SCROLL: HramCell&lt;ScrollState&gt;;
+    <span class="kw">static </span>OAM_DMA: HramArea&lt;<span class="number">13</span>&gt;;
+}
+
+<span class="kw">fn </span>tick() {
+    FRAME.set(FRAME.get().wrapping_add(<span class="number">1</span>));   <span class="comment">// ldh a,(n) / ldh (n),a
+</span>}</code></pre></div>
+<p>Write <code>static NAME as "symbol": ...;</code> to export the storage under a fixed
+symbol, to share a cell with C or assembly. The symbol is emitted with the
+target’s usual prefix.</p>
+<p>The accessors emit <code>ldh</code> inline asm in the calling crate, so that crate needs
+<code>#![feature(asm_experimental_arch)]</code>.</p>
+<h2 id="zero-initialisation"><a class="doc-anchor" href="#zero-initialisation">§</a>Zero initialisation</h2>
+<p>HRAM is <code>NOLOAD</code>, so nothing is loaded from ROM, and a conforming runtime is
+required to clear <code>0xFF80..=0xFFFE</code> before <code>main</code>. A cell whose type has a
+valid all-zero bit pattern therefore starts at <code>0</code> and may be read before it
+is first written; any other type must be written first.</p>
+<h2 id="feature-flags"><a class="doc-anchor" href="#feature-flags">§</a>Feature flags</h2>
+<ul>
+<li><strong><code>bank-safe</code></strong> —  Require every cell value to be <code>BankSafe</code>, so a pointer to banked code cannot be
+parked in HRAM and outlive its bank.</li>
+</ul>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="prelude/index.html" title="mod gb_hram::prelude">prelude</a></dt><dd>Common imports for HRAM access (<code>use gb_hram::prelude::*</code>).</dd></dl><h2 id="macros" class="section-header">Macros<a href="#macros" class="anchor">§</a></h2><dl class="item-table"><dt><a class="macro" href="macro.hram.html" title="macro gb_hram::hram">hram</a></dt><dd>Declare static HRAM cells and areas, each at a linker-assigned High RAM
+address.</dd></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.CriticalSection.html" title="struct gb_hram::CriticalSection">Critical<wbr>Section</a></dt><dd>Critical section token.</dd><dt><a class="struct" href="struct.HramArea.html" title="struct gb_hram::HramArea">Hram<wbr>Area</a></dt><dd>A raw, fixed-size region of High RAM, addressed through pointers.</dd><dt><a class="struct" href="struct.HramAtomicCell.html" title="struct gb_hram::HramAtomicCell">Hram<wbr>Atomic<wbr>Cell</a></dt><dd>Storage for a one-byte cell, accessed without a <a href="struct.CriticalSection.html" title="struct gb_hram::CriticalSection"><code>CriticalSection</code></a>.</dd><dt><a class="struct" href="struct.HramCell.html" title="struct gb_hram::HramCell">Hram<wbr>Cell</a></dt><dd>Storage for a cell read and written under a <a href="struct.CriticalSection.html" title="struct gb_hram::CriticalSection"><code>CriticalSection</code></a>.</dd></dl><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.MAX_BYTES.html" title="constant gb_hram::MAX_BYTES">MAX_<wbr>BYTES</a></dt><dd>The widest <a href="struct.HramCell.html" title="struct gb_hram::HramCell"><code>HramCell</code></a> value an access unrolls into straight-line <code>ldh</code>s.
+HRAM is only 127 bytes, so cells are small; a wider type is a compile error.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.CellValue.html" title="trait gb_hram::CellValue">Cell<wbr>Value</a></dt><dd>What an HRAM cell may hold.</dd><dt><a class="trait" href="trait.HramAccess.html" title="trait gb_hram::HramAccess">Hram<wbr>Access</a></dt><dd>Read and write an HRAM cell under a <a href="struct.CriticalSection.html" title="struct gb_hram::CriticalSection"><code>CriticalSection</code></a>.</dd><dt><a class="trait" href="trait.HramAtomicAccess.html" title="trait gb_hram::HramAtomicAccess">Hram<wbr>Atomic<wbr>Access</a></dt><dd>Read and write a one-byte HRAM cell without a <a href="struct.CriticalSection.html" title="struct gb_hram::CriticalSection"><code>CriticalSection</code></a>.</dd></dl></section></div></main></body></html>

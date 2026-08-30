@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BLOCK_LEN","MAX_LEN"],"fn":["copy","stream"],"struct":["Source","Stream"]};

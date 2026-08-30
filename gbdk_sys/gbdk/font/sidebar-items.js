@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["FONT_128ENCODING","FONT_256ENCODING","FONT_COMPRESSED","FONT_NOENCODING"],"fn":["font_color","font_init","font_load","font_set"],"static":["font_ibm","font_ibm_fixed","font_italic","font_min","font_spect"],"type":["FontT"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"attr":["bank"],"macro":["far"],"trait":["BankSafe"]};

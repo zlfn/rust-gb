@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_BYTES"],"macro":[["hram",1]],"mod":["prelude"],"struct":["CriticalSection","HramArea","HramAtomicCell","HramCell"],"trait":["CellValue","HramAccess","HramAtomicAccess"]};

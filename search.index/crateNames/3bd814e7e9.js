@@ -1,0 +1,1 @@
+rd_("bgbggb_banklgb_bank_safeggb_hramfgb_pakigb_ram_fnegb_rthgbdk_sys")

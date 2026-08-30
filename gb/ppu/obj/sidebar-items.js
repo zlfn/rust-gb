@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DMA_LEN","ENTRY_COUNT","PER_SCANLINE","SPARE"],"enum":["Size"],"fn":["enabled","hide","set","set_enabled","set_size","size"],"struct":["OamDma","OamShadow"]};

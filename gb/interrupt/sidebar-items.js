@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["disable","enable","enable_and_halt","enabled","free","halt","pending","set_enabled"],"struct":["CriticalSection"]};

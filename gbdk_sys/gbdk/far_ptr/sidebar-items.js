@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["far_ofs","far_seg","to_far_ptr"],"type":["FarPtr"]};

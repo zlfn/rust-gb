@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BCPD","BCPS","HDMA1","HDMA2","HDMA3","HDMA4","HDMA5","KEY0","KEY1","OCPD","OCPS","OPRI","PCM12","PCM34","RP","SVBK","VBK"],"struct":["BgAttr","HdmaCtrl","Infrared","PaletteIndex","PcmAmplitudes","SpeedSwitch"]};

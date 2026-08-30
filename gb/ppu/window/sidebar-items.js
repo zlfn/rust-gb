@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["X_OFFSET"],"fn":["enabled","hide","map","position","set_enabled","set_map","set_position"]};

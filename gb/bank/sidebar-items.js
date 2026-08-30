@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"attr":["bank","main","zero"],"fn":["current_bank","scope","switch_bank"],"macro":["far","inherit","module",["set_mapper",1]],"mod":["bank","prelude"],"struct":["Anchor","Bank","BankNumber","DynFar","Far","GroupZero"],"trait":["BankSafe","FarCall","FarWith","Group","Mapper","Warp"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"attr":["bank","ram_fn","sram"],"fn":["is_cgb","is_gba"],"macro":[["hram",1]],"mod":["apu","bank","hram","interrupt","ir","joypad","mmio","pak","ppu","ram_fn","rt","serial","timer"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["METASPRITE_END"],"fn":["hide_metasprite","hide_sprites_range","move_metasprite","move_metasprite_ex","move_metasprite_flipx","move_metasprite_flipxy","move_metasprite_flipy","move_metasprite_hflip","move_metasprite_hvflip","move_metasprite_vflip"],"struct":["Metasprite"]};

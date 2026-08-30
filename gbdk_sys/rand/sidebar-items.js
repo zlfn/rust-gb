@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["RANDW_MAX","RAND_MAX"],"fn":["arand","initarand","initrand","rand","randw"],"static":["__rand_seed"]};

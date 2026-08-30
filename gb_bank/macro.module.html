@@ -1,0 +1,27 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="The [`mod@bank`] attributes, also at the root."><title>module in gb_bank - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="gb_bank" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-dev" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc macro"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">module</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../gb_bank/index.html">gb_bank</a><span class="version">0.2.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">module</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#bank-assignment" title="Bank assignment">Bank assignment</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate gb_<wbr>bank</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">gb_bank</a></div><h1>Macro <span class="macro">module</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"></span></div><pre class="rust item-decl"><code>module!() { <span class="comment">/* proc-macro */</span> }</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>The <a href="bank/index.html" title="mod gb_bank::bank"><code>bank</code></a> attributes, also at the root.</p>
+<p>A facade re-exporting this crate as its own <code>bank</code> module then reaches them as
+<code>bank::main</code> rather than <code>bank::bank::main</code>.
+Declare the enclosing module as a ROM bank group.</p>
+<p>Generates the group brand (<code>__BankGroup</code>) that the module’s <a href="attr.bank.html" title="attr gb_bank::bank"><code>#[bank]</code></a>
+items are anchored to, its <code>Group</code> impl, and the link-time bank marker that
+gb-bank-pack patches. Call it once, at the top of a banked module.</p>
+<h2 id="bank-assignment"><a class="doc-anchor" href="#bank-assignment">§</a>Bank assignment</h2>
+<ul>
+<li><code>bank::module!()</code> lets gb-bank-pack <strong>auto-assign</strong> a bank (it bin-packs all
+auto modules into 16 KiB banks).</li>
+<li><code>bank::module!(N)</code> <strong>pins</strong> the module to bank <code>N</code> (1 or higher); the packer
+reserves that bank for it instead of auto-assigning. Pin every module to a
+distinct bank when you want a deterministic, one-module-per-bank layout (so a
+call between two modules is always a real cross-bank switch). Bank 0 is the
+always-mapped region and cannot be pinned to.</li>
+</ul>
+<p>To make a <em>submodule</em> share its parent’s bank, use <code>bank::inherit!()</code>
+instead of declaring a separate group.</p>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">mod </span>sound {
+    <span class="kw">use </span>gb_bank::<span class="kw-2">*</span>;
+    <span class="macro">bank::module!</span>(<span class="number">3</span>);            <span class="comment">// pinned to bank 3
+
+    </span><span class="attr">#[bank]
+    </span><span class="kw">pub fn </span>play(note: u8) -&gt; u8 { note }
+}</code></pre></div></div></details></section></div></main></body></html>

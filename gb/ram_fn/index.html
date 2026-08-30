@@ -1,0 +1,61 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Functions whose machine code can be copied into RAM (or HRAM) and run there."><title>gb::ram_fn - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gb" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-dev" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../crates.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate ram_fn</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gb/index.html">gb</a><span class="version">0.2.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#examples" title="Examples">Examples</a></li><li><a href="#build-time-verification" title="Build-time verification">Build-time verification</a></li></ul><h3><a href="#traits">Crate Items</a></h3><ul class="block"><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#attributes" title="Attribute Macros">Attribute Macros</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gb</a></div><h1>Crate <span>ram_fn</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gb_ram_fn/lib.rs.html#1-115">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Functions whose machine code can be copied into RAM (or HRAM) and run there.</p>
+<p><a href="../attr.ram_fn.html" title="attr gb::ram_fn"><code>ram_fn</code></a> defines a function and a handle implementing <a href="trait.RamFn.html" title="trait gb::ram_fn::RamFn"><code>RamFn</code></a>. The handle
+places the function between two name-sorted markers, so its exact length is
+known; <a href="trait.RamFn.html#tymethod.install" title="method gb::ram_fn::RamFn::install"><code>RamFn::install</code></a> copies the bytes into a fixed-size RAM buffer and
+returns a callable pointer.</p>
+<p>The function must be <strong>position independent</strong>: it may reference statics and
+other functions by absolute address (those do not move), but it must not
+branch to its own code by an absolute target. Small functions qualify (the
+SM83 backend uses relative <code>jr</code> for short branches); a long function whose
+branches become absolute <code>jp</code> does not, and copying it would run the wrong
+code; <code>cargo-gb</code> rejects such a function at build time (see below).
+Parameters and return values are fine: they travel in registers and on the
+stack, which copying does not affect.</p>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<p>Define a function, run the ROM copy in place, then copy it into a RAM buffer
+and run that. Bring <a href="trait.RamFn.html" title="trait gb::ram_fn::RamFn"><code>RamFn</code></a> into scope for the handle’s methods.</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>gb_ram_fn::{RamFn, ram_fn};
+
+<span class="kw">static </span><span class="kw-2">mut </span>COUNTER: u16 = <span class="number">0</span>;
+
+<span class="attr">#[ram_fn(max = <span class="number">16</span>)]
+</span><span class="kw">fn </span>inc() {
+    <span class="kw">unsafe </span>{
+        <span class="kw">let </span>c = core::ptr::read_volatile(<span class="kw-2">&amp;</span><span class="kw">raw const </span>COUNTER);
+        core::ptr::write_volatile(<span class="kw-2">&amp;</span><span class="kw">raw </span><span class="kw-2">mut </span>COUNTER, c.wrapping_add(<span class="number">1</span>));
+    }
+}
+
+<span class="kw">static </span><span class="kw-2">mut </span>BUF: [u8; <span class="number">16</span>] = [<span class="number">0</span>; <span class="number">16</span>];
+
+<span class="kw">fn </span>demo() {
+    inc.rom()();                                          <span class="comment">// run in place, in ROM
+    </span><span class="kw">let </span>ram_inc = <span class="kw">unsafe </span>{ inc.install(<span class="kw-2">&amp;</span><span class="kw">raw </span><span class="kw-2">mut </span>BUF) };
+    ram_inc();                                            <span class="comment">// run the RAM copy
+</span>}</code></pre></div>
+<p>Parameters and return values work; the installed pointer keeps the signature.
+The buffer must be at least <code>max</code> bytes, checked at compile time:</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>gb_ram_fn::{RamFn, ram_fn};
+
+<span class="attr">#[ram_fn(max = <span class="number">8</span>)]
+</span><span class="kw">fn </span>add(a: u8, b: u8) -&gt; u8 {
+    a.wrapping_add(b)
+}
+
+<span class="kw">static </span><span class="kw-2">mut </span>BUF: [u8; <span class="number">8</span>] = [<span class="number">0</span>; <span class="number">8</span>];
+
+<span class="kw">fn </span>demo() -&gt; u8 {
+    <span class="kw">let </span>added = <span class="kw">unsafe </span>{ add.install(<span class="kw-2">&amp;</span><span class="kw">raw </span><span class="kw-2">mut </span>BUF) };
+    added(<span class="number">2</span>, <span class="number">3</span>) <span class="comment">// 5, computed from the RAM copy
+</span>}</code></pre></div><h2 id="build-time-verification"><a class="doc-anchor" href="#build-time-verification">§</a>Build-time verification</h2>
+<p>Two things keep <a href="trait.RamFn.html#tymethod.install" title="method gb::ram_fn::RamFn::install"><code>install</code></a> safe: the function fits its
+declared <code>max</code> (a compile-time-sized buffer then always holds it), and it is
+position independent (the copy runs correctly at its new address). The
+compiler cannot confirm either, so <code>cargo-gb</code> checks them over the linked ROM:
+<code>END - run &lt;= max</code>, and that the code holds no absolute self-references.</p>
+<p>These are therefore guarantees of a <code>cargo-gb</code> build, not of <code>#[ram_fn]</code>
+itself. A build path that skips those checks does not provide them: <code>install</code>
+may overflow its buffer, or copy code that breaks when run relocated.</p>
+</div></details><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.RamFn.html" title="trait gb::ram_fn::RamFn">RamFn</a></dt><dd>Shared interface for functions defined with <a href="../attr.ram_fn.html" title="attr gb::ram_fn"><code>ram_fn</code></a>.</dd></dl><h2 id="attributes" class="section-header">Attribute Macros<a href="#attributes" class="anchor">§</a></h2><dl class="item-table"><dt><a class="attr" href="attr.ram_fn.html" title="attr gb::ram_fn::ram_fn">ram_fn</a></dt><dd>Define a RAM-copyable function with any non-generic signature.</dd></dl></section></div></main></body></html>

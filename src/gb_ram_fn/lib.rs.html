@@ -1,0 +1,116 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/gb-ram-fn/src/lib.rs`."><title>lib.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gb_ram_fn" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-dev" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">gb_ram_fn/</div>lib.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Functions whose machine code can be copied into RAM (or HRAM) and run there.
+<a href=#2 id=2 data-nosnippet>2</a>//!
+<a href=#3 id=3 data-nosnippet>3</a>//! [`ram_fn`] defines a function and a handle implementing [`RamFn`]. The handle
+<a href=#4 id=4 data-nosnippet>4</a>//! places the function between two name-sorted markers, so its exact length is
+<a href=#5 id=5 data-nosnippet>5</a>//! known; [`RamFn::install`] copies the bytes into a fixed-size RAM buffer and
+<a href=#6 id=6 data-nosnippet>6</a>//! returns a callable pointer.
+<a href=#7 id=7 data-nosnippet>7</a>//!
+<a href=#8 id=8 data-nosnippet>8</a>//! The function must be **position independent**: it may reference statics and
+<a href=#9 id=9 data-nosnippet>9</a>//! other functions by absolute address (those do not move), but it must not
+<a href=#10 id=10 data-nosnippet>10</a>//! branch to its own code by an absolute target. Small functions qualify (the
+<a href=#11 id=11 data-nosnippet>11</a>//! SM83 backend uses relative `jr` for short branches); a long function whose
+<a href=#12 id=12 data-nosnippet>12</a>//! branches become absolute `jp` does not, and copying it would run the wrong
+<a href=#13 id=13 data-nosnippet>13</a>//! code; `cargo-gb` rejects such a function at build time (see below).
+<a href=#14 id=14 data-nosnippet>14</a>//! Parameters and return values are fine: they travel in registers and on the
+<a href=#15 id=15 data-nosnippet>15</a>//! stack, which copying does not affect.
+<a href=#16 id=16 data-nosnippet>16</a>//!
+<a href=#17 id=17 data-nosnippet>17</a>//! # Examples
+<a href=#18 id=18 data-nosnippet>18</a>//!
+<a href=#19 id=19 data-nosnippet>19</a>//! Define a function, run the ROM copy in place, then copy it into a RAM buffer
+<a href=#20 id=20 data-nosnippet>20</a>//! and run that. Bring [`RamFn`] into scope for the handle's methods.
+<a href=#21 id=21 data-nosnippet>21</a>//!
+<a href=#22 id=22 data-nosnippet>22</a>//! ```ignore
+<a href=#23 id=23 data-nosnippet>23</a>//! use gb_ram_fn::{RamFn, ram_fn};
+<a href=#24 id=24 data-nosnippet>24</a>//!
+<a href=#25 id=25 data-nosnippet>25</a>//! static mut COUNTER: u16 = 0;
+<a href=#26 id=26 data-nosnippet>26</a>//!
+<a href=#27 id=27 data-nosnippet>27</a>//! #[ram_fn(max = 16)]
+<a href=#28 id=28 data-nosnippet>28</a>//! fn inc() {
+<a href=#29 id=29 data-nosnippet>29</a>//!     unsafe {
+<a href=#30 id=30 data-nosnippet>30</a>//!         let c = core::ptr::read_volatile(&amp;raw const COUNTER);
+<a href=#31 id=31 data-nosnippet>31</a>//!         core::ptr::write_volatile(&amp;raw mut COUNTER, c.wrapping_add(1));
+<a href=#32 id=32 data-nosnippet>32</a>//!     }
+<a href=#33 id=33 data-nosnippet>33</a>//! }
+<a href=#34 id=34 data-nosnippet>34</a>//!
+<a href=#35 id=35 data-nosnippet>35</a>//! static mut BUF: [u8; 16] = [0; 16];
+<a href=#36 id=36 data-nosnippet>36</a>//!
+<a href=#37 id=37 data-nosnippet>37</a>//! fn demo() {
+<a href=#38 id=38 data-nosnippet>38</a>//!     inc.rom()();                                          // run in place, in ROM
+<a href=#39 id=39 data-nosnippet>39</a>//!     let ram_inc = unsafe { inc.install(&amp;raw mut BUF) };
+<a href=#40 id=40 data-nosnippet>40</a>//!     ram_inc();                                            // run the RAM copy
+<a href=#41 id=41 data-nosnippet>41</a>//! }
+<a href=#42 id=42 data-nosnippet>42</a>//! ```
+<a href=#43 id=43 data-nosnippet>43</a>//!
+<a href=#44 id=44 data-nosnippet>44</a>//! Parameters and return values work; the installed pointer keeps the signature.
+<a href=#45 id=45 data-nosnippet>45</a>//! The buffer must be at least `max` bytes, checked at compile time:
+<a href=#46 id=46 data-nosnippet>46</a>//!
+<a href=#47 id=47 data-nosnippet>47</a>//! ```ignore
+<a href=#48 id=48 data-nosnippet>48</a>//! use gb_ram_fn::{RamFn, ram_fn};
+<a href=#49 id=49 data-nosnippet>49</a>//!
+<a href=#50 id=50 data-nosnippet>50</a>//! #[ram_fn(max = 8)]
+<a href=#51 id=51 data-nosnippet>51</a>//! fn add(a: u8, b: u8) -&gt; u8 {
+<a href=#52 id=52 data-nosnippet>52</a>//!     a.wrapping_add(b)
+<a href=#53 id=53 data-nosnippet>53</a>//! }
+<a href=#54 id=54 data-nosnippet>54</a>//!
+<a href=#55 id=55 data-nosnippet>55</a>//! static mut BUF: [u8; 8] = [0; 8];
+<a href=#56 id=56 data-nosnippet>56</a>//!
+<a href=#57 id=57 data-nosnippet>57</a>//! fn demo() -&gt; u8 {
+<a href=#58 id=58 data-nosnippet>58</a>//!     let added = unsafe { add.install(&amp;raw mut BUF) };
+<a href=#59 id=59 data-nosnippet>59</a>//!     added(2, 3) // 5, computed from the RAM copy
+<a href=#60 id=60 data-nosnippet>60</a>//! }
+<a href=#61 id=61 data-nosnippet>61</a>//! ```
+<a href=#62 id=62 data-nosnippet>62</a>//!
+<a href=#63 id=63 data-nosnippet>63</a>//! # Build-time verification
+<a href=#64 id=64 data-nosnippet>64</a>//!
+<a href=#65 id=65 data-nosnippet>65</a>//! Two things keep [`install`](RamFn::install) safe: the function fits its
+<a href=#66 id=66 data-nosnippet>66</a>//! declared `max` (a compile-time-sized buffer then always holds it), and it is
+<a href=#67 id=67 data-nosnippet>67</a>//! position independent (the copy runs correctly at its new address). The
+<a href=#68 id=68 data-nosnippet>68</a>//! compiler cannot confirm either, so `cargo-gb` checks them over the linked ROM:
+<a href=#69 id=69 data-nosnippet>69</a>//! `END - run &lt;= max`, and that the code holds no absolute self-references.
+<a href=#70 id=70 data-nosnippet>70</a>//!
+<a href=#71 id=71 data-nosnippet>71</a>//! These are therefore guarantees of a `cargo-gb` build, not of `#[ram_fn]`
+<a href=#72 id=72 data-nosnippet>72</a>//! itself. A build path that skips those checks does not provide them: `install`
+<a href=#73 id=73 data-nosnippet>73</a>//! may overflow its buffer, or copy code that breaks when run relocated.
+<a href=#74 id=74 data-nosnippet>74</a>
+<a href=#75 id=75 data-nosnippet>75</a></span><span class="attr">#![no_std]
+<a href=#76 id=76 data-nosnippet>76</a>
+<a href=#77 id=77 data-nosnippet>77</a></span><span class="kw">pub use </span>gb_ram_fn_macros::ram_fn;
+<a href=#78 id=78 data-nosnippet>78</a>
+<a href=#79 id=79 data-nosnippet>79</a><span class="doccomment">/// Shared interface for functions defined with [`ram_fn`].
+<a href=#80 id=80 data-nosnippet>80</a>///
+<a href=#81 id=81 data-nosnippet>81</a>/// Each `ram_fn` produces a zero-sized handle that implements this trait; the
+<a href=#82 id=82 data-nosnippet>82</a>/// associated [`Fn`](RamFn::Fn) type carries the function's own signature.
+<a href=#83 id=83 data-nosnippet>83</a></span><span class="kw">pub trait </span>RamFn {
+<a href=#84 id=84 data-nosnippet>84</a>    <span class="doccomment">/// Function-pointer type carrying the defined function's signature.
+<a href=#85 id=85 data-nosnippet>85</a>    </span><span class="kw">type </span>Fn;
+<a href=#86 id=86 data-nosnippet>86</a>
+<a href=#87 id=87 data-nosnippet>87</a>    <span class="doccomment">/// The declared maximum compiled size, in bytes (from `#[ram_fn(max = N)]`).
+<a href=#88 id=88 data-nosnippet>88</a>    </span><span class="kw">const </span>MAX: usize;
+<a href=#89 id=89 data-nosnippet>89</a>
+<a href=#90 id=90 data-nosnippet>90</a>    <span class="doccomment">/// Address of the function's machine code in ROM.
+<a href=#91 id=91 data-nosnippet>91</a>    </span><span class="kw">fn </span>src(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">*const </span>u8;
+<a href=#92 id=92 data-nosnippet>92</a>
+<a href=#93 id=93 data-nosnippet>93</a>    <span class="doccomment">/// Length of the machine code, in bytes.
+<a href=#94 id=94 data-nosnippet>94</a>    </span><span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize;
+<a href=#95 id=95 data-nosnippet>95</a>
+<a href=#96 id=96 data-nosnippet>96</a>    <span class="doccomment">/// The ROM-resident copy as a callable pointer.
+<a href=#97 id=97 data-nosnippet>97</a>    </span><span class="kw">fn </span>rom(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span>::Fn;
+<a href=#98 id=98 data-nosnippet>98</a>
+<a href=#99 id=99 data-nosnippet>99</a>    <span class="doccomment">/// Copy the code into `dst` and return the RAM copy as a callable pointer.
+<a href=#100 id=100 data-nosnippet>100</a>    ///
+<a href=#101 id=101 data-nosnippet>101</a>    /// `dst` is a fixed-size buffer; `N &gt;= MAX` is checked at compile time, so the
+<a href=#102 id=102 data-nosnippet>102</a>    /// buffer is large enough for any function within its declared `max`. No
+<a href=#103 id=103 data-nosnippet>103</a>    /// runtime length check is needed.
+<a href=#104 id=104 data-nosnippet>104</a>    ///
+<a href=#105 id=105 data-nosnippet>105</a>    /// # Safety
+<a href=#106 id=106 data-nosnippet>106</a>    ///
+<a href=#107 id=107 data-nosnippet>107</a>    /// `dst` must point to executable RAM that stays live and unchanged for as
+<a href=#108 id=108 data-nosnippet>108</a>    /// long as the returned pointer is called.
+<a href=#109 id=109 data-nosnippet>109</a>    ///
+<a href=#110 id=110 data-nosnippet>110</a>    /// `install` also assumes the function fits `MAX` and is position independent.
+<a href=#111 id=111 data-nosnippet>111</a>    /// Both are verified only by `cargo-gb` over the linked ROM (see the crate
+<a href=#112 id=112 data-nosnippet>112</a>    /// docs); built another way, `install` may overflow `dst` or return a pointer
+<a href=#113 id=113 data-nosnippet>113</a>    /// to code that does not run correctly when relocated.
+<a href=#114 id=114 data-nosnippet>114</a>    </span><span class="kw">unsafe fn </span>install&lt;<span class="kw">const </span>N: usize&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, dst: <span class="kw-2">*mut </span>[u8; N]) -&gt; <span class="self">Self</span>::Fn;
+<a href=#115 id=115 data-nosnippet>115</a>}
+</code></pre></div></section></main></body></html>

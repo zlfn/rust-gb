@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["COLORS","PALETTES"],"enum":["ObjSlot"],"fn":["background","object","set_background","set_background_colors","set_object","set_object_colors"],"struct":["Color"]};

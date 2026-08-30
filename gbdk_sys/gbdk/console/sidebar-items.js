@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["cls","gotoxy","posx","posy","setchar"]};

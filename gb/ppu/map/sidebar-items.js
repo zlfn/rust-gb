@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SIDE"],"enum":["Map"],"fn":["edit_attrs","fill","set","write"],"struct":["AttrAccess","AttrGrid","TileGrid"]};

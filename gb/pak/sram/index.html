@@ -1,0 +1,48 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="The cartridge’s own RAM, usually kept alive by a battery."><title>gb::pak::sram - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="gb" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-dev" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module sram</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../gb/index.html">gb</a><span class="version">0.2.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module sram</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#declaring" title="Declaring">Declaring</a></li><li><a href="#editing-in-place" title="Editing in place">Editing in place</a></li><li><a href="#trusting-the-contents" title="Trusting the contents">Trusting the contents</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#constants" title="Constants">Constants</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In gb::pak</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">gb</a>::<wbr><a href="../index.html">pak</a></div><h1>Module <span>sram</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/gb_pak/lib.rs.html#54">Source</a> </span></div><span class="item-info"><div class="stab portability">Available on <strong>crate feature <code>pak</code></strong> only.</div></span><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>The cartridge’s own RAM, usually kept alive by a battery.</p>
+<p>SRAM is only readable and writable while the controller has it switched on, so
+every access happens inside <a href="struct.Sram.html#method.open" title="method gb::pak::sram::Sram::open"><code>Sram::open</code></a>, which switches it on for the
+closure and off again after. Leaving it off otherwise protects the contents
+while the console powers down or the cartridge is pulled.</p>
+<h2 id="declaring"><a class="doc-anchor" href="#declaring">§</a>Declaring</h2>
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>core::cell::Cell;
+<span class="kw">use </span>gb_pak::{CriticalSection, sram};
+<span class="kw">use </span>zerocopy::FromBytes;
+
+<span class="attr">#[repr(C)]
+#[derive(FromBytes)]
+</span><span class="kw">struct </span>Save {
+    magic:   Cell&lt;[u8; <span class="number">4</span>]&gt;,
+    version: Cell&lt;u8&gt;,
+    hp:      Cell&lt;u8&gt;,
+    gold:    Cell&lt;u16&gt;,
+}
+
+<span class="doccomment">/// The save file.
+</span><span class="attr">#[sram(<span class="number">0</span>)]
+</span><span class="kw">static </span>FILE: Save;
+
+<span class="kw">fn </span>hurt(cs: CriticalSection&lt;<span class="lifetime">'_</span>&gt;) {
+    FILE.open(cs, |f| f.hp.set(f.hp.get().saturating_sub(<span class="number">1</span>)));
+}</code></pre></div>
+<p>A static has no initializer: the bytes are the cartridge’s already. A bank
+holds one of them, at its start (<code>0xA000</code>), and the attribute says which bank.</p>
+<p>Turned down at compile time: a missing bank number, a bank the cartridge does
+not have, any bank when it has no SRAM, a value larger than one 8 KiB bank,
+and an initializer.</p>
+<h2 id="editing-in-place"><a class="doc-anchor" href="#editing-in-place">§</a>Editing in place</h2>
+<p>The closure is handed a shared reference, so every field is written as a
+<a href="https://doc.rust-lang.org/nightly/core/cell/struct.Cell.html" title="struct core::cell::Cell"><code>Cell</code></a>, the way a peripheral crate writes a register
+block. A field that is not one can never be written.</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">unsafe </span>{ gb::interrupt::free(|cs| FILE.open(cs, |f| f.gold.set(f.gold.get() + <span class="number">10</span>))) };</code></pre></div><h2 id="trusting-the-contents"><a class="doc-anchor" href="#trusting-the-contents">§</a>Trusting the contents</h2>
+<p>A cartridge that has never been written holds noise, so the value is bounded
+on <a href="https://docs.rs/zerocopy/0.8/zerocopy/trait.FromBytes.html" title="trait zerocopy::FromBytes"><code>FromBytes</code></a>: no byte pattern may be invalid for it, which rules out
+<code>bool</code>, <code>char</code>, enums, and references.</p>
+<p><code>repr(C)</code> is recommended: a <code>repr(Rust)</code> layout is unspecified and may differ
+between toolchain versions, so a save an earlier build wrote could be read
+back wrong.</p>
+<p>That bounds the type, not the contents. The bytes are still whatever survived:
+noise on a new cartridge, decay on a failing battery, another build’s layout
+after an update. Check a magic number, a schema version, and a checksum before
+believing a save.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Sram.html" title="struct gb::pak::sram::Sram">Sram</a></dt><dd>A value at the base of SRAM bank <code>BANK</code>.</dd></dl><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.BANKS.html" title="constant gb::pak::sram::BANKS">BANKS</a></dt><dd>SRAM banks this cartridge has, from <code>ram_size</code> in <code>header.toml</code>.</dd><dt><a class="constant" href="constant.BANK_LEN.html" title="constant gb::pak::sram::BANK_LEN">BANK_<wbr>LEN</a></dt><dd>Bytes one bank holds.</dd></dl></section></div></main></body></html>

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["AND","BLACK","DKGREY","GRAPHICS_HEIGHT","GRAPHICS_WIDTH","LTGREY","M_FILL","M_NOFILL","OR","SIGNED","SOLID","UNSIGNED","WHITE","XOR"],"fn":["box","circle","color","draw_image","getpix","gotogxy","gprint","gprintf","gprintln","gprintn","line","plot","plot_point","switch_data","wrtchr"]};

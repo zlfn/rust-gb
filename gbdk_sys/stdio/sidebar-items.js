@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["getchar","gets","printf","putchar","puts","sprintf"]};

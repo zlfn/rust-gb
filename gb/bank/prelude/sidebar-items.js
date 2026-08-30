@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"attr":["bank"],"fn":["scope"],"macro":["far"],"struct":["Anchor","Bank","DynFar","Far","GroupZero"],"trait":["BankSafe","FarCall","FarWith","Group","Warp"]};
