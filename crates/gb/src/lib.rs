@@ -11,6 +11,7 @@
 
 pub mod mmio;
 pub mod interrupt;
+pub mod joypad;
 pub mod ppu;
 
 // Also at the root, so the attribute reads as `#[gb::bank]` rather than
