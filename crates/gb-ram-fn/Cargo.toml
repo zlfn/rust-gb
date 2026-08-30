@@ -3,6 +3,11 @@ name = "gb-ram-fn"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation = "https://zlfn.github.io/rust-gb/gb_ram_fn/"
+keywords.workspace = true
+categories.workspace = true
 description = "Game Boy functions whose machine code runs from RAM"
 
 [dependencies]

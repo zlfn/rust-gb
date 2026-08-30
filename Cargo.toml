@@ -17,20 +17,24 @@ resolver = "3"
 version = "0.2.0"
 edition = "2024"
 authors = ["zlfn <ung@zlfn.space>"]
+license = "Zlib OR Apache-2.0 OR MIT"
+repository = "https://github.com/zlfn/rust-gb"
+keywords = ["gameboy", "sm83", "retro", "embedded", "no-std"]
+categories = ["embedded", "no-std", "game-development", "hardware-support"]
 
 [workspace.dependencies]
 # Internal crates.
-gb-bank = { path = "crates/gb-bank" }
-gb-bank-macros = { path = "crates/gb-bank-macros" }
-gb-bank-safe = { path = "crates/gb-bank-safe" }
-gb-hram = { path = "crates/gb-hram" }
-gb-pak = { path = "crates/gb-pak" }
-gb-pak-macros = { path = "crates/gb-pak-macros" }
-gb-ram-fn = { path = "crates/gb-ram-fn" }
-gb-ram-fn-macros = { path = "crates/gb-ram-fn-macros" }
-gb-rt = { path = "crates/gb-rt" }
-gb-rt-macros = { path = "crates/gb-rt-macros" }
-gbdk-sys = { path = "crates/gbdk-sys" }
+gb-bank = { path = "crates/gb-bank", version = "0.2.0" }
+gb-bank-macros = { path = "crates/gb-bank-macros", version = "0.2.0" }
+gb-bank-safe = { path = "crates/gb-bank-safe", version = "0.2.0" }
+gb-hram = { path = "crates/gb-hram", version = "0.2.0" }
+gb-pak = { path = "crates/gb-pak", version = "0.2.0" }
+gb-pak-macros = { path = "crates/gb-pak-macros", version = "0.2.0" }
+gb-ram-fn = { path = "crates/gb-ram-fn", version = "0.2.0" }
+gb-ram-fn-macros = { path = "crates/gb-ram-fn-macros", version = "0.2.0" }
+gb-rt = { path = "crates/gb-rt", version = "0.2.0" }
+gb-rt-macros = { path = "crates/gb-rt-macros", version = "0.2.0" }
+gbdk-sys = { path = "crates/gbdk-sys", version = "0.1" }
 # Shared third-party crates.
 critical-section = "1"
 document-features = "0.2"

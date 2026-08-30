@@ -3,6 +3,11 @@ name = "gb-hram"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation = "https://zlfn.github.io/rust-gb/gb_hram/"
+keywords.workspace = true
+categories.workspace = true
 description = "Typed handles to the Game Boy's High RAM"
 
 [features]

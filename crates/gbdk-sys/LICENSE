@@ -1,0 +1,26 @@
+gbdk-sys is in two parts, under different terms.
+
+The Rust source in `src/` and the startup in `gbdk_init.s` are the author's own
+work, under any one of:
+
+    Zlib OR Apache-2.0 OR MIT
+
+    licenses/LICENSE-ZLIB
+    licenses/LICENSE-APACHE
+    licenses/LICENSE-MIT
+
+The archives in `lib/` (libgb.a, libsm83.a, crt0.o) are prebuilt from GBDK-2020
+and SDCC and are redistributed here unmodified. The GBDK-2020 library is under
+GPLv2 with a linking exception, and the zx0 decompression it contains is under
+BSD 3-Clause:
+
+    licenses/LICENSE_GPLV2_LE   GBDK-2020 library and makefiles
+    licenses/LICENSE_SDCC       SDCC, from which parts of the library come
+    licenses/LICENSE_ZX0        zx0 decompression in the library
+
+GBDK-2020 states that a compiled ROM built with it carries no requirement to
+include or credit these licenses, which is what the linking exception is for.
+Redistributing the library itself, as this crate does, is a separate matter and
+does carry them.
+
+Sources: https://github.com/gbdk-2020/gbdk-2020

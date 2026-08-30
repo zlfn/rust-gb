@@ -1,9 +1,17 @@
 [package]
-name = "gb"
+name = "rust-gb"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation = "https://zlfn.github.io/rust-gb/gb/"
+keywords.workspace = true
+categories.workspace = true
 description = "Safe, idiomatic Game Boy hardware abstractions"
+
+[lib]
+name = "gb"
 
 [features]
 default = []

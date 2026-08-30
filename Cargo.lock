@@ -50,24 +50,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
-name = "gb"
-version = "0.2.0"
-dependencies = [
- "bitfield-struct",
- "bitflags",
- "critical-section",
- "document-features",
- "gb-bank",
- "gb-bank-macros",
- "gb-hram",
- "gb-pak",
- "gb-pak-macros",
- "gb-ram-fn",
- "gb-rt",
- "voladdress",
-]
-
-[[package]]
 name = "gb-bank"
 version = "0.2.0"
 dependencies = [
@@ -295,7 +277,7 @@ dependencies = [
 
 [[package]]
 name = "gbdk-sys"
-version = "0.2.0"
+version = "0.1.0+4.5.0"
 dependencies = [
  "gb-hram",
 ]
@@ -353,6 +335,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41f2619966050689382d2b44f664f4bc593e129785a36d6ee376ddf37259b924"
 dependencies = [
  "proc-macro2",
+]
+
+[[package]]
+name = "rust-gb"
+version = "0.2.0"
+dependencies = [
+ "bitfield-struct",
+ "bitflags",
+ "critical-section",
+ "document-features",
+ "gb-bank",
+ "gb-bank-macros",
+ "gb-hram",
+ "gb-pak",
+ "gb-pak-macros",
+ "gb-ram-fn",
+ "gb-rt",
+ "voladdress",
 ]
 
 [[package]]

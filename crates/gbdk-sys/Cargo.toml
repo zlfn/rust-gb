@@ -1,8 +1,14 @@
 [package]
 name = "gbdk-sys"
-version.workspace = true
+version = "0.1.0+4.5.0"
 edition.workspace = true
 authors.workspace = true
+license-file = "LICENSE"
+repository.workspace = true
+documentation = "https://zlfn.github.io/rust-gb/gbdk_sys/"
+keywords = ["gameboy", "gbdk", "sm83", "embedded", "no-std"]
+categories = ["embedded", "no-std", "external-ffi-bindings", "game-development"]
+links = "gbdk"
 description = "Raw FFI bindings to GBDK"
 
 [dependencies]

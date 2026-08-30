@@ -3,6 +3,10 @@ name = "gb-ram-fn-macros"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Procedural macro for gb-ram-fn (the #[ram_fn] attribute)"
 
 [lib]

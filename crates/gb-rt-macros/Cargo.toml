@@ -3,6 +3,10 @@ name = "gb-rt-macros"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Procedural macros for gb-rt (the #[entry] attribute)"
 
 [lib]

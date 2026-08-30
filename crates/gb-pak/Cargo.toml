@@ -3,6 +3,11 @@ name = "gb-pak"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation = "https://zlfn.github.io/rust-gb/gb_pak/"
+keywords.workspace = true
+categories.workspace = true
 description = "Game Pak peripherals: SRAM, clock, rumble, tilt sensor"
 
 # `cargo-gb` sets these from `header.toml`; see the crate documentation.

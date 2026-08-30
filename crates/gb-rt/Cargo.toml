@@ -3,6 +3,11 @@ name = "gb-rt"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation = "https://zlfn.github.io/rust-gb/gb_rt/"
+keywords.workspace = true
+categories.workspace = true
 description = "Core Game Boy (SM83) runtime: startup code and linker script"
 
 [features]
