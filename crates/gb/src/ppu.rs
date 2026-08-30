@@ -301,7 +301,8 @@ impl Vblank {
 ///
 /// The screen goes blank, and in exchange video memory stays reachable for as
 /// long as `f` runs rather than the roughly 1140 M-cycles [`Vblank::with`]
-/// allows. This is how a program loads more tiles than one VBlank fits.
+/// allows, or 2280 in CGB double speed mode. This is how a program loads more
+/// tiles than one VBlank fits.
 ///
 /// Unlike [`Vblank::with`], the wait here is a poll and needs no interrupt, so
 /// this runs before a program has turned them on.

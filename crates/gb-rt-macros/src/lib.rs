@@ -61,6 +61,14 @@ pub fn entry(_attr: TokenStream, item: TokenStream) -> TokenStream {
     func.vis = parse_quote!(pub);
     func.sig.abi = Some(parse_quote!(extern "C"));
 
+    // Every program reaches the machine through here, so the speed switch has
+    // one place to be and no way to be forgotten. It folds away where the
+    // feature is off.
+    func.block.stmts.insert(
+        0,
+        parse_quote!(unsafe { ::gb_rt::__enter_double_speed() };),
+    );
+
     quote! {
         #[unsafe(no_mangle)]
         #func

@@ -5,6 +5,13 @@ edition.workspace = true
 authors.workspace = true
 description = "Core Game Boy (SM83) runtime: startup code and linker script"
 
+[features]
+## Run in CGB double speed mode.
+##
+## The startup switches before the program begins, and it stays that way; a
+## cartridge built with this is a Color-only one.
+cgb-double-speed = []
+
 [dependencies]
 gb-rt-macros = { workspace = true }
 critical-section = { workspace = true }

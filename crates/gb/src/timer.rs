@@ -170,13 +170,17 @@ pub trait Rate: Copy {
 }
 
 /// What a clock counts at.
+///
+/// The names are the nominal ones; the timer is among the things CGB double
+/// speed mode runs twice as fast, so a machine built for it counts double.
 const fn clock_hz(clock: TimerClock) -> u32 {
-    match clock {
+    let nominal = match clock {
         TimerClock::Hz4096 => 4096,
         TimerClock::Hz16384 => 16384,
         TimerClock::Hz65536 => 65536,
         TimerClock::Hz262144 => 262_144,
-    }
+    };
+    nominal << crate::rt::DOUBLE_SPEED as u32
 }
 
 /// Cancel the twos shared by the multiplier and the shift, which is what keeps
@@ -192,12 +196,16 @@ const fn reduce(mut num: u32, mut shift: u32) -> (u32, u32) {
 /// The rates the timer can be run at.
 ///
 /// Each names what it counts. The hardware divides one of four clocks by a
-/// power of two, and these eleven are the ones a program can afford: every
-/// overflow runs the handler.
+/// power of two, and these are the ones a program can afford: every overflow
+/// runs the handler.
 ///
 /// | Hz | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 4096 | 8192 | 16384 |
 /// |---|---|---|---|---|---|---|---|---|---|---|---|
 /// | CPU | 0.05% | 0.1% | 0.2% | 0.4% | 0.7% | 1.5% | 2.9% | 5.9% | 12% | 23% | 47% |
+///
+/// The figures are for an original Game Boy. CGB double speed mode halves each
+/// of them, since the handler costs the same and the processor issues twice as
+/// much in a second.
 ///
 /// The hardware counts faster than 16384 Hz, but the handler would take more of
 /// the processor than the program has left to give.
@@ -223,6 +231,9 @@ pub mod rate {
         )*};
     }
 
+    // The clock names are nominal, so CGB double speed mode needs a different
+    // divisor for the same rate.
+    #[cfg(not(feature = "cgb-double-speed"))]
     rates! {
         Hz16 = 16, Hz4096 / 256;
         Hz32 = 32, Hz4096 / 128;
@@ -235,6 +246,20 @@ pub mod rate {
         Hz4096 = 4096, Hz262144 / 64;
         Hz8192 = 8192, Hz262144 / 32;
         Hz16384 = 16384, Hz262144 / 16;
+    }
+
+    #[cfg(feature = "cgb-double-speed")]
+    rates! {
+        Hz32 = 32, Hz4096 / 256;
+        Hz64 = 64, Hz4096 / 128;
+        Hz128 = 128, Hz16384 / 256;
+        Hz256 = 256, Hz16384 / 128;
+        Hz512 = 512, Hz65536 / 256;
+        Hz1024 = 1024, Hz65536 / 128;
+        Hz2048 = 2048, Hz262144 / 256;
+        Hz4096 = 4096, Hz262144 / 128;
+        Hz8192 = 8192, Hz262144 / 64;
+        Hz16384 = 16384, Hz262144 / 32;
     }
 }
 

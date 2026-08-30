@@ -10,7 +10,7 @@ use voladdress::{Safe, VolAddress};
 ///
 /// | Bit | Field | Access | Meaning |
 /// |-----|-------|--------|---------|
-/// | 7   | `double_speed` | RO  | Currently in double-speed mode. |
+/// | 7   | `double_speed` | RO  | Currently in CGB double speed mode. |
 /// | 6-1 | —              |     | Unused. |
 /// | 0   | `armed`        | R/W | Arm a speed switch; it takes effect on the next `STOP`. |
 #[bitfield(u8)]
@@ -20,7 +20,7 @@ pub struct SpeedSwitch {
     pub armed: bool,
     #[bits(6)]
     __: u8,
-    /// Currently in double-speed mode (read-only).
+    /// Currently in CGB double speed mode (read-only).
     #[bits(1, access = RO)]
     pub double_speed: bool,
 }
@@ -132,7 +132,7 @@ pub struct PcmAmplitudes {
 /// CPU mode select. Mostly a boot-ROM / DMG-compatibility register, locked
 /// once the boot ROM hands off.
 pub const KEY0: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF4C) };
-/// Prepare speed switch (double-speed mode).
+/// Prepare speed switch (CGB double speed mode).
 pub const KEY1: VolAddress<SpeedSwitch, Safe, Safe> = unsafe { VolAddress::new(0xFF4D) };
 /// VRAM bank select (bit 0).
 pub const VBK: VolAddress<u8, Safe, Safe> = unsafe { VolAddress::new(0xFF4F) };

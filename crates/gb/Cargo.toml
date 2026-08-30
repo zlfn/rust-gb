@@ -22,6 +22,12 @@ pak = ["dep:gb-pak", "dep:gb-pak-macros"]
 ## Enable Game Boy Color hardware features.
 cgb = []
 
+## Run in CGB double speed mode.
+##
+## The processor and the timer run twice as fast, while the screen and sound
+## carry on as they were. A cartridge built with this is a Color-only one.
+cgb-double-speed = ["cgb", "gb-rt/cgb-double-speed"]
+
 ## Register an implementation of the [`critical-section`](https://docs.rs/critical-section)
 ## crate.
 ##
