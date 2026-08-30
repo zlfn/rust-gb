@@ -6,7 +6,7 @@ use voladdress::{Safe, VolAddress};
 /// Timer input clock: the `TAC` clock-select field (bits 1-0).
 #[bitenum(all = false)]
 #[repr(u8)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TimerClock {
     /// 4096 Hz.
     Hz4096 = 0b00,

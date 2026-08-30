@@ -13,6 +13,7 @@ pub mod mmio;
 pub mod interrupt;
 pub mod joypad;
 pub mod ppu;
+pub mod timer;
 
 // Also at the root, so the attribute reads as `#[gb::bank]` rather than
 // `#[gb::bank::bank]`. A macro and a module may share a name.
