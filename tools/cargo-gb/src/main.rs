@@ -299,9 +299,16 @@ fn link(tc: &Toolchain, proj: &Project, input: &Path, banked: bool) -> Result<Pa
     Ok(elf)
 }
 
+/// Holds what the interrupt vectors fall back to.
+const DEFAULTS_LD: &str = "gb_defaults.ld";
+
 /// Collect the linker scripts dropped into each crate's build-script `OUT_DIR`:
 /// `gb.ld` (the main script) plus any supplementary scripts, newest-first and one
 /// per filename so stale build directories do not double-define sections.
+///
+/// The supplementary ones come back in name order with [`DEFAULTS_LD`] last. A
+/// `PROVIDE` yields to an earlier one, so those fallbacks have to be read after
+/// any library offering a handler of its own.
 fn collect_linker_scripts(release_dir: &Path) -> Result<(PathBuf, Vec<PathBuf>), String> {
     let build = release_dir.join("build");
     let mut found: Vec<(std::time::SystemTime, PathBuf)> = Vec::new();
@@ -337,6 +344,10 @@ fn collect_linker_scripts(release_dir: &Path) -> Result<(PathBuf, Vec<PathBuf>),
         }
     }
     let gb_ld = gb_ld.ok_or("gb.ld not found (is gb-rt a dependency of the crate?)")?;
+    supplementary.sort_by_key(|p| {
+        let name = p.file_name().unwrap_or_default().to_string_lossy().into_owned();
+        (name == DEFAULTS_LD, name)
+    });
     Ok((gb_ld, supplementary))
 }
 

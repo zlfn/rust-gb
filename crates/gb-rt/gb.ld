@@ -21,14 +21,6 @@ SECTIONS {
     _INT_SERIAL (0x0058) : { KEEP(*(_INT_SERIAL)) } > ROM
     _INT_JOYPAD (0x0060) : { KEEP(*(_INT_JOYPAD)) } > ROM
 
-    /* PROVIDE yields to any object definition, weak or strong, so a handler
-       always wins over this default. */
-    PROVIDE(_on_vblank   = _isr_noop);
-    PROVIDE(_on_lcd_stat = _isr_noop);
-    PROVIDE(_on_timer    = _isr_noop);
-    PROVIDE(_on_serial   = _isr_noop);
-    PROVIDE(_on_joypad   = _isr_noop);
-
     _ENTRY      (0x0100) : { KEEP(*(_ENTRY)) } > ROM
     _LOGO       (0x0104) : { KEEP(*(_LOGO)) } > ROM
     _TITLE      (0x0134) : { KEEP(*(_TITLE)) } > ROM

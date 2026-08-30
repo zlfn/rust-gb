@@ -103,14 +103,15 @@ __shadow_OAM_base:
     .skip 1
     .section .text, "ax"
 
-    ; The vector jumps straight here. The stack frame matches GBDK's: the pairs go
-    ; on as AF, HL, BC, DE and the dispatch loop is entered with a jump, so above
-    ; the saved pairs a dispatched handler finds exactly its call return address
-    ; and the saved table pointer. A handler that ends the chain itself
-    ; (`nowait_int_handler`) drops those two words and returns from the interrupt.
+    ; gbdk.ld points each vector here unless the program defines the hook itself.
+    ; The stack frame matches GBDK's: the pairs go on as AF, HL, BC, DE and the
+    ; dispatch loop is entered with a jump, so above the saved pairs a dispatched
+    ; handler finds exactly its call return address and the saved table pointer.
+    ; A handler that ends the chain itself (`nowait_int_handler`) drops those two
+    ; words and returns from the interrupt.
 
-    .globl _on_vblank
-_on_vblank:
+    .globl _gbdk_on_vblank
+_gbdk_on_vblank:
     push af
     push hl
     push bc
@@ -131,8 +132,8 @@ _on_vblank:
     ld hl, _vbl_table
     jr .dispatch
 
-    .weak _on_lcd_stat
-_on_lcd_stat:
+    .globl _gbdk_on_lcd_stat
+_gbdk_on_lcd_stat:
     push af
     push hl
     push bc
@@ -140,8 +141,8 @@ _on_lcd_stat:
     ld hl, _lcd_table
     jr .dispatch
 
-    .weak _on_timer
-_on_timer:
+    .globl _gbdk_on_timer
+_gbdk_on_timer:
     push af
     push hl
     push bc
@@ -149,8 +150,8 @@ _on_timer:
     ld hl, _tim_table
     jr .dispatch
 
-    .weak _on_serial
-_on_serial:
+    .globl _gbdk_on_serial
+_gbdk_on_serial:
     push af
     push hl
     push bc
@@ -158,8 +159,8 @@ _on_serial:
     ld hl, _sio_table
     jr .dispatch
 
-    .weak _on_joypad
-_on_joypad:
+    .globl _gbdk_on_joypad
+_gbdk_on_joypad:
     push af
     push hl
     push bc
