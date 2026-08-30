@@ -12,6 +12,9 @@
 pub mod mmio;
 pub mod apu;
 pub mod interrupt;
+#[cfg(feature = "cgb")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cgb")))]
+pub mod ir;
 pub mod joypad;
 pub mod ppu;
 pub mod serial;
