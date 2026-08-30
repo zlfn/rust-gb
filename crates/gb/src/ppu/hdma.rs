@@ -8,16 +8,16 @@
 //! and there is nothing to get wrong. One of the largest size roughly fills a
 //! VBlank, which is most of a tileset.
 //!
-//! Neither reaches an original Game Boy, which has no such hardware: the write
-//! that would start a transfer goes nowhere, and the call returns having moved
-//! nothing.
-//!
 //! [`stream`] moves one block per HBlank and lets the program run in between,
 //! reaching a comparable amount over a frame. What it costs is listed
 //! on [`Stream`], and the list is long: it holds the video memory bank and the
 //! source bank still for its whole life, and a sleeping CPU stops it. It suits a
 //! stretch where nothing else touches video memory, a loading screen rather than
 //! a scrolling level.
+//!
+//! Neither reaches an original Game Boy, which has no such hardware: the write
+//! that would start a transfer goes nowhere, and the call returns having moved
+//! nothing.
 
 use crate::mmio::cgb::{HDMA1, HDMA2, HDMA3, HDMA4, HDMA5, HdmaCtrl};
 
@@ -102,11 +102,10 @@ pub fn stream(dst: u16, src: &'static [u8]) -> Option<Stream> {
 /// - change the video memory bank, which rules out
 ///   [`with_vram_bank`](super::with_vram_bank) and
 ///   [`edit_attrs`](super::map::edit_attrs);
+/// - unmap the bank the source sits in;
 /// - execute `halt`, which stops the copier until the CPU wakes. That includes
 ///   [`wait_vblank`](super::wait_vblank), so a frame paced with it will barely
 ///   advance the transfer.
-///
-/// The source bank is already ruled out: [`stream`] takes `'static`.
 ///
 /// Dropping this leaves the transfer running. Nothing is torn by that; the
 /// obligations above simply go unwatched.
