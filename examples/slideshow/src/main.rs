@@ -1,10 +1,7 @@
 //! Slideshow — Cycle through full-screen images with any button press.
 //!
-//! Generated with:
-//!   gb-image-fx ~/Downloads/korea.png --quantize 160x144 --dither 1.0 --tiles-only -o res/korea1
-//!   gb-image-fx ~/Downloads/korea2.png --quantize 160x144 --dither 1.0 --tiles-only -o res/korea2
-//!   gb-image-fx ~/Downloads/korea3.jpg --quantize 160x144 --dither 1.0 --tiles-only -o res/korea3
-//!   gb-image-fx ~/Downloads/korea4.webp --quantize 160x144 --dither 1.0 --tiles-only -o res/korea4
+//! Each slide was generated with:
+//!   gb-image-fx <image> --quantize 160x144 --dither --gbc-correction --tiles-only -o res/koreaN
 
 #![no_std]
 #![no_main]
