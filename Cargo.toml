@@ -8,8 +8,8 @@ members = [
     "examples/template",
     "examples/gbdk/*",
 ]
-# `cargo build`/`cargo doc` at the root (sm83 target, see .cargo/config.toml)
-# operate on the library crates. Examples are built with `cargo gb`.
+# The library crates target SM83 (see crates' own builds); `cargo doc-all` docs
+# them from the root. Examples are built with `cargo gb`.
 default-members = ["crates/*"]
 resolver = "3"
 
