@@ -56,8 +56,8 @@
 <a href=#56 id=56 data-nosnippet>56</a>    }
 <a href=#57 id=57 data-nosnippet>57</a>
 <a href=#58 id=58 data-nosnippet>58</a>    <span class="kw">const fn </span>sub(<span class="self">self</span>, x: u8, y: u8, w: u8, h: u8) -&gt; <span class="self">Self </span>{
-<a href=#59 id=59 data-nosnippet>59</a>        <span class="comment">// The origin is carried rather than re-slicing, so this stays const and
-<a href=#60 id=60 data-nosnippet>60</a>        // the stride never has to be recomputed. Saturating, so that an origin
+<a href=#59 id=59 data-nosnippet>59</a>        <span class="comment">// The origin is carried rather than re-slicing, which keeps this const
+<a href=#60 id=60 data-nosnippet>60</a>        // and spares recomputing the stride. Saturating, so that an origin
 <a href=#61 id=61 data-nosnippet>61</a>        // past the end is refused by the write rather than wrapping back into
 <a href=#62 id=62 data-nosnippet>62</a>        // range.
 <a href=#63 id=63 data-nosnippet>63</a>        </span>Grid { x: <span class="self">self</span>.x.saturating_add(x), y: <span class="self">self</span>.y.saturating_add(y), w, h, ..<span class="self">self </span>}

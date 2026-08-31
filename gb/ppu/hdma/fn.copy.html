@@ -3,8 +3,8 @@
 transfer starts, not where it ends, so a block long enough to outlast the
 window is still being written while the lines it reaches are drawn, and those
 come out garbled: size one to the window, or switch the display off.</p>
-<p>Nothing runs while it works, so a source in a switchable bank is safe here in
-a way it is not in <a href="fn.stream.html" title="fn gb::ppu::hdma::stream"><code>stream</code></a>.</p>
+<p>Nothing runs while it works, which makes a source in a switchable bank safe
+here in a way it is not in <a href="fn.stream.html" title="fn gb::ppu::hdma::stream"><code>stream</code></a>.</p>
 <h2 id="panics"><a class="doc-anchor" href="#panics">§</a>Panics</h2>
 <p>If <code>src</code> is empty, longer than <a href="constant.MAX_LEN.html" title="constant gb::ppu::hdma::MAX_LEN"><code>MAX_LEN</code></a>, not a whole number of
 <a href="constant.BLOCK_LEN.html" title="constant gb::ppu::hdma::BLOCK_LEN"><code>BLOCK_LEN</code></a>s, or misaligned; if <code>dst</code> is outside <code>0x8000..0xA000</code>, is

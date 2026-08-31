@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/gb/src/apu.rs`."><title>apu.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gb" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-dev" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">gb/</div>apu.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! This module drives the four sound channels.
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/gb/src/apu.rs`."><title>apu.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gb" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-dev" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">gb/</div>apu.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! The four sound channels and the mixer.
 <a href=#2 id=2 data-nosnippet>2</a>//!
 <a href=#3 id=3 data-nosnippet>3</a>//! Each channel has a configuration type: [`Pulse`] for channels 1 and 2,
 <a href=#4 id=4 data-nosnippet>4</a>//! [`Wave`] for channel 3, [`Noise`] for channel 4. Building one is a chain of
@@ -17,7 +17,7 @@
 <a href=#17 id=17 data-nosnippet>17</a>//!
 <a href=#18 id=18 data-nosnippet>18</a>//! # Power
 <a href=#19 id=19 data-nosnippet>19</a>//!
-<a href=#20 id=20 data-nosnippet>20</a>//! The boot ROM leaves the APU on at full volume, so a program that only wants
+<a href=#20 id=20 data-nosnippet>20</a>//! The boot ROM leaves the APU on at full volume. A program that only wants
 <a href=#21 id=21 data-nosnippet>21</a>//! sound has nothing to set up. It does leave channels 3 and 4 reaching the
 <a href=#22 id=22 data-nosnippet>22</a>//! left output alone, which [`set_panning`] settles.
 <a href=#23 id=23 data-nosnippet>23</a>//!
@@ -215,10 +215,10 @@
 <a href=#215 id=215 data-nosnippet>215</a>    /// these settings, and one left over from an earlier sound would bend this
 <a href=#216 id=216 data-nosnippet>216</a>    /// one. [`Sweep::new`] leaves the pitch alone.
 <a href=#217 id=217 data-nosnippet>217</a>    ///
-<a href=#218 id=218 data-nosnippet>218</a>    /// Whether a sweep runs at all is settled here and nowhere else: a note
-<a href=#219 id=219 data-nosnippet>219</a>    /// triggered without one cannot be given one part way through.
+<a href=#218 id=218 data-nosnippet>218</a>    /// The trigger decides whether a sweep runs at all, so a note started
+<a href=#219 id=219 data-nosnippet>219</a>    /// without one cannot be given one part way through.
 <a href=#220 id=220 data-nosnippet>220</a>    ///
-<a href=#221 id=221 data-nosnippet>221</a>    /// A rising sweep is checked against the top as the note is triggered, so a
+<a href=#221 id=221 data-nosnippet>221</a>    /// A rising sweep is checked against the top as the note is triggered: a
 <a href=#222 id=222 data-nosnippet>222</a>    /// step that would carry a high note past `$7FF` in one move cuts it before
 <a href=#223 id=223 data-nosnippet>223</a>    /// anything is heard. The smaller the step number, the larger the move. A
 <a href=#224 id=224 data-nosnippet>224</a>    /// falling sweep cannot reach the top and is never cut.
@@ -252,8 +252,8 @@
 <a href=#252 id=252 data-nosnippet>252</a>
 <a href=#253 id=253 data-nosnippet>253</a>    <span class="doccomment">/// Change the pitch on channel 2 without starting the note over.
 <a href=#254 id=254 data-nosnippet>254</a>    ///
-<a href=#255 id=255 data-nosnippet>255</a>    /// The envelope and the waveform carry on from where they are, which is
-<a href=#256 id=256 data-nosnippet>256</a>    /// what a slide or a vibrato wants. [`Pulse::play_ch2`] restarts both.
+<a href=#255 id=255 data-nosnippet>255</a>    /// The envelope and the waveform carry on from where they are, as a slide
+<a href=#256 id=256 data-nosnippet>256</a>    /// or a vibrato needs. [`Pulse::play_ch2`] restarts both.
 <a href=#257 id=257 data-nosnippet>257</a>    </span><span class="attr">#[inline]
 <a href=#258 id=258 data-nosnippet>258</a>    </span><span class="kw">pub fn </span>retune_ch2(<span class="kw-2">&amp;</span><span class="self">self</span>) {
 <a href=#259 id=259 data-nosnippet>259</a>        NR23.write(<span class="self">self</span>.period_low);
@@ -475,8 +475,8 @@
 <a href=#475 id=475 data-nosnippet>475</a>/// how one of those comes back.
 <a href=#476 id=476 data-nosnippet>476</a></span><span class="attr">#[inline]
 <a href=#477 id=477 data-nosnippet>477</a></span><span class="kw">pub fn </span>silence(ch: Channel) {
-<a href=#478 id=478 data-nosnippet>478</a>    <span class="comment">// Volume 0 rising, rather than a plain 0, is what keeps the DAC on. The
-<a href=#479 id=479 data-nosnippet>479</a>    // channel then has to be triggered for the new volume to reach it.
+<a href=#478 id=478 data-nosnippet>478</a>    <span class="comment">// A plain 0 would take the DAC down with it; volume 0 rising leaves it up.
+<a href=#479 id=479 data-nosnippet>479</a>    // The channel then has to be triggered for the new volume to reach it.
 <a href=#480 id=480 data-nosnippet>480</a>    </span><span class="kw">const </span>QUIET: Envelope = Envelope::new().with_increase(<span class="bool-val">true</span>);
 <a href=#481 id=481 data-nosnippet>481</a>    <span class="kw">const </span>RETRIGGER: PeriodCtrl = PeriodCtrl::new().with_trigger(<span class="bool-val">true</span>);
 <a href=#482 id=482 data-nosnippet>482</a>    <span class="kw">match </span>ch {
@@ -500,7 +500,7 @@
 <a href=#500 id=500 data-nosnippet>500</a>
 <a href=#501 id=501 data-nosnippet>501</a><span class="doccomment">/// Stop a channel by turning its DAC off.
 <a href=#502 id=502 data-nosnippet>502</a>///
-<a href=#503 id=503 data-nosnippet>503</a>/// Clicks, so [`silence`] is the one to reach for between notes.
+<a href=#503 id=503 data-nosnippet>503</a>/// Clicks. Between notes, prefer [`silence`].
 <a href=#504 id=504 data-nosnippet>504</a></span><span class="attr">#[inline]
 <a href=#505 id=505 data-nosnippet>505</a></span><span class="kw">pub fn </span>stop(ch: Channel) {
 <a href=#506 id=506 data-nosnippet>506</a>    <span class="kw">match </span>ch {

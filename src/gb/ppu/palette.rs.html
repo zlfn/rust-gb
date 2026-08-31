@@ -8,8 +8,8 @@
 <a href=#8 id=8 data-nosnippet>8</a>//! chooses which index gets which of them. On the Game Boy Color a palette holds
 <a href=#9 id=9 data-nosnippet>9</a>//! four real colours. See &lt;https://gbdev.io/pandocs/Palettes.html&gt;.
 <a href=#10 id=10 data-nosnippet>10</a>//!
-<a href=#11 id=11 data-nosnippet>11</a>//! Index 0 is transparent for objects, so the lowest two bits of an object
-<a href=#12 id=12 data-nosnippet>12</a>//! palette are never used.
+<a href=#11 id=11 data-nosnippet>11</a>//! Index 0 is transparent for objects, which leaves the lowest two bits of an
+<a href=#12 id=12 data-nosnippet>12</a>//! object palette unused.
 <a href=#13 id=13 data-nosnippet>13</a>//!
 <a href=#14 id=14 data-nosnippet>14</a>//! An original Game Boy ignores the colour registers and keeps drawing with the shades
 <a href=#15 id=15 data-nosnippet>15</a>//! [`set_background`] chose, so a cartridge that runs on both machines can set
@@ -141,7 +141,7 @@
 <a href=#141 id=141 data-nosnippet>141</a>        // every colour after it. That is why `Polled` waits here at all, where a
 <a href=#142 id=142 data-nosnippet>142</a>        // tilemap write could simply let the byte drop.
 <a href=#143 id=143 data-nosnippet>143</a>        //
-<a href=#144 id=144 data-nosnippet>144</a>        // The index register itself is reachable in every mode, so it needs no
+<a href=#144 id=144 data-nosnippet>144</a>        // The index register itself is reachable in every mode and needs no
 <a href=#145 id=145 data-nosnippet>145</a>        // wait of its own.
 <a href=#146 id=146 data-nosnippet>146</a>        </span>index.write(
 <a href=#147 id=147 data-nosnippet>147</a>            PaletteIndex::new()

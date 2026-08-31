@@ -18,9 +18,9 @@ is, the higher the pitch. At most <code>$7FF</code>.</p>
 <p>The sweep is asked for because it belongs to the channel rather than to
 these settings, and one left over from an earlier sound would bend this
 one. <a href="../mmio/struct.Sweep.html#method.new" title="associated function gb::mmio::Sweep::new"><code>Sweep::new</code></a> leaves the pitch alone.</p>
-<p>Whether a sweep runs at all is settled here and nowhere else: a note
-triggered without one cannot be given one part way through.</p>
-<p>A rising sweep is checked against the top as the note is triggered, so a
+<p>The trigger decides whether a sweep runs at all, so a note started
+without one cannot be given one part way through.</p>
+<p>A rising sweep is checked against the top as the note is triggered: a
 step that would carry a high note past <code>$7FF</code> in one move cuts it before
 anything is heard. The smaller the step number, the larger the move. A
 falling sweep cannot reach the top and is never cut.</p>
@@ -29,8 +29,8 @@ falling sweep cannot reach the top and is never cut.</p>
 <p>A running sweep holds its own copy of the pitch and writes that back at
 its next step, so this reaches a channel playing without one.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.retune_ch2" class="method"><a class="src rightside" href="../../src/gb/apu.rs.html#258-261">Source</a><h4 class="code-header">pub fn <a href="#method.retune_ch2" class="fn">retune_ch2</a>(&amp;self)</h4></section></summary><div class="docblock"><p>Change the pitch on channel 2 without starting the note over.</p>
-<p>The envelope and the waveform carry on from where they are, which is
-what a slide or a vibrato wants. <a href="struct.Pulse.html#method.play_ch2" title="method gb::apu::Pulse::play_ch2"><code>Pulse::play_ch2</code></a> restarts both.</p>
+<p>The envelope and the waveform carry on from where they are, as a slide
+or a vibrato needs. <a href="struct.Pulse.html#method.play_ch2" title="method gb::apu::Pulse::play_ch2"><code>Pulse::play_ch2</code></a> restarts both.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.set_duty_ch1" class="method"><a class="src rightside" href="../../src/gb/apu.rs.html#267-269">Source</a><h4 class="code-header">pub fn <a href="#method.set_duty_ch1" class="fn">set_duty_ch1</a>(&amp;self)</h4></section></summary><div class="docblock"><p>Change the duty on channel 1 without starting the note over.</p>
 <p>The length timer shares the register and starts over with it.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.set_duty_ch2" class="method"><a class="src rightside" href="../../src/gb/apu.rs.html#275-277">Source</a><h4 class="code-header">pub fn <a href="#method.set_duty_ch2" class="fn">set_duty_ch2</a>(&amp;self)</h4></section></summary><div class="docblock"><p>Change the duty on channel 2 without starting the note over.</p>

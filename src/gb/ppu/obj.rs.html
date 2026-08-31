@@ -183,14 +183,14 @@
 <a href=#183 id=183 data-nosnippet>183</a>
 <a href=#184 id=184 data-nosnippet>184</a>    <span class="doccomment">/// Hand `src` to the hardware, then wait out the 160 M-cycle transfer.
 <a href=#185 id=185 data-nosnippet>185</a>    ///
-<a href=#186 id=186 data-nosnippet>186</a>    /// The [`CriticalSection`] is the one hard requirement: an interrupt during
-<a href=#187 id=187 data-nosnippet>187</a>    /// the transfer would send the CPU to a vector it cannot read.
+<a href=#186 id=186 data-nosnippet>186</a>    /// The [`CriticalSection`] is required: an interrupt during the transfer
+<a href=#187 id=187 data-nosnippet>187</a>    /// would send the CPU to a vector it cannot read.
 <a href=#188 id=188 data-nosnippet>188</a>    ///
 <a href=#189 id=189 data-nosnippet>189</a>    /// The PPU cannot read OAM meanwhile either, so a transfer reaching over a
 <a href=#190 id=190 data-nosnippet>190</a>    /// visible line leaves that line's objects undrawn.
 <a href=#191 id=191 data-nosnippet>191</a>    /// [`Polled`](Access::Polled) waits for a VBlank with room for the whole of
-<a href=#192 id=192 data-nosnippet>192</a>    /// it; [`Direct`](Access::Direct) starts at once, which is what a VBlank
-<a href=#193 id=193 data-nosnippet>193</a>    /// handler wants and what a deliberate mid-frame transfer is written with.
+<a href=#192 id=192 data-nosnippet>192</a>    /// it; [`Direct`](Access::Direct) starts at once, as a VBlank handler and a
+<a href=#193 id=193 data-nosnippet>193</a>    /// deliberate mid-frame transfer both need.
 <a href=#194 id=194 data-nosnippet>194</a>    </span><span class="attr">#[inline]
 <a href=#195 id=195 data-nosnippet>195</a>    </span><span class="kw">pub fn </span>run(<span class="kw-2">&amp;</span><span class="self">self</span>, access: Access&lt;<span class="lifetime">'_</span>&gt;, _cs: CriticalSection&lt;<span class="lifetime">'_</span>&gt;, src: <span class="kw-2">&amp;</span>OamShadow) {
 <a href=#196 id=196 data-nosnippet>196</a>        <span class="comment">// 640 dots is longer than any blanking period but a VBlank's, so mode 0

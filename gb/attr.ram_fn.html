@@ -3,9 +3,9 @@
 it for a compile-time buffer check, but the bound itself (actual code length
 <code>&lt;= max</code>) is verified only after compilation, by <code>cargo-gb</code> over the linked
 ROM. A build path that skips that check does not guarantee it, leaving
-<code>install</code> able to overflow its buffer (see
-<a href="../gb_ram_fn/trait.RamFn.html#tymethod.install"><code>RamFn::install</code></a>).</p>
-<p>Generates <code>NAME</code>, a zero-sized handle implementing <code>RamFn</code>: <code>NAME.rom()</code> gives
-the ROM copy and <code>NAME.install(buf)</code> copies it into RAM. Bring <code>RamFn</code> into
-scope to call these.</p>
+<code>install</code> able to overflow its buffer.</p>
+<p>The function becomes a zero-sized handle of the same name, implementing the
+<code>RamFn</code> trait. For <code>fn inc()</code>, <code>inc.rom()</code> gives the ROM copy and
+<code>inc.install(buf)</code> copies the code into <code>buf</code> and returns the RAM copy. Both
+are trait methods, so <code>RamFn</code> has to be in scope.</p>
 </div></details></section></div></main></body></html>

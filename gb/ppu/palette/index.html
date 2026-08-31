@@ -5,8 +5,8 @@ can be drawn light in one place and dark in another.</p>
 <p>On the original Game Boy the four shades are fixed in hardware and a palette only
 chooses which index gets which of them. On the Game Boy Color a palette holds
 four real colours. See <a href="https://gbdev.io/pandocs/Palettes.html">https://gbdev.io/pandocs/Palettes.html</a>.</p>
-<p>Index 0 is transparent for objects, so the lowest two bits of an object
-palette are never used.</p>
+<p>Index 0 is transparent for objects, which leaves the lowest two bits of an
+object palette unused.</p>
 <p>An original Game Boy ignores the colour registers and keeps drawing with the shades
 <a href="fn.set_background.html" title="fn gb::ppu::palette::set_background"><code>set_background</code></a> chose, so a cartridge that runs on both machines can set
 colours without asking which it is on.</p>
