@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"attr":["sram"],"mod":["sram"],"struct":["CriticalSection"]};
+window.SIDEBAR_ITEMS = {"attr":["sram"],"mod":["eeprom","rtc","rumble","sram","tilt"],"struct":["CriticalSection"]};
