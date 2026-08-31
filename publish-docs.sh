@@ -22,11 +22,39 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 REV="$(git rev-parse --short HEAD)"
 
+# Several crates gate their API on `--cfg` rather than on a cargo feature, and
+# say so under `[package.metadata.docs.rs]`. Only docs.rs reads that, so gather
+# it here too; without it those modules document as if they did not exist.
+#
+# The flags go to the compiler as well as to rustdoc. A facade documents its
+# re-exports from the dependency's compiled metadata, so a cfg that reached only
+# rustdoc would still leave `gb::pak` holding a fraction of `gb_pak`.
+RUSTDOCFLAGS="$(cargo metadata --format-version 1 --no-deps | python3 -c '
+import json, sys
+
+args = []
+for pkg in json.load(sys.stdin)["packages"]:
+    rs = (pkg.get("metadata") or {}).get("docs", {}).get("rs", {})
+    args += rs.get("rustdoc-args", [])
+
+out, seen, i = [], set(), 0
+while i < len(args):
+    pair = tuple(args[i : i + 2]) if args[i] == "--cfg" else (args[i],)
+    if pair not in seen:
+        seen.add(pair)
+        out += pair
+    i += len(pair)
+print(" ".join(out))')"
+export RUSTDOCFLAGS
+export RUSTFLAGS="$RUSTDOCFLAGS"
+
 # The library crates only; `--workspace` would pull in the examples. The four
 # proc-macro crates document into the host tree instead and are left to
 # docs.rs, which can build them without the fork.
-cargo doc --all-features --no-deps
-DOC="$(ls -d target/*/doc | head -1)"
+# Its own directory: these flags fingerprint differently from a ROM build, and
+# sharing one would rebuild the world on either side of every docs run.
+cargo doc --all-features --no-deps --target-dir "$REPO/target/doc-build"
+DOC="$(ls -d "$REPO"/target/doc-build/*/doc | head -1)"
 [ -d "$DOC" ] || { echo "no doc output under target/" >&2; exit 1; }
 
 # Pages serves the branch root, and rustdoc writes no index there.

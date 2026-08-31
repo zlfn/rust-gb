@@ -35,7 +35,7 @@ rustdoc-args = [
     "--cfg", "docsrs",
     "--cfg", "gb_pak_mbc=\"mbc5\"",
     "--cfg", "gb_pak_sram",
-    "--cfg", "gb_pak_sram_banks=\"16\"",
+    "--cfg", "gb_pak_sram_banks=\"8\"",
     "--cfg", "gb_pak_rtc",
     "--cfg", "gb_pak_rumble",
     "--cfg", "gb_pak_tilt",
