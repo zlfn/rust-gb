@@ -6,16 +6,27 @@ use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::{Attribute, Ident, LitInt, Token, Type, Visibility, parse_macro_input};
 
+/// The identifier an invoking crate reaches a dependency by.
+///
+/// `crate_name` answers with the package name where the dependency is not
+/// renamed, and the HAL publishes as `rust-gb` while its library is `gb`.
+fn extern_name(found: String) -> String {
+    match found.as_str() {
+        "rust-gb" | "rust_gb" => "gb".to_string(),
+        _ => found.replace('-', "_"),
+    }
+}
+
 /// Where the expansion looks for `gb-pak`, whether the invoking crate depends on
 /// it directly or reaches it through the `gb` facade.
 fn pak_root() -> TokenStream2 {
     use proc_macro_crate::{FoundCrate, crate_name};
     let path = match crate_name("gb-pak") {
         Ok(FoundCrate::Itself) => "crate".to_string(),
-        Ok(FoundCrate::Name(n)) => format!("::{}", n.replace('-', "_")),
+        Ok(FoundCrate::Name(n)) => format!("::{}", extern_name(n)),
         Err(_) => match crate_name("rust-gb").or_else(|_| crate_name("gb")) {
             Ok(FoundCrate::Itself) => "crate::__pak".to_string(),
-            Ok(FoundCrate::Name(n)) => format!("::{}::__pak", n.replace('-', "_")),
+            Ok(FoundCrate::Name(n)) => format!("::{}::__pak", extern_name(n)),
             Err(_) => "::gb_pak".to_string(),
         },
     };

@@ -5,6 +5,17 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{Ident, ItemFn, ReturnType, Type, parse_macro_input, parse_quote, spanned::Spanned};
 
+/// The identifier an invoking crate reaches a dependency by.
+///
+/// `crate_name` answers with the package name where the dependency is not
+/// renamed, and the HAL publishes as `rust-gb` while its library is `gb`.
+fn extern_name(found: String) -> String {
+    match found.as_str() {
+        "rust-gb" | "rust_gb" => "gb".to_string(),
+        _ => found.replace('-', "_"),
+    }
+}
+
 /// Path to `gb-rt` as the *invoking* crate can name it, directly or through the
 /// `gb` facade. The last-resort plain name lets the usual unresolved-import error
 /// name the crate the user is missing.
@@ -12,10 +23,10 @@ fn rt_root() -> TokenStream2 {
     use proc_macro_crate::{crate_name, FoundCrate};
     let path = match crate_name("gb-rt") {
         Ok(FoundCrate::Itself) => "crate".to_string(),
-        Ok(FoundCrate::Name(n)) => format!("::{}", n.replace('-', "_")),
+        Ok(FoundCrate::Name(n)) => format!("::{}", extern_name(n)),
         Err(_) => match crate_name("rust-gb").or_else(|_| crate_name("gb")) {
             Ok(FoundCrate::Itself) => "crate::rt".to_string(),
-            Ok(FoundCrate::Name(n)) => format!("::{}::rt", n.replace('-', "_")),
+            Ok(FoundCrate::Name(n)) => format!("::{}::rt", extern_name(n)),
             Err(_) => "::gb_rt".to_string(),
         },
     };
@@ -28,7 +39,7 @@ fn hal_interrupt_root() -> Option<TokenStream2> {
     use proc_macro_crate::{crate_name, FoundCrate};
     let path = match crate_name("rust-gb").or_else(|_| crate_name("gb")).ok()? {
         FoundCrate::Itself => "crate::interrupt".to_string(),
-        FoundCrate::Name(n) => format!("::{}::interrupt", n.replace('-', "_")),
+        FoundCrate::Name(n) => format!("::{}::interrupt", extern_name(n)),
     };
     Some(path.parse().expect("gb::interrupt path"))
 }
@@ -64,13 +75,15 @@ pub fn entry(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Every program reaches the machine through here, so the speed switch has
     // one place to be and no way to be forgotten. It folds away where the
     // feature is off.
-    func.block.stmts.insert(
-        0,
-        parse_quote!(unsafe { ::gb_rt::__enter_double_speed() };),
-    );
+    let gb_rt = rt_root();
+    func.block
+        .stmts
+        .insert(0, parse_quote!(unsafe { #gb_rt::__enter_double_speed() };));
 
     quote! {
-        #[unsafe(no_mangle)]
+        // rrt0 jumps to `_main`, which the function's own name must not have to
+        // supply.
+        #[unsafe(export_name = "main")]
         #func
 
         // `_reset` (gb-rt's startup entry) is named only by the linker's ENTRY

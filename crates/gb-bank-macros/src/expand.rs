@@ -11,6 +11,17 @@ use syn::{
     ItemTrait, Pat, Path, ReturnType, Stmt, TraitItem, Type,
 };
 
+/// The identifier an invoking crate reaches a dependency by.
+///
+/// `crate_name` answers with the package name where the dependency is not
+/// renamed, and the HAL publishes as `rust-gb` while its library is `gb`.
+fn extern_name(found: String) -> String {
+    match found.as_str() {
+        "rust-gb" | "rust_gb" => "gb".to_string(),
+        _ => found.replace('-', "_"),
+    }
+}
+
 /// Path to a runtime crate as the *invoking* crate can name it: directly when it
 /// depends on that crate, otherwise through the `gb` facade, which re-exports the
 /// runtime crates at `facade` for exactly this purpose. Falling back to the plain
@@ -20,10 +31,10 @@ fn runtime_root(krate: &str, facade: &str) -> TokenStream {
     use proc_macro_crate::{crate_name, FoundCrate};
     let path = match crate_name(krate) {
         Ok(FoundCrate::Itself) => "crate".to_string(),
-        Ok(FoundCrate::Name(n)) => format!("::{}", n.replace('-', "_")),
+        Ok(FoundCrate::Name(n)) => format!("::{}", extern_name(n)),
         Err(_) => match crate_name("rust-gb").or_else(|_| crate_name("gb")) {
             Ok(FoundCrate::Itself) => format!("crate::{facade}"),
-            Ok(FoundCrate::Name(n)) => format!("::{}::{facade}", n.replace('-', "_")),
+            Ok(FoundCrate::Name(n)) => format!("::{}::{facade}", extern_name(n)),
             Err(_) => format!("::{}", krate.replace('-', "_")),
         },
     };
