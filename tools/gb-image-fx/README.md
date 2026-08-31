@@ -1,6 +1,6 @@
 # gb-image-fx
 
-Convert any image to Game Boy / Game Boy Color tile data. Supports PNG, JPEG, BMP, GIF, WebP, and more.
+Convert images to Game Boy / Game Boy Color tile data. Reads PNG, JPEG, BMP, GIF, WebP, and more.
 
 ## Usage
 
@@ -8,71 +8,63 @@ Convert any image to Game Boy / Game Boy Color tile data. Supports PNG, JPEG, BM
 gb-image-fx <input> [OPTIONS]
 ```
 
-### Options
+An image that is already GB-ready (dimensions a multiple of 8, at most 4 colors per tile) is converted directly. A full-color image needs `--quantize` to fit it to the hardware first.
+
+## Options
 
 | Option | Description |
 |---|---|
 | `-o <prefix>` | Output file prefix (default: input file stem) |
-| `--quantize <WxH>` | Quantize arbitrary image to target resolution (e.g. `160x144`) |
-| `--max-palettes <N>` | Maximum palettes for quantize (default: 8, GBC max) |
-| `--samples <N>` | K-Means initial color samples for quantize (default: 448) |
-| `--tiles-only` | Only output tiles and palettes (no tile map) |
-| `--keep-duplicates` | Don't deduplicate tiles |
-| `--no-flip` | Don't detect flipped tiles during dedup |
+| `--quantize <WxH>` | Quantize a full-color image to `WxH` and up to 8 palettes |
+| `--max-palettes <N>` | Palette limit for `--quantize` (default: 8, the GBC max) |
+| `--dither [weight]` | Dither during quantize, weight 0.0-1.0 (default: 0.5) |
+| `--dither-method <M>` | Dither pattern: `blue` (default), `bayer`, or `ordered` |
+| `--gbc-correction` | Quantize and preview for the GBC LCD, so colors look right on hardware |
+| `--obj` | Sprite mode: transparent pixels (alpha < 128) become color 0, opaque colors fill 1-3 |
+| `--dmg` | One palette for the whole image; combine with `--obj` for sprites |
+| `--metasprite <WxH>` | Emit tiles per sprite cell (e.g. `16x16`): cells row-major, each cell column-major for 8x16 OBJ pairs |
+| `--tiles-only` | Output tiles and palettes only (no map/attributes) |
+| `--keep-duplicates` | Keep duplicate tiles instead of deduplicating |
+| `--no-flip` | Don't match flipped tiles when deduplicating |
+| `--preview` | Write a PNG preview instead of the binary files |
 
-### Output Files
+## Output files
 
 | File | Description |
 |---|---|
-| `{prefix}_tiles.bin` | 2bpp tile data (16 bytes per tile) |
-| `{prefix}_palettes.bin` | GBC RGB555 palettes (8 bytes per palette) |
-| `{prefix}_attributes.bin` | GBC tile attributes with palette index (1 byte per tile) |
-| `{prefix}_map.bin` | Tile map (1 byte per grid cell, omitted with `--tiles-only`) |
-
-## Quantize Pipeline
-
-`--quantize` converts an arbitrary photo into GBC-compatible tile data:
-
-1. **Box Sampling** — Downsample to target resolution
-2. **K-Means** — Extract N initial representative colors from all pixels (default: 448)
-3. **Farthest Point Sampling** — Select 32 diverse candidates in Oklch color space
-4. **Tile Analysis** — For each 8x8 tile, find top 4 candidates by pixel frequency
-5. **Agglomerative Clustering** — Merge tiles with overlapping color sets until max palettes reached
-6. **Palette Extraction** — K-Means(k=4) per group on actual pixels for final 4-color palette
-7. **Pixel Snap** — Map each pixel to nearest color in its tile's palette
-
-All color operations use [Oklch](https://bottosson.github.io/posts/oklab/) for perceptual accuracy. The algorithm is fully deterministic.
-
-## Palette Ordering
-
-Colors within each palette are sorted by Oklch lightness (brightest first).
-This matches the DMG convention where palette index 0 = white and index 3 = black.
-
-## Constraints
-
-- Without `--quantize`: image dimensions must be multiples of 8, max 4 colors per tile.
-- With `--quantize`: any input resolution, automatically resized and quantized.
-- Maximum 8 BG palettes (GBC hardware limit), configurable with `--max-palettes`.
-- Maximum 256 unique tiles for tile map mode (u8 index).
+| `{prefix}_tiles.bin` | 2bpp tile data, 16 bytes per tile |
+| `{prefix}_palettes.bin` | RGB555 palettes, 8 bytes per palette |
+| `{prefix}_attributes.bin` | Per-tile attributes (palette index, flip flags) |
+| `{prefix}_map.bin` | Tile map, 1 byte per cell (omitted with `--tiles-only`) |
 
 ## Examples
 
-Convert a photo for full-screen GBC display (APA mode):
+Full-screen GBC background from a photo:
+
 ```
 gb-image-fx photo.jpg --quantize 160x144 --tiles-only -o res/photo
 ```
 
-Convert with fewer palettes:
+Same, dithered:
+
 ```
-gb-image-fx photo.png --quantize 160x144 --max-palettes 4 --tiles-only -o res/photo
+gb-image-fx photo.jpg --quantize 160x144 --dither --tiles-only -o res/photo
 ```
 
-Tune color sampling:
+A 4-direction top-down sprite sheet (16x16 cells):
+
 ```
-gb-image-fx photo.webp --quantize 160x144 --samples 640 --tiles-only -o res/photo
+gb-image-fx player.png --obj --dmg --metasprite 16x16 --tiles-only -o res/player
 ```
 
-Pre-made tileset (already 4 colors, no quantize needed):
+A tileset that is already 4 colors:
+
 ```
 gb-image-fx tileset.png -o res/tileset
 ```
+
+## Credits
+
+The `--quantize` color reducer is a port of [tiledpalettequant](https://github.com/rilden/tiledpalettequant) by rilden (MIT).
+
+`--gbc-correction` uses the CGB display model (Modern - Balanced) from [SameBoy](https://github.com/LIJI32/SameBoy) by Lior Halphon (MIT).

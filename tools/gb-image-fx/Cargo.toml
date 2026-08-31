@@ -1,6 +1,6 @@
 [package]
 name = "gb-image-fx"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
 description = "Convert images to Game Boy / Game Boy Color tile data"

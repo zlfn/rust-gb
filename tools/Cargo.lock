@@ -499,7 +499,7 @@ dependencies = [
 
 [[package]]
 name = "gb-image-fx"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "image",
  "palette",

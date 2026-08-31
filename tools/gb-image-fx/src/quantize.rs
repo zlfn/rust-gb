@@ -1,349 +1,137 @@
-//! Image quantization for Game Boy — reduce arbitrary images to 4-color-per-tile palettes.
+//! Reduce a full-colour image to Game Boy Color tile data: up to eight
+//! four-colour palettes, one per 8x8 tile.
 //!
-//! Pipeline:
-//!   1. K-Means → FPS to find globally diverse candidate colors
-//!   2. Per-tile frequency analysis → 4 candidate colors per tile
-//!   3. Agglomerative clustering → merge tiles into ≤ max_palettes groups
-//!   4. K-Means(k=4) per group → final 4-color palettes
-//!   5. Map pixels to palette colors (with optional blue noise dithering + edge detection)
+//! Ported from rilden's tiledpalettequant
+//! (https://github.com/rilden/tiledpalettequant), Copyright (c) 2022 rilden,
+//! MIT-licensed.
 
-use palette::{FromColor, Oklch, Srgb};
+// ── Colours ─────────────────────────────────────────────────────────────────
 
-// ── Oklch color space ─────────────────────────────────────────────────────
+/// An sRGB colour with channels in 0..=255, kept as f64 so learning can nudge it
+/// by fractional amounts.
+type Rgb = [f64; 3];
 
-#[derive(Clone, Copy)]
-struct OklchPixel {
-    l: f32,
-    c: f32,
-    h: f32,
+/// Green-weighted squared distance, a cheap stand-in for perceived difference.
+#[inline]
+fn dist(a: Rgb, b: Rgb) -> f64 {
+    let (dr, dg, db) = (a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    2.0 * dr * dr + 4.0 * dg * dg + db * db
 }
 
-impl OklchPixel {
-    fn from_rgb(r: u8, g: u8, b: u8) -> Self {
-        let srgb = Srgb::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0);
-        let oklch = Oklch::from_color(srgb);
-        Self {
-            l: oklch.l,
-            c: oklch.chroma,
-            h: oklch.hue.into_raw_degrees(),
-        }
-    }
-
-    fn to_rgb(self) -> [u8; 3] {
-        let oklch = Oklch::new(self.l, self.c, self.h);
-        let srgb: Srgb = Srgb::from_color(oklch);
-        [
-            (srgb.red.clamp(0.0, 1.0) * 255.0).round() as u8,
-            (srgb.green.clamp(0.0, 1.0) * 255.0).round() as u8,
-            (srgb.blue.clamp(0.0, 1.0) * 255.0).round() as u8,
-        ]
-    }
-
-    fn distance_sq(self, other: Self) -> f32 {
-        let dl = self.l - other.l;
-        let (sa, sb) = self.to_ab();
-        let (oa, ob) = other.to_ab();
-        let da = sa - oa;
-        let db = sb - ob;
-        dl * dl + da * da + db * db
-    }
-
-    fn to_ab(self) -> (f32, f32) {
-        let h_rad = self.h.to_radians();
-        (self.c * h_rad.cos(), self.c * h_rad.sin())
-    }
-
-    fn from_ab(l: f32, a: f32, b: f32) -> Self {
-        let c = (a * a + b * b).sqrt();
-        let h = b.atan2(a).to_degrees();
-        Self { l, c, h }
-    }
+/// Relative brightness, used to order dither candidates.
+#[inline]
+fn brightness(c: Rgb) -> f64 {
+    0.299 * c[0] * c[0] + 0.587 * c[1] * c[1] + 0.114 * c[2] * c[2]
 }
 
-fn nearest_idx(pixel: &OklchPixel, candidates: &[OklchPixel]) -> usize {
-    let mut best = 0;
-    let mut best_dist = f32::MAX;
-    for (i, c) in candidates.iter().enumerate() {
-        let d = pixel.distance_sq(*c);
-        if d < best_dist {
-            best_dist = d;
-            best = i;
+fn to_u8(c: Rgb) -> [u8; 3] {
+    [
+        c[0].round().clamp(0.0, 255.0) as u8,
+        c[1].round().clamp(0.0, 255.0) as u8,
+        c[2].round().clamp(0.0, 255.0) as u8,
+    ]
+}
+
+/// The value the console shows for `x`: quantized to `bits` per channel.
+fn to_nbit(x: f64, bits: usize) -> f64 {
+    let step = 255.0 / ((1u32 << bits) - 1) as f64;
+    (x / step).round() * step
+}
+
+fn reduce(c: Rgb, bits: usize) -> Rgb {
+    [to_nbit(c[0], bits), to_nbit(c[1], bits), to_nbit(c[2], bits)]
+}
+
+fn reduce_all(palettes: &[Vec<Rgb>], bits: usize) -> Vec<Vec<Rgb>> {
+    palettes.iter().map(|p| p.iter().map(|&c| reduce(c, bits)).collect()).collect()
+}
+
+/// Index and distance of the palette colour nearest `c`.
+fn nearest(pal: &[Rgb], c: Rgb) -> (usize, f64) {
+    let mut best = (0, f64::MAX);
+    for (i, &p) in pal.iter().enumerate() {
+        let d = dist(p, c);
+        if d < best.1 {
+            best = (i, d);
         }
     }
     best
 }
 
-// ── Resampling ────────────────────────────────────────────────────────────
-
-/// Box-sample (downsample) an RGBA image.
-/// Averages in Oklch space with fractional area weighting for perceptually
-/// correct color blending.
-pub fn box_sample(
-    src: &[[u8; 4]],
-    src_w: u32, src_h: u32,
-    dst_w: u32, dst_h: u32,
-) -> Vec<[u8; 4]> {
-    let mut dst = vec![[0u8; 4]; (dst_w * dst_h) as usize];
-    let sx = src_w as f64 / dst_w as f64;
-    let sy = src_h as f64 / dst_h as f64;
-
-    for dy in 0..dst_h {
-        for dx in 0..dst_w {
-            let fx0 = dx as f64 * sx;
-            let fy0 = dy as f64 * sy;
-            let fx1 = ((dx + 1) as f64 * sx).min(src_w as f64);
-            let fy1 = ((dy + 1) as f64 * sy).min(src_h as f64);
-
-            let ix0 = fx0.floor() as u32;
-            let iy0 = fy0.floor() as u32;
-            let ix1 = (fx1.ceil() as u32).min(src_w);
-            let iy1 = (fy1.ceil() as u32).min(src_h);
-
-            let mut l_sum = 0.0f64;
-            let mut a_sum = 0.0f64;
-            let mut b_sum = 0.0f64;
-            let mut alpha_sum = 0.0f64;
-            let mut weight_sum = 0.0f64;
-
-            for py in iy0..iy1 {
-                let wy = (py as f64 + 1.0).min(fy1) - (py as f64).max(fy0);
-                for px in ix0..ix1 {
-                    let wx = (px as f64 + 1.0).min(fx1) - (px as f64).max(fx0);
-                    let w = wx * wy;
-
-                    let p = src[(py * src_w + px) as usize];
-                    let oklch = OklchPixel::from_rgb(p[0], p[1], p[2]);
-                    let (oa, ob) = oklch.to_ab();
-
-                    l_sum += oklch.l as f64 * w;
-                    a_sum += oa as f64 * w;
-                    b_sum += ob as f64 * w;
-                    alpha_sum += p[3] as f64 * w;
-                    weight_sum += w;
-                }
-            }
-
-            if weight_sum > 0.0 {
-                let avg = OklchPixel::from_ab(
-                    (l_sum / weight_sum) as f32,
-                    (a_sum / weight_sum) as f32,
-                    (b_sum / weight_sum) as f32,
-                );
-                let rgb = avg.to_rgb();
-                dst[(dy * dst_w + dx) as usize] = [
-                    rgb[0], rgb[1], rgb[2],
-                    (alpha_sum / weight_sum).round() as u8,
-                ];
-            }
+/// The two nearest colours as (index, distance) pairs, nearest first.
+fn two_nearest(pal: &[Rgb], c: Rgb) -> ((usize, f64), (usize, f64)) {
+    let (mut a, mut b) = ((0, f64::MAX), (0, f64::MAX));
+    for (i, &p) in pal.iter().enumerate() {
+        let d = dist(p, c);
+        if d < a.1 {
+            b = a;
+            a = (i, d);
+        } else if d < b.1 {
+            b = (i, d);
         }
     }
-    dst
+    (a, b)
 }
 
-/// Downsample a float map using max pooling (preserves edge peaks).
-pub fn max_downsample(
-    src: &[f32],
-    src_w: u32, src_h: u32,
-    dst_w: u32, dst_h: u32,
-) -> Vec<f32> {
-    let mut dst = vec![0.0f32; (dst_w * dst_h) as usize];
-    let sx = src_w as f64 / dst_w as f64;
-    let sy = src_h as f64 / dst_h as f64;
+// ── Deterministic pixel shuffle ─────────────────────────────────────────────
+//
+// The original draws random pixels via Math.random; a fixed-seed xorshift keeps
+// the output reproducible without changing the algorithm.
 
-    for dy in 0..dst_h {
-        for dx in 0..dst_w {
-            let x0 = (dx as f64 * sx) as u32;
-            let y0 = (dy as f64 * sy) as u32;
-            let x1 = (((dx + 1) as f64 * sx).ceil() as u32).min(src_w);
-            let y1 = (((dy + 1) as f64 * sy).ceil() as u32).min(src_h);
-
-            let mut max_val = 0.0f32;
-            for py in y0..y1 {
-                for px in x0..x1 {
-                    let v = src[(py * src_w + px) as usize];
-                    if v > max_val {
-                        max_val = v;
-                    }
-                }
-            }
-            dst[(dy * dst_w + dx) as usize] = max_val;
-        }
-    }
-    dst
+struct Shuffle {
+    order: Vec<usize>,
+    pos: usize,
+    state: u32,
 }
 
-// ── Edge detection ────────────────────────────────────────────────────────
+impl Shuffle {
+    fn new(n: usize) -> Self {
+        Shuffle { order: (0..n).collect(), pos: n.wrapping_sub(1), state: 0x9E3779B9 }
+    }
 
-/// Compute per-pixel edge strength using Sobel filter on luminance.
-/// Returns values normalized to [0, 1].
-pub fn compute_edge_map(pixels: &[[u8; 4]], width: u32, height: u32) -> Vec<f32> {
-    let w = width as usize;
-    let h = height as usize;
+    fn unit(&mut self) -> f64 {
+        let mut x = self.state;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        self.state = x;
+        x as f64 / (u32::MAX as f64 + 1.0)
+    }
 
-    let lum: Vec<f32> = pixels
-        .iter()
-        .map(|p| 0.299 * p[0] as f32 + 0.587 * p[1] as f32 + 0.114 * p[2] as f32)
-        .collect();
-
-    let mut edges = vec![0.0f32; w * h];
-    let mut max_mag = 0.0f32;
-
-    for y in 1..h - 1 {
-        for x in 1..w - 1 {
-            let tl = lum[(y - 1) * w + (x - 1)];
-            let tc = lum[(y - 1) * w + x];
-            let tr = lum[(y - 1) * w + (x + 1)];
-            let ml = lum[y * w + (x - 1)];
-            let mr = lum[y * w + (x + 1)];
-            let bl = lum[(y + 1) * w + (x - 1)];
-            let bc = lum[(y + 1) * w + x];
-            let br = lum[(y + 1) * w + (x + 1)];
-
-            let gx = -tl + tr - 2.0 * ml + 2.0 * mr - bl + br;
-            let gy = -tl - 2.0 * tc - tr + bl + 2.0 * bc + br;
-            let mag = (gx * gx + gy * gy).sqrt();
-
-            edges[y * w + x] = mag;
-            if mag > max_mag {
-                max_mag = mag;
-            }
+    fn reshuffle(&mut self) {
+        let n = self.order.len();
+        for i in 0..n {
+            let j = i + (self.unit() * (n - i) as f64) as usize;
+            self.order.swap(i, j.min(n - 1));
         }
     }
 
-    if max_mag > 0.0 {
-        for e in &mut edges {
-            *e /= max_mag;
+    fn next(&mut self) -> usize {
+        self.pos += 1;
+        if self.pos >= self.order.len() {
+            self.reshuffle();
+            self.pos = 0;
         }
+        self.order[self.pos]
     }
-
-    edges
 }
 
-// ── Clustering helpers ────────────────────────────────────────────────────
-
-/// K-Means clustering in Oklch space.
-fn kmeans(pixels: &[OklchPixel], k: usize, max_iter: usize) -> Vec<OklchPixel> {
-    if pixels.is_empty() || k == 0 {
-        return Vec::new();
-    }
-
-    let n = pixels.len();
-    let k = k.min(n);
-
-    let mut sorted_indices: Vec<usize> = (0..n).collect();
-    sorted_indices.sort_by(|&a, &b| pixels[a].l.partial_cmp(&pixels[b].l).unwrap());
-    let mut centroids: Vec<OklchPixel> = (0..k)
-        .map(|i| pixels[sorted_indices[i * n / k]])
-        .collect();
-
-    let mut assignments = vec![0usize; n];
-
-    for _ in 0..max_iter {
-        let mut changed = false;
-        for (i, px) in pixels.iter().enumerate() {
-            let best = nearest_idx(px, &centroids);
-            if assignments[i] != best {
-                assignments[i] = best;
-                changed = true;
-            }
-        }
-
-        if !changed {
-            break;
-        }
-
-        let mut sums_l = vec![0.0f64; k];
-        let mut sums_a = vec![0.0f64; k];
-        let mut sums_b = vec![0.0f64; k];
-        let mut counts = vec![0u64; k];
-
-        for (i, px) in pixels.iter().enumerate() {
-            let ci = assignments[i];
-            let (a, b) = px.to_ab();
-            sums_l[ci] += px.l as f64;
-            sums_a[ci] += a as f64;
-            sums_b[ci] += b as f64;
-            counts[ci] += 1;
-        }
-
-        for ci in 0..k {
-            if counts[ci] > 0 {
-                let n = counts[ci] as f64;
-                centroids[ci] = OklchPixel::from_ab(
-                    (sums_l[ci] / n) as f32,
-                    (sums_a[ci] / n) as f32,
-                    (sums_b[ci] / n) as f32,
-                );
-            }
-        }
-    }
-
-    centroids
-}
-
-/// Quantize a region to `num_colors` using K-Means.
-fn quantize_region(pixels: &[[u8; 4]], num_colors: usize) -> (Vec<[u8; 3]>, Vec<u8>) {
-    let oklch_pixels: Vec<OklchPixel> = pixels
-        .iter()
-        .map(|p| OklchPixel::from_rgb(p[0], p[1], p[2]))
-        .collect();
-
-    let centroids = kmeans(&oklch_pixels, num_colors, 30);
-    let palette: Vec<[u8; 3]> = centroids.iter().map(|c| c.to_rgb()).collect();
-    let indices: Vec<u8> = oklch_pixels
-        .iter()
-        .map(|px| nearest_idx(px, &centroids) as u8)
-        .collect();
-
-    (palette, indices)
-}
-
-/// Farthest Point Sampling: select `k` maximally spread points.
-fn farthest_point_sampling(points: &[OklchPixel], k: usize) -> Vec<OklchPixel> {
-    if points.len() <= k {
-        return points.to_vec();
-    }
-
-    let first = points.iter().enumerate()
-        .max_by(|(_, a), (_, b)| a.l.partial_cmp(&b.l).unwrap())
-        .map(|(i, _)| i)
-        .unwrap_or(0);
-
-    let mut selected = vec![first];
-    let mut min_dist: Vec<f32> = points.iter()
-        .map(|p| p.distance_sq(points[first]))
-        .collect();
-
-    for _ in 1..k {
-        let next = min_dist.iter().enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
-
-        selected.push(next);
-
-        for (i, p) in points.iter().enumerate() {
-            let d = p.distance_sq(points[next]);
-            if d < min_dist[i] {
-                min_dist[i] = d;
-            }
-        }
-    }
-
-    selected.iter().map(|&i| points[i]).collect()
-}
-
-// ── Dither threshold maps ─────────────────────────────────────────────────
+// ── Dithering ───────────────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum DitherMethod {
     Blue,
     Bayer,
+    /// Fixed 2x2 pattern that places all four candidates once per block, giving
+    /// an exact local average at the cost of a visible regular texture.
+    Ordered,
 }
 
-/// Pre-computed 16×16 blue noise threshold map (provided by fishcu).
+/// How many candidates the error-feedback dither produces per pixel.
+const DITHER_LEVELS: usize = 4;
+
 #[rustfmt::skip]
-static BLUE_NOISE_16X16: [u8; 256] = [
+static BLUE_NOISE: [u8; 256] = [
     209, 161, 104, 199, 19,  172, 87,  158, 22,  213, 143, 224, 93,  235, 117, 84,
     244, 1,   180, 79,  222, 129, 110, 229, 135, 80,  195, 6,   65,  171, 148, 18,
     53,  134, 66,  238, 145, 37,  7,   192, 56,  102, 157, 120, 185, 42,  101, 223,
@@ -362,9 +150,8 @@ static BLUE_NOISE_16X16: [u8; 256] = [
     140, 32,  122, 48,  61,  236, 206, 44,  69,  252, 35,  54,  131, 23,  203, 58,
 ];
 
-/// 8×8 Bayer ordered dither matrix.
 #[rustfmt::skip]
-static BAYER_8X8: [u8; 64] = [
+static BAYER: [u8; 64] = [
      0, 128,  32, 160,   8, 136,  40, 168,
     192,  64, 224,  96, 200,  72, 232, 104,
      48, 176,  16, 144,  56, 184,  24, 152,
@@ -375,265 +162,452 @@ static BAYER_8X8: [u8; 64] = [
     252, 124, 220,  92, 244, 116, 212,  84,
 ];
 
-/// Get dither threshold for a pixel position, normalized to [0, 1].
-fn dither_threshold(method: DitherMethod, x: usize, y: usize) -> f32 {
-    match method {
-        DitherMethod::Blue => {
-            BLUE_NOISE_16X16[(y % 16) * 16 + (x % 16)] as f32 / 255.0
+/// Which of the brightness-sorted candidates pixel (x, y) takes.
+fn dither_rank(method: DitherMethod, x: u32, y: u32) -> usize {
+    let t = match method {
+        DitherMethod::Ordered => return [[0, 2], [3, 1]][(x & 1) as usize][(y & 1) as usize],
+        DitherMethod::Blue => BLUE_NOISE[((y % 16) * 16 + x % 16) as usize] as f64,
+        DitherMethod::Bayer => BAYER[((y % 8) * 8 + x % 8) as usize] as f64,
+    };
+    ((t / 256.0) * DITHER_LEVELS as f64) as usize
+}
+
+/// Pick a colour for one pixel by error-feedback dithering. The candidates are
+/// built by repeatedly quantizing the pixel plus its accumulated error (in linear
+/// light, so they average optically toward the target), then one is selected by
+/// the pattern. Returns the colour index, its distance, and the error-adjusted
+/// target that competitive learning should move toward.
+fn dither_pick(pal: &[Rgb], color: Rgb, x: u32, y: u32, method: DitherMethod, weight: f64) -> (usize, f64, Rgb) {
+    let target = [color[0] * color[0], color[1] * color[1], color[2] * color[2]];
+    let mut err = [0.0; 3];
+    let mut cand = [(0usize, 0.0f64, 0.0f64, [0.0; 3]); DITHER_LEVELS];
+    for slot in &mut cand {
+        let adjusted = [
+            (target[0] + err[0] * weight).clamp(0.0, 65025.0).sqrt(),
+            (target[1] + err[1] * weight).clamp(0.0, 65025.0).sqrt(),
+            (target[2] + err[2] * weight).clamp(0.0, 65025.0).sqrt(),
+        ];
+        let (i, d) = nearest(pal, adjusted);
+        *slot = (i, d, brightness(pal[i]), adjusted);
+        let shown = reduce(pal[i], 5);
+        for k in 0..3 {
+            err[k] += target[k] - shown[k] * shown[k];
         }
-        DitherMethod::Bayer => {
-            BAYER_8X8[(y % 8) * 8 + (x % 8)] as f32 / 255.0
+    }
+    cand.sort_by(|a, b| a.2.total_cmp(&b.2));
+    let (i, d, _, adjusted) = cand[dither_rank(method, x, y)];
+    (i, d, adjusted)
+}
+
+// ── Tiles ───────────────────────────────────────────────────────────────────
+
+struct Pixel {
+    color: Rgb,
+    x: u32,
+    y: u32,
+    tile: usize,
+}
+
+/// The distinct colours of one tile (with pixel counts) and the pixels it holds.
+struct Tile {
+    colors: Vec<Rgb>,
+    counts: Vec<f64>,
+    pixels: Vec<usize>,
+}
+
+/// How much error results from covering `tile` with `pal`.
+fn tile_cost(pal: &[Rgb], tile: &Tile) -> f64 {
+    tile.colors.iter().zip(&tile.counts).map(|(&c, &n)| nearest(pal, c).1 * n).sum()
+}
+
+fn tile_cost_dithered(pal: &[Rgb], tile: &Tile, pixels: &[Pixel], method: DitherMethod, weight: f64) -> f64 {
+    tile.pixels
+        .iter()
+        .map(|&p| {
+            let px = &pixels[p];
+            dither_pick(pal, px.color, px.x, px.y, method, weight).1
+        })
+        .sum()
+}
+
+/// The palette that covers `tile` most cheaply.
+fn best_palette(palettes: &[Vec<Rgb>], tile: &Tile, dither: Option<(f64, DitherMethod)>, pixels: &[Pixel]) -> usize {
+    if palettes.len() == 1 {
+        return 0;
+    }
+    let mut best = (0, f64::MAX);
+    for (i, pal) in palettes.iter().enumerate() {
+        let c = match dither {
+            Some((w, m)) => tile_cost_dithered(pal, tile, pixels, m, w),
+            None => tile_cost(pal, tile),
+        };
+        if c < best.1 {
+            best = (i, c);
         }
+    }
+    best.0
+}
+
+/// Total error of the current palettes over all tiles (best-fit assignment).
+fn total_error(palettes: &[Vec<Rgb>], tiles: &[Tile]) -> f64 {
+    tiles.iter().map(|t| tile_cost(&palettes[best_palette(palettes, t, None, &[])], t)).sum()
+}
+
+// ── Competitive learning ────────────────────────────────────────────────────
+
+/// Move `c` a fraction `alpha` toward `target`.
+fn nudge(c: &mut Rgb, target: Rgb, alpha: f64) {
+    for k in 0..3 {
+        c[k] = (1.0 - alpha) * c[k] + alpha * target[k];
     }
 }
 
-// ── Dithering helper ──────────────────────────────────────────────────────
-
-/// Pick a palette color for one pixel using ordered dithering.
-/// At edges (high edge_val), falls back to nearest color for sharpness.
-fn dither_pixel(
-    pixel: OklchPixel,
-    pal_oklch: &[OklchPixel],
-    threshold: f32,
-    strength: f32,
-    edge_val: f32,
-    edge_threshold: f32,
-) -> usize {
-    let mut dists: [(usize, f32); 4] = [
-        (0, pal_oklch[0].distance_sq(pixel)),
-        (1, pal_oklch[1].distance_sq(pixel)),
-        (2, pal_oklch[2].distance_sq(pixel)),
-        (3, pal_oklch[3].distance_sq(pixel)),
-    ];
-    dists.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-    let (i1, d1) = dists[0];
-    let (i2, _d2) = dists[1];
-
-    let d1s = d1.sqrt();
-    let d2s = _d2.sqrt();
-
-    // Smoothstep edge suppression
-    let lo = (edge_threshold - 0.2).max(0.0);
-    let hi = (edge_threshold + 0.2).min(1.0);
-    let edge_factor = if edge_val < lo {
-        1.0
-    } else if edge_val > hi {
-        0.0
-    } else {
-        let x = (edge_val - lo) / (hi - lo);
-        1.0 - x * x * (3.0 - 2.0 * x)
+/// One learning step: route a pixel through its tile's best palette and pull the
+/// winning colour toward it.
+fn learn(palettes: &mut [Vec<Rgb>], tiles: &[Tile], pixels: &[Pixel], pi: usize, alpha: f64, dither: Option<(f64, DitherMethod)>) {
+    let px = &pixels[pi];
+    let tile = &tiles[px.tile];
+    let p = best_palette(palettes, tile, dither, pixels);
+    let (ci, target) = match dither {
+        Some((w, m)) => {
+            let (ci, _, adjusted) = dither_pick(&palettes[p], px.color, px.x, px.y, m, w);
+            (ci, adjusted)
+        }
+        None => (nearest(&palettes[p], px.color).0, px.color),
     };
-
-    let t = d1s / (d1s + d2s) * strength * edge_factor;
-    if threshold < t { i2 } else { i1 }
+    nudge(&mut palettes[p][ci], target, alpha);
 }
 
-// ── Main quantization pipeline ────────────────────────────────────────────
+// ── Growing palettes ────────────────────────────────────────────────────────
 
-/// Quantize an image for Game Boy Color.
+/// Grow the palette *count* from one to `count`, splitting the worst-fitting
+/// palette each time and letting competitive learning separate the copies.
+fn grow_palettes(tiles: &[Tile], pixels: &[Pixel], shuffle: &mut Shuffle, count: usize, iters: usize, alpha: f64, dither: Option<(f64, DitherMethod)>) -> Vec<Vec<Rgb>> {
+    let mut mean = [0.0; 3];
+    for px in pixels {
+        for k in 0..3 {
+            mean[k] += px.color[k];
+        }
+    }
+    let inv = 1.0 / pixels.len().max(1) as f64;
+    let mut palettes = vec![vec![[mean[0] * inv, mean[1] * inv, mean[2] * inv]]];
+
+    let mut worst = 0;
+    while palettes.len() < count {
+        palettes.push(palettes[worst].clone());
+        for _ in 0..iters {
+            let pi = shuffle.next();
+            learn(&mut palettes, tiles, pixels, pi, alpha, dither);
+        }
+        let mut err = vec![0.0; palettes.len()];
+        for tile in tiles {
+            let p = best_palette(&palettes, tile, None, &[]);
+            err[p] += tile_cost(&palettes[p], tile);
+        }
+        worst = argmax(&err);
+    }
+    palettes
+}
+
+/// Add one colour to every palette, splitting each palette's worst-fitting slot.
+fn grow_colors(palettes: &mut [Vec<Rgb>], tiles: &[Tile], pixels: &[Pixel], shuffle: &mut Shuffle, iters: usize, alpha: f64, dither: Option<(f64, DitherMethod)>) {
+    let mut split = vec![0usize; palettes.len()];
+    if palettes[0].len() > 1 {
+        let mut err: Vec<Vec<f64>> = palettes.iter().map(|p| vec![0.0; p.len()]).collect();
+        for tile in tiles {
+            let p = best_palette(palettes, tile, None, &[]);
+            for (&c, &n) in tile.colors.iter().zip(&tile.counts) {
+                let (i, d) = nearest(&palettes[p], c);
+                err[p][i] += d * n;
+            }
+        }
+        for (p, e) in err.iter().enumerate() {
+            split[p] = argmax(e);
+        }
+    }
+    for (p, pal) in palettes.iter_mut().enumerate() {
+        pal.push(pal[split[p]]);
+    }
+    for _ in 0..iters {
+        let pi = shuffle.next();
+        learn(palettes, tiles, pixels, pi, alpha, dither);
+    }
+}
+
+// ── Reallocating wasted capacity ────────────────────────────────────────────
+
+/// Reclaim a palette or a colour slot that is barely pulling its weight and hand
+/// it to whichever is most overloaded, so budget follows the error. Returns a new
+/// palette set; the caller re-runs learning to settle the clones apart.
+fn reallocate(palettes: &[Vec<Rgb>], tiles: &[Tile], pixels: &[Pixel], dither: Option<(f64, DitherMethod)>) -> Vec<Vec<Rgb>> {
+    let np = palettes.len();
+    let cost = |pal: &[Rgb], t: &Tile| match dither {
+        Some((w, m)) => tile_cost_dithered(pal, t, pixels, m, w),
+        None => tile_cost(pal, t),
+    };
+    let assign: Vec<usize> = tiles.iter().map(|t| best_palette(palettes, t, dither, pixels)).collect();
+
+    // Per palette: error it absorbs, and error if it were dropped and its tiles
+    // reassigned elsewhere.
+    let mut absorbed = vec![0.0; np];
+    let mut without = vec![0.0; np];
+    for (t, tile) in tiles.iter().enumerate() {
+        let p = assign[t];
+        absorbed[p] += cost(&palettes[p], tile);
+        let mut second = f64::MAX;
+        for (q, pal) in palettes.iter().enumerate() {
+            if q != p {
+                second = second.min(cost(pal, tile));
+            }
+        }
+        if second.is_finite() {
+            without[p] += second;
+        }
+    }
+    let overloaded = argmax(&absorbed);
+    let expendable = argmin(&without);
+
+    // Per palette: same idea one level down, for each colour slot.
+    let mut result = palettes.to_vec();
+    if palettes[0].len() > 1 {
+        for (p, pal) in palettes.iter().enumerate() {
+            let mut absorbed_c = vec![0.0; pal.len()];
+            let mut without_c = vec![0.0; pal.len()];
+            for (t, tile) in tiles.iter().enumerate() {
+                if assign[t] != p {
+                    continue;
+                }
+                for (&c, &n) in tile.colors.iter().zip(&tile.counts) {
+                    let (first, second) = two_nearest(pal, c);
+                    absorbed_c[first.0] += first.1 * n;
+                    without_c[first.0] += second.1 * n;
+                }
+            }
+            let over = argmax(&absorbed_c);
+            let exp = argmin(&without_c);
+            if exp != over && without_c[exp] < 0.5 * absorbed_c[over] {
+                result[p][exp] = pal[over];
+            }
+        }
+    }
+
+    if expendable != overloaded && without[expendable] < 0.5 * absorbed[overloaded] {
+        result[expendable] = result[overloaded].clone();
+    }
+    result
+}
+
+// ── Batch refinement (k-means) ──────────────────────────────────────────────
+
+/// Move every palette colour to the mean of the pixels that chose it.
+fn kmeans(palettes: &[Vec<Rgb>], tiles: &[Tile]) -> Vec<Vec<Rgb>> {
+    let mut sum: Vec<Vec<[f64; 3]>> = palettes.iter().map(|p| vec![[0.0; 3]; p.len()]).collect();
+    let mut count: Vec<Vec<f64>> = palettes.iter().map(|p| vec![0.0; p.len()]).collect();
+    for tile in tiles {
+        let p = best_palette(palettes, tile, None, &[]);
+        for (&c, &n) in tile.colors.iter().zip(&tile.counts) {
+            let i = nearest(&palettes[p], c).0;
+            for k in 0..3 {
+                sum[p][i][k] += c[k] * n;
+            }
+            count[p][i] += n;
+        }
+    }
+    palettes
+        .iter()
+        .enumerate()
+        .map(|(p, pal)| {
+            pal.iter()
+                .enumerate()
+                .map(|(i, &c)| {
+                    if count[p][i] == 0.0 {
+                        c
+                    } else {
+                        let inv = 1.0 / count[p][i];
+                        [sum[p][i][0] * inv, sum[p][i][1] * inv, sum[p][i][2] * inv]
+                    }
+                })
+                .collect()
+        })
+        .collect()
+}
+
+fn argmax(v: &[f64]) -> usize {
+    (0..v.len()).max_by(|&a, &b| v[a].total_cmp(&v[b])).unwrap_or(0)
+}
+
+fn argmin(v: &[f64]) -> usize {
+    (0..v.len()).min_by(|&a, &b| v[a].total_cmp(&v[b])).unwrap_or(0)
+}
+
+// ── Downscaling ─────────────────────────────────────────────────────────────
+
+/// Area-average an image to a new size, blending in linear light. With `obj`,
+/// colour is weighted by coverage *and* alpha so fully transparent pixels don't
+/// bleed their RGB into opaque neighbours; alpha itself is averaged by coverage
+/// alone. Without `obj` there is no transparency, so colour uses coverage only.
+pub fn box_sample(src: &[[u8; 4]], src_w: u32, src_h: u32, dst_w: u32, dst_h: u32, obj: bool) -> Vec<[u8; 4]> {
+    let mut dst = vec![[0u8; 4]; (dst_w * dst_h) as usize];
+    let sx = src_w as f64 / dst_w as f64;
+    let sy = src_h as f64 / dst_h as f64;
+    for dy in 0..dst_h {
+        for dx in 0..dst_w {
+            let (x0, y0) = (dx as f64 * sx, dy as f64 * sy);
+            let (x1, y1) = (((dx + 1) as f64 * sx).min(src_w as f64), ((dy + 1) as f64 * sy).min(src_h as f64));
+            let mut acc = [0.0f64; 4];
+            let (mut color_w, mut weight) = (0.0, 0.0);
+            for py in y0.floor() as u32..(y1.ceil() as u32).min(src_h) {
+                let wy = (py as f64 + 1.0).min(y1) - (py as f64).max(y0);
+                for px in x0.floor() as u32..(x1.ceil() as u32).min(src_w) {
+                    let wx = (px as f64 + 1.0).min(x1) - (px as f64).max(x0);
+                    let w = wx * wy;
+                    let p = src[(py * src_w + px) as usize];
+                    let cw = if obj { w * (p[3] as f64 / 255.0) } else { w };
+                    for k in 0..3 {
+                        acc[k] += (p[k] as f64).powi(2) * cw;
+                    }
+                    acc[3] += p[3] as f64 * w;
+                    color_w += cw;
+                    weight += w;
+                }
+            }
+            if weight > 0.0 {
+                let cinv = if color_w > 0.0 { 1.0 / color_w } else { 0.0 };
+                dst[(dy * dst_w + dx) as usize] = [
+                    (acc[0] * cinv).sqrt().round().clamp(0.0, 255.0) as u8,
+                    (acc[1] * cinv).sqrt().round().clamp(0.0, 255.0) as u8,
+                    (acc[2] * cinv).sqrt().round().clamp(0.0, 255.0) as u8,
+                    (acc[3] / weight).round() as u8,
+                ];
+            }
+        }
+    }
+    dst
+}
+
+// ── Driver ──────────────────────────────────────────────────────────────────
+
+/// Quantize `pixels` (RGBA, `width`x`height`) into up to `max_palettes` GBC
+/// palettes. `dither` gives the strength and pattern, or `None` for flat output.
+/// With `obj`, pixels with alpha below 128 are transparent: they are left out of
+/// clustering and each palette holds three opaque colours instead of four.
 ///
-/// Returns (quantized RGBA pixels, palettes as RGB, tile-to-palette index).
+/// Returns the quantized RGBA image (transparent pixels keep alpha 0), the
+/// palettes as RGB triplets, and the palette index chosen for each tile
+/// (row-major).
 pub fn quantize_image_tiled(
-    pixels: &[[u8; 4]],
+    pixels_in: &[[u8; 4]],
     width: u32,
     height: u32,
     max_palettes: usize,
-    num_samples: usize,
-    dither: Option<(f32, DitherMethod)>,
-    edge_map: Option<&[f32]>,
-    edge_threshold: f32,
+    dither: Option<(f64, DitherMethod)>,
+    obj: bool,
 ) -> (Vec<[u8; 4]>, Vec<Vec<[u8; 3]>>, Vec<u8>) {
-    use std::collections::BTreeSet;
+    const BITS: usize = 5;
+    let colors_per_palette = if obj { 3 } else { 4 };
+    let max_palettes = max_palettes.max(1);
+    let dithering = dither.is_some();
+    let (tiles_w, tiles_h) = (width / 8, height / 8);
 
-    let tiles_w = width / 8;
-    let tiles_h = height / 8;
-    let tile_count = (tiles_w * tiles_h) as usize;
-    let num_candidates = (max_palettes * 4).min(tile_count * 4);
-    let num_initial = num_samples.max(num_candidates);
+    // Without dithering, snap the source to the display depth first: neighbouring
+    // tiles in a gradient then share colours and pick the same palette.
+    let source: Vec<[u8; 4]> = if dithering {
+        pixels_in.to_vec()
+    } else {
+        pixels_in
+            .iter()
+            .map(|p| [to_nbit(p[0] as f64, BITS) as u8, to_nbit(p[1] as f64, BITS) as u8, to_nbit(p[2] as f64, BITS) as u8, p[3]])
+            .collect()
+    };
 
-    // Step 1: global candidate colors
-    let all_oklch: Vec<OklchPixel> = pixels
-        .iter()
-        .map(|p| OklchPixel::from_rgb(p[0], p[1], p[2]))
-        .collect();
-    let initial = kmeans(&all_oklch, num_initial, 30);
-    let candidates = farthest_point_sampling(&initial, num_candidates);
-    eprintln!("  {} candidate colors ({} initial → {} after FPS)",
-        candidates.len(), initial.len(), candidates.len());
-
-    // Step 2: per-tile top-4 candidates by frequency
-    let mut tile_color_sets: Vec<BTreeSet<usize>> = Vec::with_capacity(tile_count);
+    let mut tiles = Vec::new();
+    let mut pixels = Vec::new();
     for ty in 0..tiles_h {
         for tx in 0..tiles_w {
-            let mut freq = vec![0u32; candidates.len()];
-            for py in 0..8u32 {
-                for px in 0..8u32 {
-                    let idx = ((ty * 8 + py) * width + tx * 8 + px) as usize;
-                    freq[nearest_idx(&all_oklch[idx], &candidates)] += 1;
-                }
-            }
-            let mut ranked: Vec<(usize, u32)> = freq.into_iter().enumerate()
-                .filter(|&(_, f)| f > 0)
-                .collect();
-            ranked.sort_by(|a, b| b.1.cmp(&a.1));
-            tile_color_sets.push(ranked.iter().take(4).map(|&(ci, _)| ci).collect());
-        }
-    }
-
-    // Step 3: agglomerative clustering by color-set overlap
-    let mut group_members: Vec<Vec<usize>> = (0..tile_count).map(|i| vec![i]).collect();
-    let mut group_colors: Vec<BTreeSet<usize>> = tile_color_sets.clone();
-    let mut alive: Vec<bool> = vec![true; tile_count];
-
-    while alive.iter().filter(|&&a| a).count() > max_palettes {
-        let mut best_i = 0;
-        let mut best_j = 0;
-        let mut best_cost = usize::MAX;
-
-        let alive_indices: Vec<usize> = alive.iter().enumerate()
-            .filter(|&(_, &a)| a)
-            .map(|(i, _)| i)
-            .collect();
-
-        for (ai, &i) in alive_indices.iter().enumerate() {
-            for &j in &alive_indices[ai + 1..] {
-                let union_size = group_colors[i].union(&group_colors[j]).count();
-                if union_size < best_cost {
-                    best_cost = union_size;
-                    best_i = i;
-                    best_j = j;
-                }
-            }
-        }
-
-        let j_members = std::mem::take(&mut group_members[best_j]);
-        group_members[best_i].extend(j_members);
-        let j_colors = std::mem::take(&mut group_colors[best_j]);
-        group_colors[best_i] = group_colors[best_i].union(&j_colors).copied().collect();
-        alive[best_j] = false;
-    }
-
-    let final_groups: Vec<usize> = alive.iter().enumerate()
-        .filter(|&(_, &a)| a)
-        .map(|(i, _)| i)
-        .collect();
-    let num_groups = final_groups.len();
-
-    let mut tile_group_idx = vec![0usize; tile_count];
-    for (gi, &group_id) in final_groups.iter().enumerate() {
-        for &ti in &group_members[group_id] {
-            tile_group_idx[ti] = gi;
-        }
-    }
-
-    // Step 4: K-Means(k=4) per group → final palettes
-    let mut palettes: Vec<Vec<[u8; 3]>> = Vec::with_capacity(num_groups);
-    for &group_id in &final_groups {
-        let mut group_pixels = Vec::new();
-        for &ti in &group_members[group_id] {
-            let tx = (ti as u32) % tiles_w;
-            let ty = (ti as u32) / tiles_w;
-            for py in 0..8u32 {
-                for px in 0..8u32 {
-                    group_pixels.push(pixels[((ty * 8 + py) * width + tx * 8 + px) as usize]);
-                }
-            }
-        }
-        palettes.push(quantize_region(&group_pixels, 4).0);
-    }
-
-    // Step 5: pixel mapping — with optional dither-aware palette reassignment
-    let dither_opts = dither; // Option<(strength, method)>
-    let mut output = vec![[0u8; 4]; pixels.len()];
-
-    if let Some((dither_strength, dither_method)) = dither_opts {
-        let pal_oklchs: Vec<Vec<OklchPixel>> = palettes
-            .iter()
-            .map(|pal| pal.iter().map(|c| OklchPixel::from_rgb(c[0], c[1], c[2])).collect())
-            .collect();
-
-        let mut reassigned = 0usize;
-        for ti in 0..tile_count {
-            let tx = (ti as u32) % tiles_w;
-            let ty = (ti as u32) / tiles_w;
-
-            let mut best_gi = 0;
-            let mut best_err = f32::MAX;
-            let mut best_choices = [0usize; 64];
-
-            // Try each palette, pick the one with lowest dithered error
-            for gi in 0..num_groups {
-                let pal_oklch = &pal_oklchs[gi];
-                let mut err = 0.0f32;
-                let mut choices = [0usize; 64];
-
-                for py in 0..8u32 {
-                    for px in 0..8u32 {
-                        let gx = (tx * 8 + px) as usize;
-                        let gy = (ty * 8 + py) as usize;
-                        let idx = gy * width as usize + gx;
-                        let o = all_oklch[idx];
-                        let edge_val = edge_map.map_or(0.0, |em| em[idx]);
-                        let threshold = dither_threshold(dither_method, gx, gy);
-
-                        let chosen = dither_pixel(o, pal_oklch, threshold, dither_strength, edge_val, edge_threshold);
-                        let pi = (py * 8 + px) as usize;
-                        choices[pi] = chosen;
-                        err += o.distance_sq(pal_oklch[chosen]);
+            let id = tiles.len();
+            let (mut colors, mut counts, mut members) = (Vec::new(), Vec::new(), Vec::new());
+            for py in 0..8 {
+                for px in 0..8 {
+                    let (x, y) = (tx * 8 + px, ty * 8 + py);
+                    let p = source[(y * width + x) as usize];
+                    // Transparent pixels stay index 0; keep them out of clustering.
+                    if obj && p[3] < 128 {
+                        continue;
                     }
-                }
-
-                if err < best_err {
-                    best_err = err;
-                    best_gi = gi;
-                    best_choices = choices;
-                }
-            }
-
-            if tile_group_idx[ti] != best_gi {
-                tile_group_idx[ti] = best_gi;
-                reassigned += 1;
-            }
-
-            let pal = &palettes[best_gi];
-            for py in 0..8u32 {
-                for px in 0..8u32 {
-                    let gx = (tx * 8 + px) as usize;
-                    let gy = (ty * 8 + py) as usize;
-                    let idx = gy * width as usize + gx;
-                    let c = pal[best_choices[(py * 8 + px) as usize]];
-                    output[idx] = [c[0], c[1], c[2], 255];
-                }
-            }
-        }
-        eprintln!("  {} tile(s) reassigned for dithering", reassigned);
-    } else {
-        for ty in 0..tiles_h {
-            for tx in 0..tiles_w {
-                let ti = (ty * tiles_w + tx) as usize;
-                let gi = tile_group_idx[ti];
-                let pal = &palettes[gi];
-                let pal_oklch: Vec<OklchPixel> = pal
-                    .iter()
-                    .map(|c| OklchPixel::from_rgb(c[0], c[1], c[2]))
-                    .collect();
-
-                for py in 0..8u32 {
-                    for px in 0..8u32 {
-                        let gx = (tx * 8 + px) as usize;
-                        let gy = (ty * 8 + py) as usize;
-                        let idx = gy * width as usize + gx;
-                        let o = OklchPixel::from_rgb(pixels[idx][0], pixels[idx][1], pixels[idx][2]);
-                        let best = pal[nearest_idx(&o, &pal_oklch)];
-                        output[idx] = [best[0], best[1], best[2], 255];
+                    let color = [p[0] as f64, p[1] as f64, p[2] as f64];
+                    match colors.iter().position(|&c| c == color) {
+                        Some(i) => counts[i] += 1.0,
+                        None => {
+                            colors.push(color);
+                            counts.push(1.0);
+                        }
                     }
+                    members.push(pixels.len());
+                    pixels.push(Pixel { color, x, y, tile: id });
                 }
             }
+            tiles.push(Tile { colors, counts, pixels: members });
         }
     }
 
-    let tile_pal: Vec<u8> = tile_group_idx.iter().map(|&g| g as u8).collect();
-    eprintln!("Quantized: {}×{} tiles, {} palette(s)", tiles_w, tiles_h, num_groups);
+    let base = (0.1 * pixels.len() as f64) as usize;
+    let (iters, alpha, final_alpha) = if dithering { (base / 5, 0.1, 0.02) } else { (base, 0.3, 0.05) };
+    let mut shuffle = Shuffle::new(pixels.len());
 
-    (output, palettes, tile_pal)
+    let mut palettes = grow_palettes(&tiles, &pixels, &mut shuffle, max_palettes, iters, alpha, dither);
+    for _ in 1..colors_per_palette {
+        grow_colors(&mut palettes, &tiles, &pixels, &mut shuffle, iters, alpha, dither);
+    }
+
+    let mut best = palettes.clone();
+    let mut best_error = total_error(&palettes, &tiles);
+    for _ in 0..10 {
+        palettes = reallocate(&palettes, &tiles, &pixels, dither);
+        for _ in 0..iters {
+            let pi = shuffle.next();
+            learn(&mut palettes, &tiles, &pixels, pi, alpha, dither);
+        }
+        let e = total_error(&palettes, &tiles);
+        if e < best_error {
+            best_error = e;
+            best = palettes.clone();
+        }
+    }
+    palettes = best;
+
+    if !dithering {
+        palettes = reduce_all(&palettes, BITS);
+    }
+    for _ in 0..iters * 10 {
+        let pi = shuffle.next();
+        learn(&mut palettes, &tiles, &pixels, pi, final_alpha, dither);
+    }
+    if !dithering {
+        palettes = reduce_all(&palettes, BITS);
+        for _ in 0..3 {
+            palettes = kmeans(&palettes, &tiles);
+        }
+    }
+    let palettes = reduce_all(&palettes, BITS);
+
+    // Assign tiles and paint.
+    let mut tile_pal = vec![0u8; tiles.len()];
+    let mut out = vec![[0u8; 4]; pixels_in.len()];
+    for (id, tile) in tiles.iter().enumerate() {
+        let p = best_palette(&palettes, tile, dither, &pixels);
+        tile_pal[id] = p as u8;
+        for &m in &tile.pixels {
+            let px = &pixels[m];
+            let ci = match dither {
+                Some((w, method)) => dither_pick(&palettes[p], px.color, px.x, px.y, method, w).0,
+                None => nearest(&palettes[p], px.color).0,
+            };
+            let rgb = to_u8(palettes[p][ci]);
+            out[(px.y * width + px.x) as usize] = [rgb[0], rgb[1], rgb[2], 255];
+        }
+    }
+
+    eprintln!("  {} palette(s), error {:.0}", palettes.len(), best_error);
+    let palettes_rgb = palettes.iter().map(|p| p.iter().map(|&c| to_u8(c)).collect()).collect();
+    (out, palettes_rgb, tile_pal)
 }

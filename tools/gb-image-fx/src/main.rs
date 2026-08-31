@@ -105,7 +105,6 @@ struct Image {
     width: u32,
     height: u32,
     pixels: Vec<[u8; 4]>, // RGBA
-    png_palette: Option<Vec<Color555>>, // Original PNG palette if indexed
 }
 
 impl Image {
@@ -119,12 +118,13 @@ impl Image {
         let height = img.height();
         let rgba = img.to_rgba8();
 
-        // Alpha ignored — treat all pixels as opaque RGB
+        // Alpha is preserved: pixels below ALPHA_OPAQUE are treated as transparent
+        // and map to color index 0 (see `is_transparent` / the `--obj` path).
         let pixels: Vec<[u8; 4]> = rgba.pixels()
-            .map(|p| [p[0], p[1], p[2], 255])
+            .map(|p| [p[0], p[1], p[2], p[3]])
             .collect();
 
-        Image { width, height, pixels, png_palette: None }
+        Image { width, height, pixels }
     }
 
     fn get_pixel(&self, x: u32, y: u32) -> [u8; 4] {
@@ -132,45 +132,121 @@ impl Image {
     }
 }
 
+/// Alpha at or above this counts as opaque; below it, the pixel is transparent
+/// and maps to color index 0.
+const ALPHA_OPAQUE: u8 = 128;
+
+fn is_transparent(px: [u8; 4]) -> bool {
+    px[3] < ALPHA_OPAQUE
+}
+
+/// Build a padded 4-entry palette from a set of opaque colors, sorted brightest
+/// first (index 0 is the lightest). When `obj` is set, index 0 is reserved as the
+/// transparent slot and the opaque colors fill indices 1..=3.
+fn finalize_palette(opaque: &[Color555], obj: bool) -> [Color555; 4] {
+    let mut sorted = opaque.to_vec();
+    sorted.sort_by(|a, b| b.oklch_lightness().partial_cmp(&a.oklch_lightness()).unwrap());
+    let mut out = [Color555(0); 4];
+    let start = usize::from(obj);
+    for (i, &c) in sorted.iter().enumerate() {
+        if start + i < 4 {
+            out[start + i] = c;
+        }
+    }
+    out
+}
+
+/// The color index of one pixel within `pal`. Transparent pixels are index 0; an
+/// opaque pixel is matched against the opaque slots (which start at 1 when `obj`).
+fn pixel_index(px: [u8; 4], pal: &[Color555; 4], obj: bool) -> u8 {
+    if obj && is_transparent(px) {
+        return 0;
+    }
+    let c = Color555::from_rgba(px[0], px[1], px[2]);
+    let start = usize::from(obj);
+    if let Some(i) = pal[start..].iter().position(|&p| p == c) {
+        (start + i) as u8
+    } else {
+        // Not an exact palette member (e.g. a stray color): nearest opaque slot.
+        let cl = c.oklch_lightness();
+        pal.iter()
+            .enumerate()
+            .skip(start)
+            .min_by(|(_, a), (_, b)| {
+                (a.oklch_lightness() - cl)
+                    .abs()
+                    .partial_cmp(&(b.oklch_lightness() - cl).abs())
+                    .unwrap()
+            })
+            .map(|(i, _)| i as u8)
+            .unwrap_or(0)
+    }
+}
+
 // ── Palette assignment ──────────────────────────────────────────────────────
 
-/// Collect unique colors per tile, group tiles into palettes (max 4 colors each).
-/// Returns (palettes, tile_palette_assignment).
+/// The number of opaque colors a palette can hold: 4 normally, or 3 when `obj`
+/// reserves index 0 for transparency.
+fn opaque_capacity(obj: bool) -> usize {
+    if obj { 3 } else { 4 }
+}
+
+/// DMG single-palette assignment: one palette of ≤4 (≤3 with `obj`) shades over
+/// the whole image, every tile using it. Errors if the image has too many opaque
+/// colors (reduce it first, or use `--quantize`).
+fn assign_palette_dmg(img: &Image, obj: bool, tile_count: usize) -> (Vec<[Color555; 4]>, Vec<u8>) {
+    let mut colors: Vec<Color555> = Vec::new();
+    for &px in &img.pixels {
+        if obj && is_transparent(px) {
+            continue;
+        }
+        let c = Color555::from_rgba(px[0], px[1], px[2]);
+        if !colors.contains(&c) {
+            colors.push(c);
+        }
+    }
+    let cap = opaque_capacity(obj);
+    if colors.len() > cap {
+        eprintln!(
+            "error: --dmg image has {} opaque colors (max {}{}). Reduce it first or use --quantize.",
+            colors.len(),
+            cap,
+            if obj { " with --obj, since index 0 is transparent" } else { "" }
+        );
+        process::exit(1);
+    }
+    (vec![finalize_palette(&colors, obj)], vec![0; tile_count])
+}
+
+/// Collect unique colors per tile, group tiles into palettes (max 4 colors each,
+/// or 3 opaque + transparent with `obj`). Returns (palettes, tile_palette_assignment).
 fn assign_palettes(
     img: &Image,
     tiles_w: u32,
     tiles_h: u32,
+    obj: bool,
 ) -> (Vec<[Color555; 4]>, Vec<u8>) {
-    // If PNG had an indexed palette with ≤4 colors, use it directly
-    if let Some(ref png_pal) = img.png_palette {
-        if png_pal.len() <= 4 {
-            let mut sorted = png_pal.clone();
-            sorted.sort_by(|a, b| b.oklch_lightness().partial_cmp(&a.oklch_lightness()).unwrap());
-            let mut pal = [Color555(0); 4];
-            for (i, &c) in sorted.iter().enumerate() {
-                pal[i] = c;
-            }
-            let tile_count = (tiles_w * tiles_h) as usize;
-            return (vec![pal], vec![0; tile_count]);
-        }
-    }
+    let cap = opaque_capacity(obj);
 
-    // Collect unique colors per tile
+    // Collect unique opaque colors per tile (transparent pixels take index 0)
     let mut tile_colors: Vec<Vec<Color555>> = Vec::new();
     for ty in 0..tiles_h {
         for tx in 0..tiles_w {
             let mut colors = Vec::new();
             for py in 0..8 {
                 for px in 0..8 {
-                    let [r, g, b, _] = img.get_pixel(tx * 8 + px, ty * 8 + py);
-                    let c = Color555::from_rgba(r, g, b);
+                    let p = img.get_pixel(tx * 8 + px, ty * 8 + py);
+                    if obj && is_transparent(p) {
+                        continue;
+                    }
+                    let c = Color555::from_rgba(p[0], p[1], p[2]);
                     if !colors.contains(&c) {
                         colors.push(c);
                     }
                 }
             }
-            if colors.len() > 4 {
-                eprintln!("error: tile ({},{}) has {} colors (max 4)", tx, ty, colors.len());
+            if colors.len() > cap {
+                eprintln!("error: tile ({},{}) has {} opaque colors (max {})", tx, ty, colors.len(), cap);
                 process::exit(1);
             }
             tile_colors.push(colors);
@@ -191,7 +267,7 @@ fn assign_palettes(
                     merged.push(*c);
                 }
             }
-            if merged.len() <= 4 {
+            if merged.len() <= cap {
                 assigned = Some(pi);
                 break;
             }
@@ -216,16 +292,8 @@ fn assign_palettes(
         }
     }
 
-    // Pad palettes to exactly 4 colors, sorted by Oklch lightness (darkest first)
-    let palettes: Vec<[Color555; 4]> = palettes.iter().map(|pal| {
-        let mut sorted = pal.clone();
-        sorted.sort_by(|a, b| b.oklch_lightness().partial_cmp(&a.oklch_lightness()).unwrap());
-        let mut out = [Color555(0); 4];
-        for (i, &c) in sorted.iter().enumerate() {
-            out[i] = c;
-        }
-        out
-    }).collect();
+    // Pad to 4 entries, sorted brightest-first; reserve index 0 when obj.
+    let palettes: Vec<[Color555; 4]> = palettes.iter().map(|pal| finalize_palette(pal, obj)).collect();
 
     (palettes, tile_pal)
 }
@@ -252,12 +320,51 @@ impl TileMapEntry {
     }
 }
 
+/// Emit tile coordinates in the order tiles should be laid out.
+///
+/// Without `metasprite`: whole-image row-major (background/tilemap order).
+/// With `metasprite (cw, ch)` in pixels: cells row-major, and within each cell
+/// column-major, so a 16×16 cell in 8×16 OBJ mode yields
+/// `[top-left, bottom-left, top-right, bottom-right]` — sprite 0 = the first
+/// pair, sprite 1 = the second.
+fn tile_order(tiles_w: u32, tiles_h: u32, metasprite: Option<(u32, u32)>) -> Vec<(u32, u32)> {
+    match metasprite {
+        None => {
+            let mut v = Vec::with_capacity((tiles_w * tiles_h) as usize);
+            for ty in 0..tiles_h {
+                for tx in 0..tiles_w {
+                    v.push((tx, ty));
+                }
+            }
+            v
+        }
+        Some((cw, ch)) => {
+            let ctw = cw / 8;
+            let cth = ch / 8;
+            let cells_w = tiles_w / ctw;
+            let cells_h = tiles_h / cth;
+            let mut v = Vec::with_capacity((tiles_w * tiles_h) as usize);
+            for cy in 0..cells_h {
+                for cx in 0..cells_w {
+                    for lx in 0..ctw {
+                        for ly in 0..cth {
+                            v.push((cx * ctw + lx, cy * cth + ly));
+                        }
+                    }
+                }
+            }
+            v
+        }
+    }
+}
+
 fn extract_tiles(
     img: &Image,
     palettes: &[[Color555; 4]],
     tile_pal: &[u8],
     tiles_w: u32,
-    tiles_h: u32,
+    order: &[(u32, u32)],
+    obj: bool,
     keep_duplicates: bool,
     detect_flips: bool,
 ) -> (Vec<Tile>, Vec<TileMapEntry>) {
@@ -265,8 +372,8 @@ fn extract_tiles(
     let mut tile_map_entries: Vec<TileMapEntry> = Vec::new();
     let mut tile_lookup: HashMap<Tile, usize> = HashMap::new();
 
-    for ty in 0..tiles_h {
-        for tx in 0..tiles_w {
+    for &(tx, ty) in order {
+        {
             let ti = (ty * tiles_w + tx) as usize;
             let pal = &palettes[tile_pal[ti] as usize];
 
@@ -274,10 +381,8 @@ fn extract_tiles(
             let mut pixels = [0u8; 64];
             for py in 0..8u32 {
                 for px in 0..8u32 {
-                    let [r, g, b, _] = img.get_pixel(tx * 8 + px, ty * 8 + py);
-                    let c = Color555::from_rgba(r, g, b);
-                    let idx = pal.iter().position(|&p| p == c).unwrap_or(0);
-                    pixels[(py * 8 + px) as usize] = idx as u8;
+                    let p = img.get_pixel(tx * 8 + px, ty * 8 + py);
+                    pixels[(py * 8 + px) as usize] = pixel_index(p, pal, obj);
                 }
             }
             let tile = Tile { pixels };
@@ -356,10 +461,12 @@ struct Options {
     detect_flips: bool,
     quantize: Option<(u32, u32)>, // target resolution (w, h)
     max_palettes: usize,
-    num_samples: usize,
     preview: bool,
-    dither: Option<(f32, quantize::DitherMethod)>, // (strength, method)
-    edge_threshold: f32, // edge detection threshold (0.0-1.0)
+    dither: Option<(f64, quantize::DitherMethod)>, // (weight, method) from --dither / --dither-method
+    obj: bool,                     // OBJ/sprite mode: color index 0 is transparent
+    dmg: bool,                     // DMG mode: one 2bpp palette for the whole image
+    metasprite: Option<(u32, u32)>, // sprite cell size in pixels (column-major tile order)
+    gbc_correction: bool,          // quantize and preview for the GBC LCD's colors
 }
 
 const HELP: &str = "\
@@ -370,16 +477,23 @@ USAGE:
 
 OPTIONS:
     -o <prefix>           Output file prefix (default: input file stem)
+    --obj                 OBJ/sprite mode: transparent pixels (alpha < 128) become
+                          color index 0, and opaque colors fill indices 1-3 (max 3)
+    --dmg                 DMG mode: one palette for the whole image (no per-8x8
+                          palette grouping). Combine with --obj for sprites.
+    --metasprite <WxH>    Emit tiles per sprite cell (e.g. 16x16): cells row-major,
+                          each cell column-major (8x16 OBJ pairs)
     --keep-duplicates     Don't deduplicate tiles
     --tiles-only          Only output tiles and palettes (no map/attributes)
     --no-flip             Don't detect flipped tiles during dedup
-    --quantize <WxH>      Quantize for target resolution (e.g. 160x144)
+    --quantize <WxH>      Quantize a full-color image to target resolution
+                          (e.g. 160x144) and up to 8 GBC palettes
     --max-palettes <N>    Maximum palettes for quantize (default: 8, GBC max)
-    --samples <N>         K-Means initial color samples for quantize (default: 448)
     --preview             Output a PNG preview image instead of GBC binary files
-    --dither [strength]   Apply dithering, 0.0-1.0 (default: 0.5)
-    --dither-method <M>   Dither method: 'blue' (default) or 'bayer'
-    --edge <threshold>    Edge detection threshold for dithering, 0.0-1.0 (default: 0.4)
+    --dither [weight]     Dither during quantize; weight ~0.0-1.0 (default: 0.5)
+    --dither-method <M>   Dither pattern: 'blue' (default), 'bayer', or 'ordered'
+    --gbc-correction      Quantize (and preview) for the GBC LCD's washed-out
+                          colors, so the result looks right on real hardware
     -h, --help            Show this help
 ";
 
@@ -394,27 +508,29 @@ fn parse_args() -> Options {
     let keep_duplicates = args.contains("--keep-duplicates");
     let tiles_only = args.contains("--tiles-only");
     let preview = args.contains("--preview");
-    let dither_strength: Option<f32> = match args.opt_value_from_str("--dither") {
+    let obj = args.contains("--obj");
+    let dmg = args.contains("--dmg");
+    let metasprite: Option<(u32, u32)> = args
+        .opt_value_from_fn("--metasprite", parse_wxh)
+        .unwrap_or(None);
+    let dither_weight: Option<f64> = match args.opt_value_from_str("--dither") {
         Ok(v) => v,
         Err(_) => {
-            // --dither flag present but no value → use default 0.5
+            // --dither flag present but no value → use default weight 0.5
             args.contains("--dither");
             Some(0.5)
         }
     };
-    let dither_method_str: Option<String> = args
-        .opt_value_from_str("--dither-method")
-        .unwrap_or(None);
-    let dither_method = match dither_method_str.as_deref() {
+    let dither_method = match args.opt_value_from_str::<_, String>("--dither-method").unwrap_or(None).as_deref() {
         Some("bayer") => quantize::DitherMethod::Bayer,
+        Some("ordered") => quantize::DitherMethod::Ordered,
         _ => quantize::DitherMethod::Blue,
     };
-    let dither = dither_strength.map(|s| (s, dither_method));
-    let edge_threshold: f32 = args
-        .opt_value_from_str("--edge")
-        .unwrap_or(None)
-        .unwrap_or(0.4);
-    let detect_flips = !args.contains("--no-flip");
+    let dither = dither_weight.map(|w| (w, dither_method));
+    // DMG backgrounds have no tile attributes, so they can't flip; disable flip
+    // dedup there (sprites flip at runtime through OAM, not through the tile map).
+    let detect_flips = !args.contains("--no-flip") && !dmg;
+    let gbc_correction = args.contains("--gbc-correction");
     let output_prefix: Option<PathBuf> = args.opt_value_from_str("-o").unwrap_or(None);
 
     let quantize: Option<(u32, u32)> = args
@@ -424,10 +540,6 @@ fn parse_args() -> Options {
         .opt_value_from_str("--max-palettes")
         .unwrap_or(None)
         .unwrap_or(8);
-    let num_samples: usize = args
-        .opt_value_from_str("--samples")
-        .unwrap_or(None)
-        .unwrap_or(448);
 
     let input: PathBuf = args.free_from_str().unwrap_or_else(|_| {
         eprint!("{}", HELP);
@@ -452,10 +564,92 @@ fn parse_args() -> Options {
         detect_flips,
         quantize,
         max_palettes,
-        num_samples,
         preview,
         dither,
-        edge_threshold,
+        obj,
+        dmg,
+        metasprite,
+        gbc_correction,
+    }
+}
+
+// SameBoy's CGB colour correction (Modern - Balanced), the model behind accurate
+// GBC displays. Per-channel response curve, then a touch of blue mixed into green.
+// Ported from SameBoy's Core/display.c (MIT, Copyright (c) 2015-2024 Lior Halphon).
+const CGB_CURVE: [u8; 32] = [
+    0, 6, 12, 20, 28, 36, 45, 56, 66, 76, 88, 100, 113, 125, 137, 149, 161, 172, 182, 192, 202,
+    210, 218, 225, 232, 238, 243, 247, 250, 252, 254, 255,
+];
+
+/// The colour an accurate GBC display shows for an RGB555 value.
+fn gbc_correct(rgb: [u8; 3]) -> [u8; 3] {
+    let r = CGB_CURVE[(rgb[0] >> 3) as usize];
+    let g = CGB_CURVE[(rgb[1] >> 3) as usize];
+    let b = CGB_CURVE[(rgb[2] >> 3) as usize];
+    let ng = if g != b {
+        let gamma = 1.6;
+        let mix = ((g as f64 / 255.0).powf(gamma) * 3.0 + (b as f64 / 255.0).powf(gamma)) / 4.0;
+        (mix.powf(1.0 / gamma) * 255.0).round() as u8
+    } else {
+        g
+    };
+    [r, ng, b]
+}
+
+/// Pre-compensate every pixel so that after quantization and display it lands back
+/// on the source colour: pick the RGB555 value whose corrected appearance is
+/// closest. Correction is separable — red comes from its channel alone, while
+/// green and blue are coupled (green mixes in some blue) — so the nearest value is
+/// found channel-wise instead of scanning all 32768. Colours the panel can't reach
+/// are approximated.
+fn gbc_precompensate(pixels: &mut [[u8; 4]]) {
+    let expand = |c5: usize| ((c5 << 3) | (c5 >> 2)) as u8;
+    // Corrected green for every (blue5, green5) pair.
+    let mut green = [[0u8; 32]; 32];
+    for (b5, row) in green.iter_mut().enumerate() {
+        for (g5, cell) in row.iter_mut().enumerate() {
+            *cell = gbc_correct([0, expand(g5), expand(b5)])[1];
+        }
+    }
+    let mut cache: HashMap<[u8; 3], [u8; 3]> = HashMap::new();
+    for p in pixels.iter_mut() {
+        let key = [p[0] as i32, p[1] as i32, p[2] as i32];
+        let comp = *cache.entry([p[0], p[1], p[2]]).or_insert_with(|| {
+            // Red: nearest curve entry on its own.
+            let r5 = (0..32)
+                .min_by_key(|&c| (CGB_CURVE[c] as i32 - key[0]).pow(2))
+                .unwrap();
+            // Blue and green together, since blue shifts the green output too.
+            let (mut best, mut bd) = ((0usize, 0usize), i32::MAX);
+            for b5 in 0..32 {
+                let db = (CGB_CURVE[b5] as i32 - key[2]).pow(2);
+                for g5 in 0..32 {
+                    let d = db + (green[b5][g5] as i32 - key[1]).pow(2);
+                    if d < bd {
+                        bd = d;
+                        best = (b5, g5);
+                    }
+                }
+            }
+            [expand(r5), expand(best.1), expand(best.0)]
+        });
+        *p = [comp[0], comp[1], comp[2], p[3]];
+    }
+}
+
+/// Metasprite cell size in pixels must be a multiple of 8 and divide the image.
+fn validate_metasprite(cell: (u32, u32), img_w: u32, img_h: u32) {
+    let (cw, ch) = cell;
+    if cw % 8 != 0 || ch % 8 != 0 {
+        eprintln!("error: --metasprite {}x{} must be multiples of 8", cw, ch);
+        process::exit(1);
+    }
+    if img_w % cw != 0 || img_h % ch != 0 {
+        eprintln!(
+            "error: --metasprite {}x{} does not divide the {}x{} image",
+            cw, ch, img_w, img_h
+        );
+        process::exit(1);
     }
 }
 
@@ -474,6 +668,14 @@ fn parse_wxh(s: &str) -> Result<(u32, u32), String> {
 
 fn main() {
     let opts = parse_args();
+
+    // Correction pre-compensates source colors before clustering, so it only has
+    // meaning together with --quantize.
+    if opts.gbc_correction && opts.quantize.is_none() {
+        eprintln!("error: --gbc-correction requires --quantize");
+        process::exit(1);
+    }
+
     let mut img = Image::load(&opts.input);
 
     // Quantize: box-sample to target, then tile-aware palette clustering
@@ -483,37 +685,36 @@ fn main() {
             process::exit(1);
         }
 
-        // Compute edge map on original resolution, then box-sample both
         eprintln!("Quantizing {}×{} → {}×{}", img.width, img.height, tw, th);
-        let edge_map = if opts.dither.is_some() {
-            let orig_edges = quantize::compute_edge_map(&img.pixels, img.width, img.height);
-            Some(quantize::max_downsample(&orig_edges, img.width, img.height, tw, th))
-        } else {
-            None
-        };
-
         if img.width != tw || img.height != th {
-            img.pixels = quantize::box_sample(&img.pixels, img.width, img.height, tw, th);
+            img.pixels = quantize::box_sample(&img.pixels, img.width, img.height, tw, th, opts.obj);
             img.width = tw;
             img.height = th;
         }
 
+        // Pre-compensate so the panel's darkening lands back on the source colors.
+        if opts.gbc_correction {
+            gbc_precompensate(&mut img.pixels);
+        }
+
+        // DMG uses a single palette for the whole image.
+        let max_pals = if opts.dmg { 1 } else { opts.max_palettes };
         let (quantized, palettes, tile_pal) = quantize::quantize_image_tiled(
-            &img.pixels, img.width, img.height, opts.max_palettes, opts.num_samples,
-            opts.dither, edge_map.as_deref(), opts.edge_threshold,
+            &img.pixels, img.width, img.height, max_pals, opts.dither, opts.obj,
         );
         img.pixels = quantized;
-        img.png_palette = None;
 
-        // Convert palettes: Vec<Vec<[u8;3]>> → Vec<[Color555;4]>
+        // Convert palettes: Vec<Vec<[u8;3]>> → Vec<[Color555;4]>. In OBJ mode the
+        // opaque colors start at index 1, leaving index 0 for transparency.
+        let start = usize::from(opts.obj);
         let palettes: Vec<[Color555; 4]> = palettes.iter().map(|pal| {
             let mut out = [Color555(0); 4];
             let mut sorted: Vec<Color555> = pal.iter()
                 .map(|c| Color555::from_rgba(c[0], c[1], c[2]))
                 .collect();
             sorted.sort_by(|a, b| b.oklch_lightness().partial_cmp(&a.oklch_lightness()).unwrap());
-            for (i, &c) in sorted.iter().enumerate().take(4) {
-                out[i] = c;
+            for (i, &c) in sorted.iter().enumerate().take(4 - start) {
+                out[start + i] = c;
             }
             out
         }).collect();
@@ -528,31 +729,35 @@ fn main() {
         process::exit(1);
     }
 
+    if let Some(cell) = opts.metasprite {
+        validate_metasprite(cell, img.width, img.height);
+    }
+
     let tiles_w = img.width / 8;
     let tiles_h = img.height / 8;
+    let tile_count = (tiles_w * tiles_h) as usize;
     eprintln!(
         "{}×{} image → {}×{} tiles ({} total)",
-        img.width, img.height, tiles_w, tiles_h, tiles_w * tiles_h
+        img.width, img.height, tiles_w, tiles_h, tile_count
     );
 
-    // Palette assignment: use quantize result or derive from image
+    // Palette assignment: quantize result, DMG single palette, or per-tile derive.
     let (palettes, tile_pal) = if let Some(qr) = quantize_result {
         qr
+    } else if opts.dmg {
+        assign_palette_dmg(&img, opts.obj, tile_count)
     } else {
-        assign_palettes(&img, tiles_w, tiles_h)
+        assign_palettes(&img, tiles_w, tiles_h, opts.obj)
     };
     eprintln!("{} palette(s) detected", palettes.len());
 
-    // Phase 2: Tile extraction & dedup
+    // Phase 2: Tile extraction & dedup, in layout order (metasprite-aware).
+    let order = tile_order(tiles_w, tiles_h, opts.metasprite);
     let (tiles, map) = extract_tiles(
-        &img, &palettes, &tile_pal, tiles_w, tiles_h,
+        &img, &palettes, &tile_pal, tiles_w, &order, opts.obj,
         opts.keep_duplicates, opts.detect_flips,
     );
-    eprintln!(
-        "{} unique tile(s) (from {} total)",
-        tiles.len(),
-        tiles_w * tiles_h
-    );
+    eprintln!("{} unique tile(s) (from {} total)", tiles.len(), tile_count);
 
     if opts.preview {
         // Reconstruct image from tiles + palettes + map
@@ -561,8 +766,8 @@ fn main() {
         let mut out_buf = vec![0u8; (img_w * img_h * 3) as usize];
 
         for (i, entry) in map.iter().enumerate() {
-            let grid_x = (i as u32) % tiles_w;
-            let grid_y = (i as u32) / tiles_w;
+            // Map entries follow `order`, so place each at its source grid cell.
+            let (grid_x, grid_y) = order[i];
             let tile = &tiles[entry.tile_idx as usize];
             let pal = &palettes[entry.palette as usize];
 
@@ -571,7 +776,13 @@ fn main() {
                     let src_px = if entry.flip_x { 7 - px } else { px };
                     let src_py = if entry.flip_y { 7 - py } else { py };
                     let color_idx = tile.pixels[(src_py * 8 + src_px) as usize];
-                    let [r, g, b] = pal[color_idx as usize].to_rgb8();
+                    // In OBJ mode index 0 is transparent; show it as magenta.
+                    let [r, g, b] = if opts.obj && color_idx == 0 {
+                        [255, 0, 255]
+                    } else {
+                        let rgb = pal[color_idx as usize].to_rgb8();
+                        if opts.gbc_correction { gbc_correct(rgb) } else { rgb }
+                    };
 
                     let out_x = grid_x * 8 + px;
                     let out_y = grid_y * 8 + py;
