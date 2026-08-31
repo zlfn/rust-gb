@@ -183,14 +183,14 @@ impl OamDma {
 
     /// Hand `src` to the hardware, then wait out the 160 M-cycle transfer.
     ///
-    /// The [`CriticalSection`] is the one hard requirement: an interrupt during
-    /// the transfer would send the CPU to a vector it cannot read.
+    /// The [`CriticalSection`] is required: an interrupt during the transfer
+    /// would send the CPU to a vector it cannot read.
     ///
     /// The PPU cannot read OAM meanwhile either, so a transfer reaching over a
     /// visible line leaves that line's objects undrawn.
     /// [`Polled`](Access::Polled) waits for a VBlank with room for the whole of
-    /// it; [`Direct`](Access::Direct) starts at once, which is what a VBlank
-    /// handler wants and what a deliberate mid-frame transfer is written with.
+    /// it; [`Direct`](Access::Direct) starts at once, as a VBlank handler and a
+    /// deliberate mid-frame transfer both need.
     #[inline]
     pub fn run(&self, access: Access<'_>, _cs: CriticalSection<'_>, src: &OamShadow) {
         // 640 dots is longer than any blanking period but a VBlank's, so mode 0

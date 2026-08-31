@@ -13,8 +13,8 @@
 //! | 2 | `9000-97FF` | 256-383 | out of reach | index 0-127 |
 //!
 //! Objects ignore the bit and always read as `Base8000`, so putting the
-//! background on `Base8800` gives each a private block and leaves block 1 shared.
-//! That is how all 384 become reachable at once.
+//! background on `Base8800` gives each a private block and leaves block 1
+//! shared, putting all 384 within reach at once.
 //!
 //! Writing here addresses a slot, which means the same tile whichever mode is
 //! set; [`index`] converts one to the byte a map needs. See

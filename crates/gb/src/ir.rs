@@ -1,8 +1,8 @@
-//! This module works the Game Boy Color's infrared port.
+//! The Game Boy Color's infrared port.
 //!
 //! What the hardware offers is a lamp and a light sensor. There is no clock, no
-//! framing and nothing to say a message has arrived, so a program talking to
-//! anything builds all of that out of [`Port::led`] and [`Port::signal`].
+//! framing and nothing to say a message has arrived. Talking to anything means
+//! building all of that out of [`Port::led`] and [`Port::signal`].
 //!
 //! ```ignore
 //! let Some(port) = ir::open() else { return };
@@ -52,8 +52,8 @@ impl Port {
 
     /// Whether infrared is reaching the sensor.
     ///
-    /// This Game Boy's own lamp reaches its own sensor, so this answers yes for
-    /// [`led`](Self::led) as readily as for anything across the room.
+    /// This Game Boy's own lamp reaches its own sensor, so [`led`](Self::led)
+    /// registers here as readily as anything across the room.
     #[inline]
     pub fn signal(&self) -> bool {
         // The register reads 0 where light is seen, which is the one place

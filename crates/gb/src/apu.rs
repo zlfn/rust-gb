@@ -1,4 +1,4 @@
-//! This module drives the four sound channels.
+//! The four sound channels and the mixer.
 //!
 //! Each channel has a configuration type: [`Pulse`] for channels 1 and 2,
 //! [`Wave`] for channel 3, [`Noise`] for channel 4. Building one is a chain of
@@ -17,7 +17,7 @@
 //!
 //! # Power
 //!
-//! The boot ROM leaves the APU on at full volume, so a program that only wants
+//! The boot ROM leaves the APU on at full volume. A program that only wants
 //! sound has nothing to set up. It does leave channels 3 and 4 reaching the
 //! left output alone, which [`set_panning`] settles.
 //!
@@ -215,10 +215,10 @@ impl Pulse {
     /// these settings, and one left over from an earlier sound would bend this
     /// one. [`Sweep::new`] leaves the pitch alone.
     ///
-    /// Whether a sweep runs at all is settled here and nowhere else: a note
-    /// triggered without one cannot be given one part way through.
+    /// The trigger decides whether a sweep runs at all, so a note started
+    /// without one cannot be given one part way through.
     ///
-    /// A rising sweep is checked against the top as the note is triggered, so a
+    /// A rising sweep is checked against the top as the note is triggered: a
     /// step that would carry a high note past `$7FF` in one move cuts it before
     /// anything is heard. The smaller the step number, the larger the move. A
     /// falling sweep cannot reach the top and is never cut.
@@ -252,8 +252,8 @@ impl Pulse {
 
     /// Change the pitch on channel 2 without starting the note over.
     ///
-    /// The envelope and the waveform carry on from where they are, which is
-    /// what a slide or a vibrato wants. [`Pulse::play_ch2`] restarts both.
+    /// The envelope and the waveform carry on from where they are, as a slide
+    /// or a vibrato needs. [`Pulse::play_ch2`] restarts both.
     #[inline]
     pub fn retune_ch2(&self) {
         NR23.write(self.period_low);
@@ -475,8 +475,8 @@ pub enum Channel {
 /// how one of those comes back.
 #[inline]
 pub fn silence(ch: Channel) {
-    // Volume 0 rising, rather than a plain 0, is what keeps the DAC on. The
-    // channel then has to be triggered for the new volume to reach it.
+    // A plain 0 would take the DAC down with it; volume 0 rising leaves it up.
+    // The channel then has to be triggered for the new volume to reach it.
     const QUIET: Envelope = Envelope::new().with_increase(true);
     const RETRIGGER: PeriodCtrl = PeriodCtrl::new().with_trigger(true);
     match ch {
@@ -500,7 +500,7 @@ pub fn silence(ch: Channel) {
 
 /// Stop a channel by turning its DAC off.
 ///
-/// Clicks, so [`silence`] is the one to reach for between notes.
+/// Clicks. Between notes, prefer [`silence`].
 #[inline]
 pub fn stop(ch: Channel) {
     match ch {

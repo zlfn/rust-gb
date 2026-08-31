@@ -1,8 +1,7 @@
-//! This module drives the timer and reads the divider.
+//! The timer and the free-running divider.
 //!
-//! Two counters share one clock. [`divider`] is free-running and cannot be
-//! configured; the timer counts at a rate a program picks and raises an
-//! interrupt when it overflows. See
+//! [`divider`] is free-running and cannot be configured; the timer counts at a
+//! rate a program picks and raises an interrupt when it overflows. See
 //! <https://gbdev.io/pandocs/Timer_and_Divider_Registers.html>.
 //!
 //! [`Timer::start`] hands back the proof that ticks are being counted.
@@ -115,8 +114,8 @@ pub fn divider() -> u8 {
 /// Reset the divider to zero.
 ///
 /// The timer shares the divider's counter, so this can advance it once. The APU
-/// counts its envelopes and length timers off the same place, so this can step
-/// those early as well.
+/// counts its envelopes and length timers off the same place; those step early
+/// as well.
 #[inline]
 pub fn reset_divider() {
     DIV.write(0);
@@ -185,8 +184,8 @@ const fn clock_hz(clock: TimerClock) -> u32 {
     nominal << crate::rt::DOUBLE_SPEED as u32
 }
 
-/// Cancel the twos shared by the multiplier and the shift, which is what keeps
-/// [`Duration::ms`] from saturating sooner than it has to.
+/// Cancel the twos shared by the multiplier and the shift, so [`Duration::ms`]
+/// does not saturate sooner than it has to.
 const fn reduce(mut num: u32, mut shift: u32) -> (u32, u32) {
     while shift > 0 && num % 2 == 0 {
         num /= 2;
@@ -480,7 +479,7 @@ impl<R: Rate> Duration<R> {
     /// "has `ms` passed". At 16 Hz a tick is 63 ms, and nothing shorter can be
     /// told apart.
     pub const fn from_ms(ms: u32) -> Self {
-        // The shift wants more than 32 bits before the divide brings it back,
+        // The shift overruns 32 bits before the divide brings it back,
         // so the whole and the remainder are taken apart: each is a part of the
         // answer, so each fits wherever the answer does.
         let whole = ms / R::MS_NUM;
@@ -513,8 +512,8 @@ impl<R: Rate> Duration<R> {
     ///
     /// This is for a number to show or to log.
     pub fn ms(self) -> u32 {
-        // The product wants more than 32 bits, so it is taken in halves. Each
-        // half is a part of the answer, so each fits wherever the answer does,
+        // The product overruns 32 bits and is taken in halves. Each half is a
+        // part of the answer, so each fits wherever the answer does,
         // and the answer is a `u32` of milliseconds: seven weeks.
         let hi = (self.0 >> 16) * R::MS_NUM;
         let lo = (self.0 & 0xFFFF) * R::MS_NUM;

@@ -49,8 +49,8 @@ pub struct Source<T>(pub T);
 /// window is still being written while the lines it reaches are drawn, and those
 /// come out garbled: size one to the window, or switch the display off.
 ///
-/// Nothing runs while it works, so a source in a switchable bank is safe here in
-/// a way it is not in [`stream`].
+/// Nothing runs while it works, which makes a source in a switchable bank safe
+/// here in a way it is not in [`stream`].
 ///
 /// # Panics
 ///

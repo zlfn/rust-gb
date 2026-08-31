@@ -8,8 +8,8 @@
 //! chooses which index gets which of them. On the Game Boy Color a palette holds
 //! four real colours. See <https://gbdev.io/pandocs/Palettes.html>.
 //!
-//! Index 0 is transparent for objects, so the lowest two bits of an object
-//! palette are never used.
+//! Index 0 is transparent for objects, which leaves the lowest two bits of an
+//! object palette unused.
 //!
 //! An original Game Boy ignores the colour registers and keeps drawing with the shades
 //! [`set_background`] chose, so a cartridge that runs on both machines can set
@@ -141,7 +141,7 @@ mod cgb {
         // every colour after it. That is why `Polled` waits here at all, where a
         // tilemap write could simply let the byte drop.
         //
-        // The index register itself is reachable in every mode, so it needs no
+        // The index register itself is reachable in every mode and needs no
         // wait of its own.
         index.write(
             PaletteIndex::new()

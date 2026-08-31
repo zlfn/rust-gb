@@ -1,4 +1,4 @@
-//! This module exchanges bytes over the link cable.
+//! Byte exchange over the link cable.
 //!
 //! A transfer is always an exchange. Eight bits leave as eight arrive, and one
 //! cannot be had without the other. One of the two Game Boys supplies the clock
@@ -11,13 +11,13 @@
 //! # Waiting
 //!
 //! Nothing here gives up on its own. A [`follow`] with nothing at the far end
-//! waits for a clock that never comes, so a program has to count the frames and
-//! [`abort`](Transfer::abort) itself. [`drive`] always finishes, reading `$FF`
+//! waits for a clock that never comes. Count the frames and
+//! [`abort`](Transfer::abort) it. [`drive`] always finishes, reading `$FF`
 //! off a cable with nothing on it.
 //!
 //! A Game Boy about to be clocked has to be waiting before the other one
-//! starts, so the clocking side owes the other a pause between bytes. How long
-//! depends on what the far end does with them.
+//! starts, so the clocking side has to pause between bytes. How long depends on
+//! what the far end does with them.
 //!
 //! See <https://gbdev.io/pandocs/Serial_Data_Transfer_(Link_Cable).html>.
 
@@ -26,7 +26,7 @@ use crate::mmio::{SB, SC, SerialCtrl};
 /// How fast this Game Boy clocks the wire.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Rate {
-    /// 8192 bits a second, which every Game Boy answers.
+    /// 8192 bits a second, the rate every Game Boy handles.
     Slow,
     /// 262144 bits a second, which only a Game Boy Color can clock. The far
     /// end follows whatever reaches it and need not be one.
@@ -52,7 +52,7 @@ impl Rate {
 pub struct Transfer(());
 
 impl Transfer {
-    /// What arrived, once the wire is done with it.
+    /// The byte that arrived, once the transfer has finished.
     #[inline]
     pub fn poll(&self) -> Option<u8> {
         (!SC.read().transfer_enable()).then(|| SB.read())

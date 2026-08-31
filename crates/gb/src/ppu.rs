@@ -1,5 +1,4 @@
-//! The pixel-processing unit draws the screen, and this module is how a program
-//! feeds it.
+//! The pixel-processing unit, which draws the screen.
 //!
 //! The picture comes from six modules: [`tile`] holds the pixels, [`map`] says
 //! which tile goes in which cell, [`bg`] and [`window`] place the two layers
@@ -111,7 +110,7 @@ pub enum Access<'a> {
     /// straight through.
     ///
     /// Minted by [`Vblank::with`] and [`with_lcd_off`], and bounded to the closure
-    /// they run. It is zero-sized and `Copy`, so the lifetime is the only thing
+    /// they run. It is zero-sized and `Copy`; the lifetime is the only thing
     /// stopping it being carried out of the window:
     ///
     /// ```compile_fail
@@ -301,8 +300,8 @@ impl Vblank {
 ///
 /// The screen goes blank, and in exchange video memory stays reachable for as
 /// long as `f` runs rather than the roughly 1140 M-cycles [`Vblank::with`]
-/// allows, or 2280 in CGB double speed mode. This is how a program loads more
-/// tiles than one VBlank fits.
+/// allows, or 2280 in CGB double speed mode. A program with more tiles than one
+/// VBlank fits loads them this way.
 ///
 /// Unlike [`Vblank::with`], the wait here is a poll and needs no interrupt, so
 /// this runs before a program has turned them on.

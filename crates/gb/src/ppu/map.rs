@@ -56,8 +56,8 @@ impl<'a> Grid<'a> {
     }
 
     const fn sub(self, x: u8, y: u8, w: u8, h: u8) -> Self {
-        // The origin is carried rather than re-slicing, so this stays const and
-        // the stride never has to be recomputed. Saturating, so that an origin
+        // The origin is carried rather than re-slicing, which keeps this const
+        // and spares recomputing the stride. Saturating, so that an origin
         // past the end is refused by the write rather than wrapping back into
         // range.
         Grid { x: self.x.saturating_add(x), y: self.y.saturating_add(y), w, h, ..self }

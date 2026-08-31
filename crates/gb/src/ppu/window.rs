@@ -1,9 +1,9 @@
 //! The window: a second tilemap laid over the background.
 //!
 //! It has no scroll of its own. Wherever it is placed, it draws from its grid's
-//! top left corner, so moving what it shows means rewriting the grid. That fixity
-//! is what makes it a status bar or a text box while the background scrolls
-//! underneath.
+//! top left corner, so moving what it shows means rewriting the grid. Staying
+//! put is what suits it to a status bar or a text box while the background
+//! scrolls underneath.
 //!
 //! # Position
 //!
@@ -20,8 +20,8 @@
 //! here is for. [`set_map`] is not among them: it takes effect from the next
 //! tile fetched and has nothing to go wrong.
 //!
-//! Where the window has to come and go within a frame, [`hide`] is the way and
-//! the enable bit is not. The PPU turns the window on for a frame when `WY`
+//! Use [`hide`] where the window has to come and go within a frame, not the
+//! enable bit. The PPU turns the window on for a frame when `WY`
 //! first matches `LY`, and on the Game Boy Color clearing the enable bit undoes
 //! that: the window then stays away until `WY` matches again, which for the rest
 //! of the frame it cannot. See <https://gbdev.io/pandocs/Window.html>.

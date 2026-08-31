@@ -5,8 +5,8 @@
 //! [`map`](super::map)'s business; this is where it sits.
 //!
 //! The scroll registers are re-read as the PPU fetches each tile, so writing them
-//! part way down a frame moves the rest of it. That is how a program wobbles or
-//! parallaxes a background. See <https://gbdev.io/pandocs/Scrolling.html>.
+//! part way down a frame moves the rest of it, which gives a background its
+//! wobble or its parallax. See <https://gbdev.io/pandocs/Scrolling.html>.
 
 use crate::mmio::{LCDC, SCX, SCY};
 

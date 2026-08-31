@@ -60,7 +60,7 @@ pub use gb_ram_fn as __ram_fn;
 /// Whether the machine has the Game Boy Color's hardware.
 ///
 /// From the value the boot ROM leaves in `A`, so it costs one load. A Game Boy
-/// Advance answers yes: it runs the same hardware.
+/// Advance reports yes as well: it runs the same hardware.
 ///
 /// A cartridge built for both machines needs this wherever a Color feature has
 /// nothing to fall back on.

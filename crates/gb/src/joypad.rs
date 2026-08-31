@@ -1,11 +1,11 @@
-//! This module reads the joypad's eight buttons.
+//! The eight buttons.
 //!
 //! [`read`] returns a [`Buttons`], a bit per button and set where held. The
 //! hardware is the other way round, clearing the bit of a button that is down.
 //! See <https://gbdev.io/pandocs/Joypad_Input.html>.
 //!
-//! [`Pad`] is the usual way in. It keeps the previous reading, so a program can
-//! ask what changed rather than only what is held.
+//! [`Pad`] is the usual way in. It keeps the previous reading, which turns
+//! "what is held" into "what changed".
 //!
 //! ```ignore
 //! let vblank = unsafe { ppu::Vblank::listen() };
@@ -24,9 +24,9 @@
 //! # Reading from a handler
 //!
 //! [`read`] selects a row, reads it, then selects the other and reads that. A
-//! handler reading the joypad in between finishes with both rows off, so the
+//! handler reading the joypad in between finishes with both rows off, and the
 //! half of the interrupted read that has not happened yet comes back as nothing
-//! pressed. Nothing reports it, so a program should poll in one place.
+//! pressed. Nothing reports that, so poll in one place.
 
 use bitfield_struct::bitfield;
 
