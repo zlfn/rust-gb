@@ -49,12 +49,12 @@ fn ram_fn_root() -> proc_macro2::TokenStream {
 /// it for a compile-time buffer check, but the bound itself (actual code length
 /// `<= max`) is verified only after compilation, by `cargo-gb` over the linked
 /// ROM. A build path that skips that check does not guarantee it, leaving
-/// `install` able to overflow its buffer (see
-/// [`RamFn::install`](../gb_ram_fn/trait.RamFn.html#tymethod.install)).
+/// `install` able to overflow its buffer.
 ///
-/// Generates `NAME`, a zero-sized handle implementing `RamFn`: `NAME.rom()` gives
-/// the ROM copy and `NAME.install(buf)` copies it into RAM. Bring `RamFn` into
-/// scope to call these.
+/// The function becomes a zero-sized handle of the same name, implementing the
+/// `RamFn` trait. For `fn inc()`, `inc.rom()` gives the ROM copy and
+/// `inc.install(buf)` copies the code into `buf` and returns the RAM copy. Both
+/// are trait methods, so `RamFn` has to be in scope.
 #[proc_macro_attribute]
 pub fn ram_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
     let gb_ram_fn = ram_fn_root();
