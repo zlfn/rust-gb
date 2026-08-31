@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["clear_overflow","latch","set","set_halted","time"],"struct":["Latch","Time"]};

@@ -36,7 +36,7 @@ block. A field that is not one can never be written.</p>
 
 <div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">unsafe </span>{ gb::interrupt::free(|cs| FILE.open(cs, |f| f.gold.set(f.gold.get() + <span class="number">10</span>))) };</code></pre></div><h2 id="trusting-the-contents"><a class="doc-anchor" href="#trusting-the-contents">§</a>Trusting the contents</h2>
 <p>A cartridge that has never been written holds noise, so the value is bounded
-on <a href="https://docs.rs/zerocopy/0.8/zerocopy/trait.FromBytes.html" title="trait zerocopy::FromBytes"><code>FromBytes</code></a>: no byte pattern may be invalid for it, which rules out
+on [<code>FromBytes</code>]: no byte pattern may be invalid for it, which rules out
 <code>bool</code>, <code>char</code>, enums, and references.</p>
 <p><code>repr(C)</code> is recommended: a <code>repr(Rust)</code> layout is unspecified and may differ
 between toolchain versions, so a save an earlier build wrote could be read
