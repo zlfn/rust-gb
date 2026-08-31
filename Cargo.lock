@@ -384,6 +384,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "sprite"
+version = "0.2.0"
+dependencies = [
+ "rust-gb",
+]
+
+[[package]]
 name = "syn"
 version = "2.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"

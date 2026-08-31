@@ -1,0 +1,13 @@
+[package]
+name = "sprite"
+version.workspace = true
+edition.workspace = true
+autobins = false
+
+[lib]
+name = "sprite"
+path = "src/main.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+rust-gb = { workspace = true }

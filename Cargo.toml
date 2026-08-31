@@ -5,6 +5,7 @@ members = [
     "crates/*",
     "examples/bank-test",
     "examples/slideshow",
+    "examples/sprite",
     "examples/template",
     "examples/gbdk/*",
 ]
@@ -35,6 +36,7 @@ gb-ram-fn-macros = { path = "crates/gb-ram-fn-macros", version = "0.2.0" }
 gb-rt = { path = "crates/gb-rt", version = "0.2.0" }
 gb-rt-macros = { path = "crates/gb-rt-macros", version = "0.2.0" }
 gbdk-sys = { path = "crates/gbdk-sys", version = "0.1" }
+rust-gb = { path = "crates/gb", version = "0.2.0" }
 # Shared third-party crates.
 critical-section = "1"
 document-features = "0.2"
