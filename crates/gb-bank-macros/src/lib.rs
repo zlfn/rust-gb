@@ -1,8 +1,8 @@
 //! Procedural macros for `gb-bank`: compile-time-safe Game Boy ROM banking.
 //!
-//! These are re-exported by the [`gb-bank`] facade and are meant to be used
-//! through it (`use gb_bank::*;`). They turn ordinary-looking functions and
-//! statics into bank-safe ones built on `gb-bank`:
+//! `gb-bank` re-exports these and is where they are meant to be reached
+//! (`use gb_bank::*;`). They turn ordinary-looking functions and statics into
+//! bank-safe ones:
 //!
 //! - [`macro@bank_module`] (`bank::module!()`) declares a module as a bank group.
 //! - [`macro@bank`] (`#[bank]`) marks a function or static as living in that bank.
@@ -13,8 +13,6 @@
 //! The expansions name the `gb-bank` runtime by looking it up in the invoking
 //! crate's manifest, so they work whether it depends on `gb-bank` directly or
 //! reaches it through a facade such as `gb`.
-//!
-//! [`gb-bank`]: https://docs.rs/gb-bank
 
 use proc_macro::TokenStream;
 
