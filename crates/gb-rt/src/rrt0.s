@@ -156,6 +156,15 @@ _reset:
     ld a, 0x07
     ldh ( 0x4B ), a     ; WX, standard left edge
 
+    ; The boot ROM hands over with the background on and the logo in the tilemap.
+    ld a, 0xE4          ; BGP, OBP0: 11 10 01 00
+    ldh ( 0x47 ), a     ; BGP
+    ldh ( 0x48 ), a     ; OBP0
+    ld a, 0x1B          ; OBP1: 00 01 10 11
+    ldh ( 0x49 ), a     ; OBP1
+    ld a, 0xC0          ; LCD on, window map 0x9C00, every layer off
+    ldh ( 0x40 ), a     ; LCDC
+
     ; Copy the `.data` initializers from ROM.
     ld hl, s__INITIALIZER
     ld de, s__INITIALIZED

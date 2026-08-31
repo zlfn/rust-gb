@@ -31,16 +31,7 @@ __gbdk_init:
     ld c, .end_refresh_OAM - .start_refresh_OAM
     rst 0x30
 
-    ; Set default DMG palettes
-    ld a, 0xE4          ; BGP: 11 10 01 00
-    ldh ( 0x47 ), a     ; BGP
-    ldh ( 0x48 ), a     ; OBP0
-    ld a, 0x1B          ; OBP1: 00 01 10 11
-    ldh ( 0x49 ), a     ; OBP1
-
-    ; Turn screen on (matching GBDK crt0: LCD on, BG tile data at $8800, BG off)
-    ld a, 0xC0          ; LCDCF_ON | LCDCF_WIN9C00 (BG off, OBJ off)
-    ldh ( 0x40 ), a     ; LCDC
+    ; Palettes and LCDC are rrt0's job.
 
     ld a, 0x01          ; VBL_IFLAG
     ldh ( 0xFF ), a     ; IE
