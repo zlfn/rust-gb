@@ -362,7 +362,6 @@ checksum = "c074f8d90a7d48f39c3cc673544c530e9cdd46868fce7526f94d8e33a542e9cc"
 dependencies = [
  "image",
  "nalgebra",
- "rayon",
 ]
 
 [[package]]
@@ -516,6 +515,7 @@ dependencies = [
  "image",
  "palette",
  "pico-args",
+ "wasm-bindgen",
 ]
 
 [[package]]

@@ -26,7 +26,7 @@ An image that is already GB-ready (dimensions a multiple of 8, at most 4 colors 
 | `--map` | Also emit a tile map naming the tile in each cell |
 | `--dedup` | Fold identical tiles together (needs `--map`) |
 | `--flip` | Also fold tiles that match when mirrored (needs `--dedup`) |
-| `--preview` | Write a PNG preview instead of the binary files |
+| `--preview` | Write a PNG preview instead of the binary files; with `--obj` the transparent index comes out transparent |
 
 ## Output files
 

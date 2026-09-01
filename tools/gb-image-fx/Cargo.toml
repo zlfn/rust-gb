@@ -5,12 +5,30 @@ edition.workspace = true
 authors.workspace = true
 description = "Convert images to Game Boy / Game Boy Color tile data"
 
+[features]
+default = ["cli"]
+# The command line front end: argument parsing, and the codecs that read and
+# write image files.
+cli = ["dep:pico-args", "image/default"]
+# The browser entry point.
+wasm = ["dep:wasm-bindgen"]
+
+[lib]
+name = "gb_image_fx"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
 [[bin]]
 name = "gb-image-fx"
 path = "src/main.rs"
+required-features = ["cli"]
 
 [dependencies]
-image = "0.25"
-pico-args = "0.5"
+# The core only builds images in memory, so the codecs come with "cli".
+image = { version = "0.25", default-features = false }
 palette = "0.7"
-decolorize = "0.2"
+# rayon buys nothing in a browser, where there is one thread, and costs two
+# thirds of the WebAssembly module's size.
+decolorize = { version = "0.2", default-features = false }
+pico-args = { version = "0.5", optional = true }
+wasm-bindgen = { version = "0.2", optional = true }

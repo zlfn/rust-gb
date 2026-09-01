@@ -118,7 +118,7 @@ impl Shuffle {
 
 // ── Dithering ───────────────────────────────────────────────────────────────
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum DitherMethod {
     Blue,
     Bayer,
@@ -486,6 +486,15 @@ pub fn box_sample(src: &[[u8; 4]], src_w: u32, src_h: u32, dst_w: u32, dst_h: u3
 }
 
 // ── Driver ──────────────────────────────────────────────────────────────────
+/// The outcome of quantizing: the reduced image, the palettes it needs, which
+/// palette each tile takes, and the error left over.
+pub struct Quantized {
+    pub pixels: Vec<[u8; 4]>,
+    pub palettes: Vec<Vec<[u8; 3]>>,
+    pub tile_palettes: Vec<u8>,
+    pub error: f64,
+}
+
 
 /// Quantize `pixels` (RGBA, `width`x`height`) into up to `max_palettes` GBC
 /// palettes. `dither` gives the strength and pattern, or `None` for flat output.
@@ -502,7 +511,7 @@ pub fn quantize_image_tiled(
     max_palettes: usize,
     dither: Option<(f64, DitherMethod)>,
     obj: bool,
-) -> (Vec<[u8; 4]>, Vec<Vec<[u8; 3]>>, Vec<u8>) {
+) -> Quantized {
     const BITS: usize = 5;
     let colors_per_palette = if obj { 3 } else { 4 };
     let max_palettes = max_palettes.max(1);
@@ -607,7 +616,6 @@ pub fn quantize_image_tiled(
         }
     }
 
-    eprintln!("  {} palette(s), error {:.0}", palettes.len(), best_error);
     let palettes_rgb = palettes.iter().map(|p| p.iter().map(|&c| to_u8(c)).collect()).collect();
-    (out, palettes_rgb, tile_pal)
+    Quantized { pixels: out, palettes: palettes_rgb, tile_palettes: tile_pal, error: best_error }
 }
