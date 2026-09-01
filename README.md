@@ -32,8 +32,8 @@ Everything needed to write a Game Boy program in Rust, and to build it into a RO
 **Example programs**
 - [`examples/`](examples): example Game Boy ROMs written in Rust.
 
-Building Rust-GB also produced [llvm-z80](https://github.com/zlfn/llvm-z80),
-[rust-z80](https://github.com/zlfn/rust) and
+Building Rust-GB also produced [llvm-z80](https://github.com/llvm-z80/llvm-z80),
+[rust-z80](https://github.com/llvm-z80/rust-z80) and
 [decolorize](https://github.com/zlfn/decolorize).
 
 ## Building a ROM
