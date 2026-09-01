@@ -1,5 +1,5 @@
 <div align="center">
-  <img align="center" width=80% src="media/rust-gb-logo.jpg"/>
+  <img align="center" width=85% src="media/rust-gb-logo.jpg"/>
   <br/>
 </div>
 
@@ -11,20 +11,30 @@
 
 Compile Rust to Game Boy ROMs.
 
-## What's in here
+# The Rust-GB Project
 
-**Game Boy Rust libraries**
-- `gbdk-sys`: Rust bindings to the GBDK-2020 runtime (graphics, sound, input, console).
-- `gb-bank`: a compile-time-safe ROM bank switching API. GhostCell-style tokens make holding a pointer into an unmapped bank a compile error; a `#[bank]` function becomes a `Warp` (the `Future` analog of a banked call) that you run with `.drive()`.
+Everything needed to write a Game Boy program in Rust, and to build it into a ROM.
 
-**Build tool**
-- `cargo-gb`: the `cargo gb` subcommand that turns a crate into a ROM (`cargo gb build`). It compiles the staticlib, bin-packs banked code into 16 KiB banks, links with the toolchain's bundled SM83 linker, and writes the cartridge header. Everything comes from the rust-z80 sysroot, so no tool or linker paths need configuring.
+**Rust libraries for writing Game Boy programs**
+- [`rust-gb`](crates/gb): the hardware abstraction layer, and the crate to start from.
+- [`gb-bank`](crates/gb-bank), [`gb-hram`](crates/gb-hram), [`gb-pak`](crates/gb-pak),
+  [`gb-ram-fn`](crates/gb-ram-fn): the pieces behind `rust-gb`
+- [`gb-rt`](crates/gb-rt): the runtime. [`rrt0.s`](crates/gb-rt/src/rrt0.s) is the
+  startup code a cartridge boots into.
+- [`gbdk-sys`](crates/gbdk-sys): Rust bindings to
+  [GBDK-2020](https://github.com/gbdk-2020/gbdk-2020).
 
-**Utilities**
-- `gb-image-fx`: convert images (PNG, JPEG, BMP, ...) to Game Boy / Game Boy Color tile data.
+**Host tools for building ROM**
+- [`cargo-gb`](tools/cargo-gb), [`gb-header-fix`](tools/gb-header-fix),
+  [`gb-bank-pack`](tools/gb-bank-pack): turn a crate into a ROM.
+- [`gb-image-fx`](tools/gb-image-fx): convert images into Game Boy tile data.
 
-**Examples**
-- `examples/`: runnable demos. Start from `template` (a minimal project to copy), and see `bank-test` and a set of ported GBDK examples.
+**Example programs**
+- [`examples/`](examples): example Game Boy ROMs written in Rust.
+
+Building Rust-GB also produced [llvm-z80](https://github.com/zlfn/llvm-z80),
+[rust-z80](https://github.com/zlfn/rust) and
+[decolorize](https://github.com/zlfn/decolorize).
 
 ## Building a ROM
 
@@ -79,11 +89,7 @@ PRs are always welcome too!
 
 ## Dependencies
 
-* [rust-z80](https://github.com/zlfn/rust) (nightly Rust fork, built with in-tree `lld`)
-* [llvm-z80](https://github.com/zlfn/llvm-z80) (the SM83 LLVM backend, built into rust-z80)
-
-This project is still a work in progress, and I haven't tested it outside of my development environment. 
-Dependencies may change as the project evolves.
+* [rust-z80](https://github.com/zlfn/rust) (nightly Rust fork)
 
 ## Related & Similar projects
 
