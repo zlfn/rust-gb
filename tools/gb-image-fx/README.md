@@ -2,6 +2,25 @@
 
 Convert images to Game Boy / Game Boy Color tile data. Reads PNG, JPEG, BMP, GIF, WebP, and more.
 
+## What it does
+
+An image becomes the files a Game Boy program loads: 2bpp tile data, and the
+palettes, attributes and tile map that go with it. `--obj` and `--metasprite`
+lay sprites out the way the hardware fetches them.
+
+`--quantize` fits a full-colour image to the Game Boy Color, picking eight
+four-colour palettes and which 8x8 square uses each with a port of rilden's
+tiledpalettequant, and `--gbc-correction` runs SameBoy's model of the console's
+screen backwards so the colours land where they started.
+
+![Game Boy Color](https://raw.githubusercontent.com/zlfn/rust-gb/main/tools/gb-image-fx/docs/gbc.png)
+
+`--dmg` reduces to the four shades of the original Game Boy by contrast rather
+than brightness, fitting the decolorization of Lu, Xu and Jia so that colours
+differing in hue but not in lightness stay apart.
+
+![Game Boy](https://raw.githubusercontent.com/zlfn/rust-gb/main/tools/gb-image-fx/docs/dmg.png)
+
 ## Usage
 
 ```
@@ -71,3 +90,5 @@ gb-image-fx tileset.png --map --dedup --flip -o res/tileset
 The `--quantize` color reducer is a port of [tiledpalettequant](https://github.com/rilden/tiledpalettequant) by rilden (MIT).
 
 `--gbc-correction` uses the CGB display model (Modern - Balanced) from [SameBoy](https://github.com/LIJI32/SameBoy) by Lior Halphon (MIT).
+
+`--dmg` goes grayscale with [decolorize](https://crates.io/crates/decolorize), which implements the contrast preserving decolorization of Lu, Xu and Jia.

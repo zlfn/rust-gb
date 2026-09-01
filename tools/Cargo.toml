@@ -8,3 +8,5 @@ resolver = "3"
 version = "0.2.0"
 edition = "2024"
 authors = ["zlfn <ung@zlfn.space>"]
+license = "Zlib OR Apache-2.0 OR MIT"
+repository = "https://github.com/zlfn/rust-gb"

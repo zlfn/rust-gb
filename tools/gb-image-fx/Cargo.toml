@@ -4,6 +4,13 @@ version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
 description = "Convert images to Game Boy / Game Boy Color tile data"
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["gameboy", "tiles", "sprites", "quantization", "retro"]
+categories = ["multimedia::images", "game-development", "command-line-utilities"]
+# The README points at these on GitHub, so they need not ride along.
+exclude = ["docs/"]
 
 [features]
 default = ["cli"]
