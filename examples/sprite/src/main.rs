@@ -5,7 +5,7 @@
 //! converted with:
 //!
 //! ```text
-//! gb-image-fx eris_walk.png --obj --dmg --metasprite 16x16 --tiles-only -o eris_walk
+//! gb-image-fx eris_walk.png --obj --dmg --metasprite 16x16 -o eris_walk
 //! ```
 //!
 //! The sheet is five rows of four: a row per facing, a column per step. An

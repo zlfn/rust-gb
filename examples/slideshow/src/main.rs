@@ -1,7 +1,7 @@
 //! Slideshow — Cycle through full-screen images with any button press.
 //!
 //! Each slide was generated with:
-//!   gb-image-fx <image> --quantize 160x144 --dither --gbc-correction --tiles-only -o res/koreaN
+//!   gb-image-fx <image> --quantize 160x144 --dither --gbc-correction -o res/koreaN
 
 #![no_std]
 #![no_main]

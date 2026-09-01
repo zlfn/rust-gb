@@ -1,7 +1,7 @@
 //! GBDK APA Image — Display a full-screen image using All Points Addressable mode.
 //!
 //! Tile data generated from scenery.png using gb-image-fx:
-//!   gb-image-fx res/scenery.png --tiles-only -o res/scenery
+//!   gb-image-fx res/scenery.png -o res/scenery
 
 #![no_std]
 #![no_main]

@@ -2,9 +2,9 @@
 //!
 //! Outputs (binary mode):
 //!   {name}_tiles.bin      — 2bpp tile data (16 bytes per tile)
-//!   {name}_map.bin        — tile map (1 byte per grid cell)
-//!   {name}_palettes.bin   — GBC RGB555 palettes (8 bytes per palette)
-//!   {name}_attributes.bin — GBC tile attributes (1 byte per grid cell)
+//!   {name}_map.bin        — tile map (1 byte per grid cell, with --map)
+//!   {name}_palettes.bin   — GBC RGB555 palettes (8 bytes per palette, unless --dmg)
+//!   {name}_attributes.bin — GBC tile attributes (1 byte per grid cell, unless --dmg)
 //!
 //! With --preview: outputs a PNG image instead of binary files.
 
@@ -131,6 +131,10 @@ impl Image {
         self.pixels[(y * self.width + x) as usize]
     }
 }
+
+/// The four shades a DMG shows, lightest first, matching the index order tiles
+/// are written in.
+const DMG_SHADES: [u8; 4] = [0xff, 0xaa, 0x55, 0x00];
 
 /// Alpha at or above this counts as opaque; below it, the pixel is transparent
 /// and maps to color index 0.
@@ -432,9 +436,6 @@ fn extract_tiles(
                     });
                 } else {
                     let idx = unique_tiles.len();
-                    if idx == 256 {
-                        eprintln!("warning: tile count exceeds 256 (overflows u8 map index)");
-                    }
                     tile_lookup.insert(tile.clone(), idx);
                     unique_tiles.push(tile);
                     tile_map_entries.push(TileMapEntry {
@@ -456,9 +457,9 @@ fn extract_tiles(
 struct Options {
     input: PathBuf,
     output_prefix: PathBuf,
-    keep_duplicates: bool,
-    tiles_only: bool,
-    detect_flips: bool,
+    map: bool,                     // emit a tile map alongside the tiles
+    dedup: bool,                   // fold identical tiles together (needs a map)
+    flip: bool,                    // also match mirrored tiles when deduplicating
     quantize: Option<(u32, u32)>, // target resolution (w, h)
     max_palettes: usize,
     preview: bool,
@@ -479,13 +480,15 @@ OPTIONS:
     -o <prefix>           Output file prefix (default: input file stem)
     --obj                 OBJ/sprite mode: transparent pixels (alpha < 128) become
                           color index 0, and opaque colors fill indices 1-3 (max 3)
-    --dmg                 DMG mode: one palette for the whole image (no per-8x8
-                          palette grouping). Combine with --obj for sprites.
+    --dmg                 DMG mode: one palette for the whole image, turned
+                          grayscale by --quantize. Writes no palette or attribute
+                          file. Combine with --obj for sprites.
     --metasprite <WxH>    Emit tiles per sprite cell (e.g. 16x16): cells row-major,
                           each cell column-major (8x16 OBJ pairs)
-    --keep-duplicates     Don't deduplicate tiles
-    --tiles-only          Only output tiles and palettes (no map/attributes)
-    --no-flip             Don't detect flipped tiles during dedup
+    --map                 Also emit a tile map naming the tile in each cell. Without
+                          it the tiles are written in layout order, one per cell.
+    --dedup               Fold identical tiles together (needs --map)
+    --flip                Also fold tiles that match when mirrored (needs --dedup)
     --quantize <WxH>      Quantize a full-color image to target resolution
                           (e.g. 160x144) and up to 8 GBC palettes
     --max-palettes <N>    Maximum palettes for quantize (default: 8, GBC max)
@@ -505,8 +508,9 @@ fn parse_args() -> Options {
         process::exit(0);
     }
 
-    let keep_duplicates = args.contains("--keep-duplicates");
-    let tiles_only = args.contains("--tiles-only");
+    let map = args.contains("--map");
+    let dedup = args.contains("--dedup");
+    let flip = args.contains("--flip");
     let preview = args.contains("--preview");
     let obj = args.contains("--obj");
     let dmg = args.contains("--dmg");
@@ -527,9 +531,6 @@ fn parse_args() -> Options {
         _ => quantize::DitherMethod::Blue,
     };
     let dither = dither_weight.map(|w| (w, dither_method));
-    // DMG backgrounds have no tile attributes, so they can't flip; disable flip
-    // dedup there (sprites flip at runtime through OAM, not through the tile map).
-    let detect_flips = !args.contains("--no-flip") && !dmg;
     let gbc_correction = args.contains("--gbc-correction");
     let output_prefix: Option<PathBuf> = args.opt_value_from_str("-o").unwrap_or(None);
 
@@ -556,12 +557,38 @@ fn parse_args() -> Options {
         PathBuf::from(input.file_stem().unwrap().to_string_lossy().as_ref())
     });
 
+    // Only the map records where a folded tile ended up.
+    if dedup && !map {
+        eprintln!("error: --dedup needs --map to record where each tile went");
+        process::exit(1);
+    }
+    if flip && !dedup {
+        eprintln!("error: --flip needs --dedup");
+        process::exit(1);
+    }
+    // The flip bits live in the tile attributes, which a DMG background lacks.
+    if flip && dmg {
+        eprintln!("error: --flip needs tile attributes, which --dmg does not emit");
+        process::exit(1);
+    }
+    // Correction pre-compensates source colors before clustering, so it only has
+    // meaning together with --quantize.
+    if gbc_correction && quantize.is_none() {
+        eprintln!("error: --gbc-correction requires --quantize");
+        process::exit(1);
+    }
+    // The shades a DMG shows come from its BGP register, not from a palette this
+    // tool writes, so correcting for the colour LCD has nothing to act on.
+    if gbc_correction && dmg {
+        eprintln!("error: --gbc-correction has no effect with --dmg, which emits no palette");
+        process::exit(1);
+    }
     Options {
         input,
         output_prefix,
-        keep_duplicates: keep_duplicates || tiles_only,
-        tiles_only,
-        detect_flips,
+        map,
+        dedup,
+        flip,
         quantize,
         max_palettes,
         preview,
@@ -570,6 +597,21 @@ fn parse_args() -> Options {
         dmg,
         metasprite,
         gbc_correction,
+    }
+}
+
+/// Turn the image grayscale the way the DMG will show it, preserving the contrast
+/// between colours a plain luminance would map to the same shade. In OBJ mode the
+/// alpha goes along, so the colour behind transparent pixels stays out of the fit;
+/// elsewhere alpha carries no meaning and every pixel counts.
+fn decolorize_pixels(pixels: &mut [[u8; 4]], width: u32, height: u32, obj: bool) {
+    let rgba = image::RgbaImage::from_fn(width, height, |x, y| {
+        let p = pixels[(y * width + x) as usize];
+        image::Rgba([p[0], p[1], p[2], if obj { p[3] } else { 255 }])
+    });
+    let gray = decolorize::decolorize(&rgba);
+    for (p, g) in pixels.iter_mut().zip(gray.pixels()) {
+        *p = [g[0], g[0], g[0], p[3]];
     }
 }
 
@@ -598,10 +640,9 @@ fn gbc_correct(rgb: [u8; 3]) -> [u8; 3] {
 
 /// Pre-compensate every pixel so that after quantization and display it lands back
 /// on the source colour: pick the RGB555 value whose corrected appearance is
-/// closest. Correction is separable — red comes from its channel alone, while
-/// green and blue are coupled (green mixes in some blue) — so the nearest value is
-/// found channel-wise instead of scanning all 32768. Colours the panel can't reach
-/// are approximated.
+/// closest. Red is corrected on its own, while green takes in some blue, so the
+/// search runs per channel rather than over all 32768. Colours the panel can't
+/// reach are approximated.
 fn gbc_precompensate(pixels: &mut [[u8; 4]]) {
     let expand = |c5: usize| ((c5 << 3) | (c5 >> 2)) as u8;
     // Corrected green for every (blue5, green5) pair.
@@ -669,13 +710,6 @@ fn parse_wxh(s: &str) -> Result<(u32, u32), String> {
 fn main() {
     let opts = parse_args();
 
-    // Correction pre-compensates source colors before clustering, so it only has
-    // meaning together with --quantize.
-    if opts.gbc_correction && opts.quantize.is_none() {
-        eprintln!("error: --gbc-correction requires --quantize");
-        process::exit(1);
-    }
-
     let mut img = Image::load(&opts.input);
 
     // Quantize: box-sample to target, then tile-aware palette clustering
@@ -695,6 +729,13 @@ fn main() {
         // Pre-compensate so the panel's darkening lands back on the source colors.
         if opts.gbc_correction {
             gbc_precompensate(&mut img.pixels);
+        }
+
+        // A DMG shows four shades, so the image has to become grayscale. Decolorizing
+        // for contrast keeps colours apart that differ in hue but not in brightness,
+        // which a plain luminance would flatten into the same shade.
+        if opts.dmg {
+            decolorize_pixels(&mut img.pixels, img.width, img.height, opts.obj);
         }
 
         // DMG uses a single palette for the whole image.
@@ -755,9 +796,21 @@ fn main() {
     let order = tile_order(tiles_w, tiles_h, opts.metasprite);
     let (tiles, map) = extract_tiles(
         &img, &palettes, &tile_pal, tiles_w, &order, opts.obj,
-        opts.keep_duplicates, opts.detect_flips,
+        !opts.dedup, opts.flip,
     );
     eprintln!("{} unique tile(s) (from {} total)", tiles.len(), tile_count);
+
+    // A map entry is one byte, so a map can only name 256 tiles. Without one the
+    // program places the tiles itself and can use as many as it can load.
+    if opts.map && !opts.preview && tiles.len() > 256 {
+        eprintln!(
+            "error: {} unique tiles, but a tile map byte only addresses 256.\n\
+             Reduce the tile count (smaller --quantize, or drop --dither), or drop\n\
+             --map and place the tiles yourself.",
+            tiles.len()
+        );
+        process::exit(1);
+    }
 
     if opts.preview {
         // Reconstruct image from tiles + palettes + map
@@ -779,6 +832,10 @@ fn main() {
                     // In OBJ mode index 0 is transparent; show it as magenta.
                     let [r, g, b] = if opts.obj && color_idx == 0 {
                         [255, 0, 255]
+                    } else if opts.dmg {
+                        // A DMG only ever shows these four, picked by the index.
+                        let v = DMG_SHADES[color_idx as usize];
+                        [v, v, v]
                     } else {
                         let rgb = pal[color_idx as usize].to_rgb8();
                         if opts.gbc_correction { gbc_correct(rgb) } else { rgb }
@@ -805,22 +862,23 @@ fn main() {
         fs::write(&tiles_path, &tiles_data).unwrap();
         eprintln!("  {} ({} bytes)", tiles_path, tiles_data.len());
 
-        // Output palettes
-        let pal_path = format!("{}_palettes.bin", opts.output_prefix.display());
-        let pal_data: Vec<u8> = palettes.iter()
-            .flat_map(|p| p.iter().flat_map(|c| c.to_le_bytes()))
-            .collect();
-        fs::write(&pal_path, &pal_data).unwrap();
-        eprintln!("  {} ({} bytes, {} palette(s))", pal_path, pal_data.len(), palettes.len());
+        // A DMG takes its shades from the BGP register and has no attribute map,
+        // so only a Game Boy Color reads either of these.
+        if !opts.dmg {
+            let pal_path = format!("{}_palettes.bin", opts.output_prefix.display());
+            let pal_data: Vec<u8> = palettes.iter()
+                .flat_map(|p| p.iter().flat_map(|c| c.to_le_bytes()))
+                .collect();
+            fs::write(&pal_path, &pal_data).unwrap();
+            eprintln!("  {} ({} bytes, {} palette(s))", pal_path, pal_data.len(), palettes.len());
 
-        // Output GBC attributes (always — needed for multi-palette CGB display)
-        let attr_path = format!("{}_attributes.bin", opts.output_prefix.display());
-        let attr_data: Vec<u8> = map.iter().map(|e| e.attribute_byte()).collect();
-        fs::write(&attr_path, &attr_data).unwrap();
-        eprintln!("  {} ({} bytes)", attr_path, attr_data.len());
+            let attr_path = format!("{}_attributes.bin", opts.output_prefix.display());
+            let attr_data: Vec<u8> = map.iter().map(|e| e.attribute_byte()).collect();
+            fs::write(&attr_path, &attr_data).unwrap();
+            eprintln!("  {} ({} bytes)", attr_path, attr_data.len());
+        }
 
-        if !opts.tiles_only {
-            // Output tile map
+        if opts.map {
             let map_path = format!("{}_map.bin", opts.output_prefix.display());
             let map_data: Vec<u8> = map.iter().map(|e| e.tile_idx as u8).collect();
             fs::write(&map_path, &map_data).unwrap();
