@@ -1,14 +1,6 @@
-# rust-analyzer project config (editor-agnostic).
-#
-# Cargo features stay off by default for builds, but we enable all of them for
-# analysis so feature-gated code (e.g. the Game Boy Color `mmio::cgb` module) is
-# not greyed out and still gets completion and diagnostics in the editor.
 [cargo]
+target = "sm83-nintendo-none-elf"
 features = "all"
-
-# `gb-pak` gates each Game Pak peripheral on a cfg that `cargo-gb` derives from
-# `header.toml`, so without these the modules would not exist for analysis. The
-# first two are rust-analyzer's own defaults, which naming the key replaces.
 cfgs = [
     "debug_assertions",
     "miri",
