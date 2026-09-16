@@ -294,7 +294,14 @@ fn link(tc: &Toolchain, proj: &Project, input: &Path, banked: bool) -> Result<Pa
     if banked {
         cmd.arg("--no-check-sections");
     }
-    cmd.arg(input).arg("-o").arg(&elf);
+    cmd.arg(input);
+    // The target spec's `late-link-args`, which reach the linker after the
+    // inputs so the archive answers what they left undefined. Its `crt-objects`
+    // stay out: `rrt0.s` is this project's entry point.
+    if let Some(sc) = &tc.self_contained {
+        cmd.arg("-L").arg(sc).arg("-lsm83_rt");
+    }
+    cmd.arg("-o").arg(&elf);
     run(&mut cmd, "ld.lld")?;
     Ok(elf)
 }
@@ -309,21 +316,34 @@ const DEFAULTS_LD: &str = "gb_defaults.ld";
 /// The supplementary ones come back in name order with [`DEFAULTS_LD`] last. A
 /// `PROVIDE` yields to an earlier one, so those fallbacks have to be read after
 /// any library offering a handler of its own.
+/// Collect the `.ld` files sitting in one build-script output directory.
+fn scripts_in(out: &Path, found: &mut Vec<(std::time::SystemTime, PathBuf)>) -> Result<(), String> {
+    let Ok(read) = std::fs::read_dir(out) else {
+        return Ok(());
+    };
+    for f in read {
+        let path = f.map_err(|e| e.to_string())?.path();
+        if path.extension().is_some_and(|e| e == "ld") {
+            let mtime = std::fs::metadata(&path)
+                .and_then(|m| m.modified())
+                .map_err(|e| e.to_string())?;
+            found.push((mtime, path));
+        }
+    }
+    Ok(())
+}
+
 fn collect_linker_scripts(release_dir: &Path) -> Result<(PathBuf, Vec<PathBuf>), String> {
     let build = release_dir.join("build");
     let mut found: Vec<(std::time::SystemTime, PathBuf)> = Vec::new();
     for entry in std::fs::read_dir(&build).map_err(|e| e.to_string())? {
-        let out = entry.map_err(|e| e.to_string())?.path().join("out");
-        let Ok(read) = std::fs::read_dir(&out) else {
-            continue;
-        };
-        for f in read {
-            let path = f.map_err(|e| e.to_string())?.path();
-            if path.extension().is_some_and(|e| e == "ld") {
-                let mtime = std::fs::metadata(&path)
-                    .and_then(|m| m.modified())
-                    .map_err(|e| e.to_string())?;
-                found.push((mtime, path));
+        let dir = entry.map_err(|e| e.to_string())?.path();
+        // Cargo has laid a build script's output out two ways: `<crate>-<hash>/out`,
+        // and `<crate>/<hash>/out` from 1.100 on.
+        scripts_in(&dir.join("out"), &mut found)?;
+        if let Ok(hashes) = std::fs::read_dir(&dir) {
+            for h in hashes {
+                scripts_in(&h.map_err(|e| e.to_string())?.path().join("out"), &mut found)?;
             }
         }
     }

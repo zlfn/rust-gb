@@ -13,6 +13,10 @@ pub struct Toolchain {
     pub lld: PathBuf,
     /// `llvm-ar`, used to repack the patched banked objects.
     pub ar: PathBuf,
+    /// Where the target's self-contained components live. The spec's
+    /// `late-link-args` name `-lsm83_rt` from here. Absent on a toolchain
+    /// built before the runtime.
+    pub self_contained: Option<PathBuf>,
 }
 
 impl Toolchain {
@@ -41,7 +45,14 @@ impl Toolchain {
             );
         }
 
-        Ok(Toolchain { lld, ar })
+        let sc = sysroot
+            .join("lib")
+            .join("rustlib")
+            .join(TARGET)
+            .join("lib")
+            .join("self-contained");
+
+        Ok(Toolchain { lld, ar, self_contained: sc.is_dir().then_some(sc) })
     }
 }
 
