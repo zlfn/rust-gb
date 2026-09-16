@@ -11,6 +11,8 @@ use std::path::{Path, PathBuf};
 
 mod packer;
 
+pub use packer::MARKER_SECTION;
+
 /// One banked ROM bank's allocation.
 pub struct BankInfo {
     /// Bank number (1 and up; bank 0 is the resident region).
@@ -81,8 +83,6 @@ pub fn link(
     let obj_paths: Vec<&Path> = obj_files.iter().map(|p| p.as_path()).collect();
     let layout = packer::compute_layout(&obj_paths, bank_size, max_bank, excluded)
         .map_err(LinkError::Layout)?;
-
-    packer::apply_patches(&layout.patches)?;
 
     let ld_script = packer::generate_linker_script(&layout);
     std::fs::write(out_dir.join("gb_banked.ld"), ld_script)?;

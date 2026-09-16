@@ -1,5 +1,5 @@
 //! Bank layout: group banked symbols by module, bin-pack into 16 KiB banks,
-//! and emit the placement + the `BANK`-marker patches that wire `Group::bank()`.
+//! and emit the placement plus the symbols that wire `Group::bank()`.
 //!
 //! The `#[bank]` macro already gives us everything we need in the object files:
 //!
@@ -7,16 +7,25 @@
 //!   `.rodata.<mangled>` / `.data.<mangled>`), named after a symbol whose
 //!   demangled path leaf is `__bank_fn_*`, `__bank_static_*`, or `__bank_*`
 //!   (a method).
-//! - Each banked module emits one `BANK` marker: a static whose demangled name is
-//!   `<CRATE::MOD::__BankGroup as ..::Group>::bank::BANK`. Its module path
-//!   identifies the group, its symbol size gives the width `gb_bank::BankRepr`
-//!   was compiled at, and patching its bytes sets the runtime bank number.
+//! - Each banked module emits one marker: a static in a section named
+//!   [`MARKER_SECTION`] plus the symbol this crate is being asked to define. Its
+//!   value is the pin `bank::module!(N)` asked for, its demangled name gives the
+//!   module path, and its size gives the width `gb_bank::BankRepr` was compiled
+//!   at. `Group::bank()` reads the bank off that symbol's address, so defining it
+//!   in the generated script is what sets the runtime bank number.
 
 use object::read::elf::ElfFile32;
 use object::{Object, ObjectSection, ObjectSymbol};
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
+
+/// Prefix of the section a group marker sits in. The `bank::module!` expansion
+/// writes the matching name; keep the two in step.
+pub const MARKER_SECTION: &str = ".gb_bank_marker.";
+
+/// The one leading underscore this target puts in front of every symbol.
+const SYMBOL_PREFIX: &str = "_";
 
 #[derive(Debug)]
 pub struct BankLayout {
@@ -26,18 +35,9 @@ pub struct BankLayout {
     pub bank_sizes: HashMap<u16, usize>,
     /// bank -> input section names to place there (deterministic order).
     pub placements: HashMap<u16, Vec<String>>,
-    /// `BANK` marker bytes to overwrite before linking.
-    pub patches: Vec<Patch>,
-}
-
-#[derive(Debug)]
-pub struct Patch {
-    pub obj: PathBuf,
-    /// File offset of the marker's data (in its `.rodata.*` section).
-    pub file_offset: u64,
-    /// Marker width in bytes, from the symbol's size: it follows `gb_bank::BankRepr`.
-    pub width: u8,
-    pub bank: u16,
+    /// Symbols `Group::bank()` reads the bank number off, paired with the bank
+    /// that becomes their address.
+    pub symbols: Vec<(String, u16)>,
 }
 
 /// Read a little-endian marker value of `width` bytes.
@@ -52,11 +52,11 @@ fn read_le(data: &[u8], off: usize, width: u8) -> u16 {
 /// Demangle a target symbol (drop the one leading `_` the target prepends),
 /// omitting the disambiguator hashes.
 fn demangle(name: &str) -> String {
-    let n = name.strip_prefix('_').unwrap_or(name);
+    let n = name.strip_prefix(SYMBOL_PREFIX).unwrap_or(name);
     format!("{:#}", rustc_demangle::demangle(n))
 }
 
-/// `<CRATE::MOD::__BankGroup as ..>::bank::BANK` -> `CRATE::MOD`.
+/// `<CRATE::MOD::__BankGroup as ..>::bank::PIN` -> `CRATE::MOD`.
 fn bank_marker_module(demangled: &str) -> Option<String> {
     let pre = demangled.split("::__BankGroup").next()?;
     Some(pre.trim_start_matches('<').to_string())
@@ -112,10 +112,9 @@ struct BankedSym {
     clean: String,
 }
 
-struct PendingPatch {
-    obj: PathBuf,
-    file_offset: u64,
-    width: u8,
+struct PendingSymbol {
+    /// The name the marker's section asked gb-bank-pack to define.
+    name: String,
     module: String,
 }
 
@@ -129,7 +128,7 @@ pub fn compute_layout(
     let mut section_sizes: HashMap<String, usize> = HashMap::new();
     let mut banked: Vec<BankedSym> = Vec::new();
     let mut bank_modules: Vec<String> = Vec::new();
-    let mut pending: Vec<PendingPatch> = Vec::new();
+    let mut pending: Vec<PendingSymbol> = Vec::new();
     // module -> pinned bank (from a `bank::module!(N)` marker whose initial byte is N).
     let mut pinned: HashMap<String, u16> = HashMap::new();
 
@@ -150,30 +149,28 @@ pub fn compute_layout(
             }
             let dm = demangle(name);
 
-            // BANK marker: `<MOD::__BankGroup as ..>::bank::BANK`.
-            if dm.ends_with("::bank::BANK") && dm.contains("__BankGroup") {
+            // Group marker: a static the macro puts in `.gb_bank_marker.<symbol>`,
+            // whose value is the pin and whose own path names the module.
+            if let Some(name) = sym
+                .section_index()
+                .and_then(|i| elf.section_by_index(i).ok())
+                .and_then(|sec| sec.name().ok().map(str::to_string))
+                .as_deref()
+                .and_then(|n| n.strip_prefix(MARKER_SECTION))
+            {
                 let Some(module) = bank_marker_module(&dm) else { continue };
                 bank_modules.push(module.clone());
-                if let Some(idx) = sym.section_index() {
-                    if let Ok(sec) = elf.section_by_index(idx) {
-                        if let Some((off, _)) = sec.file_range() {
-                            let fo = off + sym.address();
-                            let width = sym.size().clamp(1, 2) as u8;
-                            // The marker's initial value is the pin: non-zero means the
-                            // module fixed itself to that bank via `bank::module!(N)`.
-                            let pin = read_le(&data, fo as usize, width);
-                            if pin != 0 {
-                                pinned.insert(module.clone(), pin);
-                            }
-                            pending.push(PendingPatch {
-                                obj: obj_path.to_path_buf(),
-                                file_offset: fo,
-                                width,
-                                module,
-                            });
+                if let Some(sec) = sym.section_index().and_then(|i| elf.section_by_index(i).ok()) {
+                    if let Some((off, _)) = sec.file_range() {
+                        let width = sym.size().clamp(1, 2) as u8;
+                        // A non-zero initial value is the bank `bank::module!(N)` asked for.
+                        let pin = read_le(&data, (off + sym.address()) as usize, width);
+                        if pin != 0 {
+                            pinned.insert(module.clone(), pin);
                         }
                     }
                 }
+                pending.push(PendingSymbol { name: name.to_string(), module });
                 continue;
             }
 
@@ -204,10 +201,7 @@ pub fn compute_layout(
             group_banks: HashMap::new(),
             bank_sizes: HashMap::new(),
             placements: HashMap::new(),
-            patches: pending
-                .into_iter()
-                .map(|p| Patch { obj: p.obj, file_offset: p.file_offset, width: p.width, bank: 0 })
-                .collect(),
+            symbols: pending.into_iter().map(|p| (p.name, 0)).collect(),
         });
     }
 
@@ -331,16 +325,28 @@ pub fn compute_layout(
         v.dedup();
     }
 
-    // Resolve each marker patch to its group's bank.
-    let patches = pending
-        .into_iter()
-        .map(|p| Patch {
-            obj: p.obj,
-            file_offset: p.file_offset,
-            width: p.width,
-            bank: group_banks.get(&p.module).copied().unwrap_or(0),
-        })
-        .collect();
+    // Resolve each marker to its group's bank. The same name reaching two modules
+    // means the macro's call sites collided, which would silently mis-bank one.
+    let mut claimed: HashMap<String, String> = HashMap::new();
+    let mut symbols: Vec<(String, u16)> = Vec::new();
+    for p in pending {
+        match claimed.get(&p.name) {
+            Some(other) if *other != p.module => {
+                return Err(vec![format!(
+                    "modules `{other}` and `{}` both answer to the bank symbol \
+                     `{}`",
+                    p.module, p.name
+                )]);
+            }
+            Some(_) => continue,
+            None => {
+                claimed.insert(p.name.clone(), p.module.clone());
+                let bank = group_banks.get(&p.module).copied().unwrap_or(0);
+                symbols.push((p.name, bank));
+            }
+        }
+    }
+    symbols.sort();
 
     Ok(BankLayout {
         // Highest bank number in use (pinned banks can exceed the auto counter).
@@ -348,40 +354,27 @@ pub fn compute_layout(
         group_banks,
         bank_sizes,
         placements,
-        patches,
+        symbols,
     })
-}
-
-/// Overwrite each `BANK` marker's data byte with its assigned bank number.
-pub fn apply_patches(patches: &[Patch]) -> std::io::Result<()> {
-    // Batch by object so each file is read and written once.
-    let mut by_obj: HashMap<&Path, Vec<&Patch>> = HashMap::new();
-    for p in patches {
-        by_obj.entry(p.obj.as_path()).or_default().push(p);
-    }
-    for (obj, ps) in by_obj {
-        let mut data = std::fs::read(obj)?;
-        for p in ps {
-            let off = p.file_offset as usize;
-            for i in 0..p.width as usize {
-                if let Some(b) = data.get_mut(off + i) {
-                    *b = (p.bank >> (8 * i)) as u8;
-                }
-            }
-        }
-        std::fs::write(obj, data)?;
-    }
-    Ok(())
 }
 
 /// Generate the linker-script fragment placing each bank at its LMA.
 pub fn generate_linker_script(layout: &BankLayout) -> String {
-    if layout.bank_count == 0 {
+    if layout.bank_count == 0 && layout.symbols.is_empty() {
         return String::new();
     }
 
     let mut out = String::new();
     out.push_str("/* Auto-generated by gb-bank-pack */\n\n");
+
+    // `Group::bank()` reads the bank number off these symbols' addresses. The
+    // markers that announced them carry nothing the ROM needs.
+    for (name, bank) in &layout.symbols {
+        out.push_str(&format!("    {SYMBOL_PREFIX}{name} = {bank};\n"));
+    }
+    if !layout.symbols.is_empty() {
+        out.push_str(&format!("    /DISCARD/ : {{ *({MARKER_SECTION}*) }}\n\n"));
+    }
 
     for bank in 1..=layout.bank_count {
         let lma = bank as u32 * 0x4000;

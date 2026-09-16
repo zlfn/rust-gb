@@ -8,7 +8,7 @@ mod toolchain;
 mod ui;
 
 use cargo_metadata::MetadataCommand;
-use object::{Object, ObjectSymbol};
+use object::{Object, ObjectSection};
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 use toolchain::{TARGET, Toolchain};
@@ -242,10 +242,9 @@ fn is_banked(staticlib: &Path) -> Result<bool, String> {
         let member = member.map_err(|e| e.to_string())?;
         let mdata = member.data(&*data).map_err(|e| e.to_string())?;
         if let Ok(obj) = object::File::parse(mdata) {
-            if obj
-                .symbols()
-                .any(|s| s.name().is_ok_and(|n| n.contains("bank4BANK")))
-            {
+            if obj.sections().any(|s| {
+                s.name().is_ok_and(|n| n.starts_with(gb_bank_pack::MARKER_SECTION))
+            }) {
                 return Ok(true);
             }
         }

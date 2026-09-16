@@ -312,7 +312,24 @@ fn rewrite_only(block: &mut syn::Block) {
 
 // ===== bank::module!() =====
 
-pub fn bank_module(input: TokenStream) -> TokenStream {
+/// The name of the symbol gb-bank-pack defines with this group's bank as its
+/// address. It only has to be unique inside the crate, and the same source has
+/// to produce the same one, since the reference and the marker that announces it
+/// are emitted together.
+fn marker_symbol(file: &str, line: usize) -> String {
+    let krate = std::env::var("CARGO_CRATE_NAME")
+        .or_else(|_| std::env::var("CARGO_PKG_NAME"))
+        .unwrap_or_else(|_| "x".to_string());
+    let krate: String = krate.chars().map(|c| if c.is_alphanumeric() { c } else { '_' }).collect();
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in file.bytes().chain(line.to_string().bytes()) {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    format!("__gb_bank_{krate}_{h:016x}")
+}
+
+pub fn bank_module(input: TokenStream, file: &str, line: usize) -> TokenStream {
     let gb_bank = bank_root();
     // Optional pin: `bank::module!(N)` fixes this module to bank `N` instead of
     // letting gb-bank-pack auto-assign. The marker's *initial value* carries the pin
@@ -337,6 +354,8 @@ pub fn bank_module(input: TokenStream) -> TokenStream {
         }
     };
     let pin = proc_macro2::Literal::u16_unsuffixed(pin);
+    let symbol = marker_symbol(file, line);
+    let section = format!(".gb_bank_marker.{symbol}");
     quote! {
         #[doc(hidden)]
         #[allow(non_camel_case_types)]
@@ -355,23 +374,30 @@ pub fn bank_module(input: TokenStream) -> TokenStream {
                     "bank::module! pin is above the highest bank this build can select",
                 );
 
-                // gb-bank-pack finds this marker by module path (its mangled symbol
-                // encodes the path) and patches it to the assigned bank number (or,
-                // for a pinned module, leaves the pin in place). Its width follows
-                // `BankRepr`, so a wide build needs no change here. The read must be
-                // volatile so the value is loaded from memory, not const-folded. (We
-                // cannot use the symbol's address as an immediate: this backend emits
-                // a section-relative relocation for the marker, which ignores the
-                // symbol's value.)
+                // The marker gb-bank-pack reads: its section name carries the
+                // symbol below, its value this pin, and its own mangled name the
+                // module path. Its width follows `BankRepr`, so a wide build needs
+                // no change here. The section prefix is `MARKER_SECTION` there.
                 #[used]
-                static BANK: #gb_bank::BankRepr = #pin;
-                // The marker stays for the packer either way, but on a flat ROM its
-                // value is known, and a volatile read would survive into the binary.
+                #[unsafe(link_section = #section)]
+                static PIN: #gb_bank::BankRepr = #pin;
                 if #gb_bank::FLAT_ROM {
                     #gb_bank::BankNumber::new(0)
+                } else if #pin != 0 {
+                    // `bank::module!(N)` fixed this group, and the packer leaves a
+                    // pin in place, so the number is this literal.
+                    #gb_bank::BankNumber::new(#pin)
                 } else {
+                    // gb-bank-pack gives this the assigned bank as its address, so
+                    // the number arrives as an immediate rather than a load.
+                    unsafe extern "C" {
+                        #[link_name = #symbol]
+                        static SLOT: u8;
+                    }
                     unsafe {
-                        #gb_bank::BankNumber::new_unchecked(::core::ptr::read_volatile(&BANK) as u16)
+                        #gb_bank::BankNumber::new_unchecked(
+                            (&raw const SLOT) as usize as #gb_bank::BankRepr as u16,
+                        )
                     }
                 }
             }

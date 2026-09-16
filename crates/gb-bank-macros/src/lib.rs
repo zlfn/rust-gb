@@ -50,7 +50,10 @@ mod expand;
 /// ```
 #[proc_macro]
 pub fn bank_module(input: TokenStream) -> TokenStream {
-    expand::bank_module(input.into()).into()
+    // The call site names the group: one `bank::module!()` to a module, so the
+    // file and line single it out inside the crate.
+    let at = proc_macro::Span::call_site();
+    expand::bank_module(input.into(), &at.file(), at.line()).into()
 }
 
 /// Declare a submodule as part of its *parent* module's bank group.
