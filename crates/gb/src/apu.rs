@@ -10,9 +10,6 @@
 //! JUMP.play_ch2();
 //! ```
 //!
-//! A sound played from one place belongs in a constant. A set of them played
-//! from the same place belongs in a table.
-//!
 //! See <https://gbdev.io/pandocs/Audio.html>.
 //!
 //! # Power
@@ -354,8 +351,7 @@ impl Wave {
 
     /// Change the output level without starting the waveform over.
     ///
-    /// Channel 3 has no envelope, so this is how its volume moves during a
-    /// note.
+    /// Channel 3 has no envelope, so use this to move its volume during a note.
     #[inline]
     pub fn set_level(&self) {
         NR32.write(self.output);

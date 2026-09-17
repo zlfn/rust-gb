@@ -1,6 +1,6 @@
 //! The pixel-processing unit, which draws the screen.
 //!
-//! The picture comes from six modules: [`tile`] holds the pixels, [`map`] says
+//! The picture comes from six modules: [`tile`] holds the pixels, [`map`] names
 //! which tile goes in which cell, [`bg`] and [`window`] place the two layers
 //! that read a map, [`obj`] carries the sprites drawn over them, and
 //! [`palette`] decides what a pixel's colour index becomes.
@@ -8,21 +8,18 @@
 //! # Reaching video memory
 //!
 //! VRAM and OAM are not always the CPU's to write. The PPU takes them while it
-//! draws, and a write made then is dropped without a word. Every function that
-//! writes takes an [`Access`], which is the answer to "how do you know this will
-//! land".
+//! draws, and a write made then is dropped. Every function that writes takes an
+//! [`Access`], which records how the caller knows its write will land.
 //!
-//! [`Direct`](Access::Direct) says the caller is already somewhere it will:
-//! inside a VBlank, or with the LCD switched off. It is the fast answer, and
-//! [`Vblank::with`] and [`with_lcd_off`] are how one is come by. Nothing enforces
-//! the window's length, so a closure that runs past the end of a VBlank loses
-//! the rest of its writes.
+//! [`Direct`](Access::Direct) means the caller is already inside a VBlank or has
+//! the LCD switched off. It is the cheap one, and [`Vblank::with`] and
+//! [`with_lcd_off`] are what produce it. The window's length is not enforced, so
+//! a closure that runs past the end of a VBlank loses the rest of its writes.
 //!
-//! [`Polled`](Access::Polled) says nothing about when it is called, and waits
+//! [`Polled`](Access::Polled) claims nothing about when it is called, and waits
 //! for the PPU itself instead. It reaches far more of the frame than VBlank
 //! alone, since HBlank recurs on every line, and it blocks until the whole write
-//! is through. For anyone coming from GBDK, this is the shape all of its video
-//! memory writes take.
+//! is through. For reference, every video write in GBDK works this way.
 //!
 //! ```ignore
 //! let vblank = unsafe { Vblank::listen() };
@@ -62,9 +59,8 @@
 //! # Frame pacing
 //!
 //! A program that uses this module links a weak `_on_vblank` advancing a frame
-//! counter. Writing `#[gb::rt::interrupt(VBlank)]` takes that vector instead,
-//! which nothing reports: such a handler must call [`frame_tick`], or
-//! [`Vblank::wait`] never returns.
+//! counter. `#[gb::rt::interrupt(VBlank)]` replaces it, so that handler has to
+//! call [`frame_tick`] itself or [`Vblank::wait`] never returns.
 
 pub mod bg;
 #[cfg(feature = "cgb")]

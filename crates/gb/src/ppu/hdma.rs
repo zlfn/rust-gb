@@ -33,8 +33,8 @@ pub const MAX_LEN: usize = 128 * BLOCK_LEN;
 ///
 /// The hardware ignores the low four bits of both addresses, so an unaligned
 /// source would be read from the wrong place rather than refused. [`copy`] and
-/// [`stream`] check for it instead, and this is how the check is passed: a
-/// `[Tile; N]` is byte-aligned and lands wherever the linker puts it.
+/// [`stream`] check for it instead, and this type is how you pass the check: a
+/// bare `[Tile; N]` is byte-aligned and lands wherever the linker puts it.
 ///
 /// ```ignore
 /// static TILES: hdma::Source<[Tile; 64]> = hdma::Source([..]);

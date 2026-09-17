@@ -1,12 +1,12 @@
 //! The background: a tilemap seen through a window the size of the screen.
 //!
-//! The grid is 256 by 256 pixels and the screen shows 160 by 144 of it, placed by
-//! [`set_scroll`] and wrapping at either edge. What fills the grid is
-//! [`map`](super::map)'s business; this is where it sits.
+//! The grid is 256 by 256 pixels and the screen shows 160 by 144 of it. You
+//! choose which part with [`set_scroll`], and it wraps at either edge. Fill the
+//! grid itself through [`map`](super::map).
 //!
-//! The scroll registers are re-read as the PPU fetches each tile, so writing them
-//! part way down a frame moves the rest of it, which gives a background its
-//! wobble or its parallax. See <https://gbdev.io/pandocs/Scrolling.html>.
+//! The PPU re-reads the scroll registers as it fetches each tile, so writing
+//! them part way down a frame moves the rest of it. That is how you get a
+//! wobbling or parallaxing background. See <https://gbdev.io/pandocs/Scrolling.html>.
 
 use crate::mmio::{LCDC, SCX, SCY};
 

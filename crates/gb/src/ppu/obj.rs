@@ -113,7 +113,7 @@ pub const SPARE: usize = 256 - ENTRY_COUNT as usize * core::mem::size_of::<OamEn
 /// Alignment rounds the size up from the 160 bytes of entries, and
 /// [`spare`](Self::spare) is the remainder. A transfer reads the entries only, so
 /// those bytes are free for whatever wants to travel with the objects: per-object
-/// velocities, animation counters, what a metasprite each belongs to.
+/// velocities, animation counters, which metasprite each belongs to.
 #[repr(align(256))]
 pub struct OamShadow {
     /// What the transfer hands to the hardware.

@@ -24,9 +24,9 @@
 //! | [`HramArea<N>`] | any | raw pointers |
 //!
 //! [`HramCell`] takes a [`CriticalSection`] because nothing else can make a
-//! multi-instruction access indivisible on this CPU. Obtaining the token is the
-//! caller's business; a cell reached only from the main loop, never from an
-//! interrupt handler, still needs one.
+//! multi-instruction access indivisible on this CPU. Getting the token is up to
+//! you, and a cell reached only from the main loop, never from an interrupt
+//! handler, still needs one.
 //!
 //! Both cells hold a [`CellValue`], which under the `bank-safe` feature also has to
 //! survive a bank switch.

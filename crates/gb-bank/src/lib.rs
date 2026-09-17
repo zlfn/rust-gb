@@ -61,7 +61,7 @@
 //! ## Read its data
 //!
 //! `#[bank] static` gives you a [`Far`] pointer. Holding one is always fine;
-//! reading through it is what needs the bank mapped.
+//! reading through it needs the bank mapped.
 //!
 //! ```ignore
 //! #[bank::main]
@@ -273,8 +273,9 @@
 //!
 //! # Cartridges
 //!
-//! Which banks exist at all is the cartridge's business. `cargo-gb` reads the type
-//! from `header.toml` and refuses a build that needs more banks than it can map.
+//! The cartridge type decides which banks exist at all. You name it in
+//! `header.toml`, and `cargo-gb` refuses a build that needs more banks than it
+//! can map.
 //!
 //! | Cartridge | Switchable banks | ROM | with `wide_banks = true` |
 //! |---|---|---|---|

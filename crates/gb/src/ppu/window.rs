@@ -2,7 +2,7 @@
 //!
 //! It has no scroll of its own. Wherever it is placed, it draws from its grid's
 //! top left corner, so moving what it shows means rewriting the grid. Staying
-//! put is what suits it to a status bar or a text box while the background
+//! put suits it to a status bar or a text box while the background
 //! scrolls underneath.
 //!
 //! # Position
@@ -16,8 +16,8 @@
 //! # Writing mid-frame
 //!
 //! `WX`, `WY` and the enable bit are least glitchy written during VBlank, or
-//! during HBlank where they must change mid-frame, which is what the [`Access`]
-//! here is for. [`set_map`] is not among them: it takes effect from the next
+//! during HBlank where they must change mid-frame, which the [`Access`] here is
+//! for. [`set_map`] is not among them: it takes effect from the next
 //! tile fetched and has nothing to go wrong.
 //!
 //! Use [`hide`] where the window has to come and go within a frame, not the

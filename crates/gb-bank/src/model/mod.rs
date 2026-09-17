@@ -424,8 +424,8 @@ impl Group for GroupZero {
 ///
 /// This is the GhostCell-style permission token: a zero-sized value whose type
 /// `G` is the brand. Borrowing it shared ([`local`](Far::local)) yields references
-/// into the bank; borrowing it `&mut` (a switch via [`scope`]) is what changes
-/// the mapping. Because you cannot do both at once, a reference obtained from
+/// into the bank; borrowing it `&mut` (a switch via [`scope`]) changes the
+/// mapping. Because you cannot do both at once, a reference obtained from
 /// `local` can never be live across a switch; the conflict is a borrow error.
 ///
 /// The token is `!Send` and only mintable through [`assume`](Bank::assume) (or,

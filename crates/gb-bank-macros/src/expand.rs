@@ -13,7 +13,7 @@ use syn::{
 
 /// The identifier an invoking crate reaches a dependency by.
 ///
-/// `crate_name` answers with the package name where the dependency is not
+/// `crate_name` returns the package name where the dependency is not
 /// renamed, and the HAL publishes as `rust-gb` while its library is `gb`.
 fn extern_name(found: String) -> String {
     match found.as_str() {
@@ -488,7 +488,7 @@ fn receiver_ty(inputs: &Punctuated<FnArg, Comma>) -> Option<TokenStream> {
 /// `callee` is the hidden body, which is an `unsafe fn` (its precondition is "this
 /// group's bank is mapped"). `BankedWarp` only ever runs it inside `scope`, which
 /// establishes exactly that, so the cast to a safe fn pointer is sound. Making the
-/// body `unsafe` is what stops *safe* code from calling it directly with the wrong
+/// body `unsafe` stops *safe* code from calling it directly with the wrong
 /// bank mapped: an `unsafe fn` pointer does not implement `Fn`, hence the transmute
 /// to its safe counterpart here.
 fn warp_new(

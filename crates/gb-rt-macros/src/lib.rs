@@ -7,7 +7,7 @@ use syn::{Ident, ItemFn, ReturnType, Type, parse_macro_input, parse_quote, spann
 
 /// The identifier an invoking crate reaches a dependency by.
 ///
-/// `crate_name` answers with the package name where the dependency is not
+/// `crate_name` returns the package name where the dependency is not
 /// renamed, and the HAL publishes as `rust-gb` while its library is `gb`.
 fn extern_name(found: String) -> String {
     match found.as_str() {

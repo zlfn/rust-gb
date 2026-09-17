@@ -27,8 +27,7 @@ use crate::mmio::cgb::{Infrared, RP};
 
 /// The port, open and drawing current.
 ///
-/// Dropping this leaves it that way. [`close`](Self::close) is what puts it
-/// back down.
+/// Dropping this leaves it that way. [`close`](Self::close) puts it back down.
 pub struct Port(());
 
 /// Open the port, if this machine has one.
@@ -63,8 +62,8 @@ impl Port {
 
     /// Close the port.
     ///
-    /// The reading half draws current for as long as it is open, which is what
-    /// this is for.
+    /// The reading half draws current for as long as it is open, which this is
+    /// for.
     #[inline]
     pub fn close(self) {
         RP.write(Infrared::new());

@@ -1,8 +1,8 @@
 //! Palettes: what the two bits of a pixel turn into.
 //!
 //! A tile pixel is two bits, so it names a colour *index* rather than a colour.
-//! What that index becomes is the palette's business, which is why the same tile
-//! can be drawn light in one place and dark in another.
+//! The palette turns that index into a colour, which is why you can draw the same
+//! tile light in one place and dark in another.
 //!
 //! On the original Game Boy the four shades are fixed in hardware and a palette only
 //! chooses which index gets which of them. On the Game Boy Color a palette holds

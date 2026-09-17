@@ -303,8 +303,8 @@ impl<'a> !Sync for AttrAccess<'a> {}
 /// is not: a write through it then lands in whatever that scope mapped. So does
 /// one made after a handler switched the bank and left it switched.
 ///
-/// There is no plane to map on an original Game Boy, and nothing refuses the
-/// attempt: `f` writes attribute bytes over the tile indices instead. A
+/// There is no plane to map on an original Game Boy, and the write goes
+/// through regardless: `f` puts attribute bytes over the tile indices. A
 /// cartridge that runs on both machines has to ask [`is_cgb`](crate::is_cgb)
 /// first.
 ///

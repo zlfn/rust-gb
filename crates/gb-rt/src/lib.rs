@@ -31,8 +31,8 @@ pub use gb_rt_macros::interrupt;
 /// Whether this program was built for CGB double speed mode.
 ///
 /// The `cgb-double-speed` feature sets it, and the startup switches before
-/// [`entry`](macro@crate::entry) hands over. Reading it is how the rest of the
-/// crates work out what a clock counts at.
+/// [`entry`](macro@crate::entry) hands over. The rest of the crates read it to
+/// work out what a clock counts at.
 pub const DOUBLE_SPEED: bool = cfg!(feature = "cgb-double-speed");
 
 /// Switch into CGB double speed mode, once, before the program runs.

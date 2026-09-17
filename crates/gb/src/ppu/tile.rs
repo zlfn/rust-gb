@@ -32,7 +32,7 @@ pub const SLOT_COUNT: u16 = 384;
 /// The `$8000` and `$8800` methods, named as Pan Docs and the wider Game Boy
 /// development community name them. `Base8800` is a misnomer kept for that
 /// familiarity: its base pointer is `0x9000`, and the index is read as signed,
-/// which is what puts its second half back down in block 1.
+/// which puts its second half back down in block 1.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Addressing {
     /// Base `0x8000`, index unsigned: blocks 0 and 1. Objects always use this.

@@ -24,15 +24,15 @@
 //! beside a `u32` of nanoseconds and does its arithmetic to match; a span here
 //! is a `u32` of ticks.
 //!
-//! # A handler of one's own
+//! # Your own handler
 //!
 //! A program that wants work at the tick, a sound driver most often, writes
-//! `#[gb::rt::interrupt(Timer)]` and takes that vector. Nothing reports it, and
-//! the count then moves only where the handler calls [`timer_tick`].
+//! `#[gb::rt::interrupt(Timer)]`. It replaces the built-in handler, so it has
+//! to call [`timer_tick`] itself or the count stops.
 //!
-//! The rate is still [`Timer::start`]'s to set. The eleven in [`rate`] are
-//! powers of two; a tempo that falls between them means implementing [`Rate`]
-//! for a type of one's own.
+//! You still set the rate with [`Timer::start`]. The eleven in [`rate`] are
+//! powers of two, so a tempo between them means implementing [`Rate`] for a type
+//! of your own.
 
 use core::marker::PhantomData;
 use core::ops::{Add, Sub};
@@ -48,7 +48,7 @@ crate::hram! {
 /// Advance the tick count.
 ///
 /// Needed only by a timer handler that replaced the one this module installs.
-/// The rate is still [`Timer::start`]'s to set, so the two do not drift apart.
+/// You still set the rate with [`Timer::start`], so the two do not drift apart.
 #[inline]
 pub fn timer_tick() {
     unsafe {
@@ -125,9 +125,9 @@ pub fn reset_divider() {
 ///
 /// An implementation names an input clock and what to divide it by, which is
 /// what the hardware takes; everything else follows. [`rate`] has the eleven a
-/// program can usually afford, and an implementation of one's own is how to
-/// reach a rate between them: a music driver wanting a particular tempo would
-/// write it out rather than round to a power of two.
+/// program can usually afford; write your own to reach a rate between them, as a
+/// music driver would for a particular tempo rather than round to a power of
+/// two.
 ///
 /// ```ignore
 /// #[derive(Clone, Copy)]
