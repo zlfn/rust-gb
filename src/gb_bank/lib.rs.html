@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/gb-bank/src/lib.rs`."><title>lib.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gb_bank" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-dev" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">gb_bank/</div>lib.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Compile-time-safe ROM bank switching for the Game Boy.
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/gb-bank/src/lib.rs`."><title>lib.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-203241e4.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gb_bank" data-themes="" data-resource-suffix="" data-rustdoc-version="1.100.0-dev" data-channel="nightly" data-search-js="search-b167f383.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-1814ead3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">gb_bank/</div>lib.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Compile-time-safe ROM bank switching for the Game Boy.
 <a href=#2 id=2 data-nosnippet>2</a>//!
 <a href=#3 id=3 data-nosnippet>3</a>//! `gb-bank` is the user-facing front end of the banking toolchain: the runtime
 <a href=#4 id=4 data-nosnippet>4</a>//! types, plus the macros that turn ordinary functions and statics into bank-safe
@@ -61,7 +61,7 @@
 <a href=#61 id=61 data-nosnippet>61</a>//! ## Read its data
 <a href=#62 id=62 data-nosnippet>62</a>//!
 <a href=#63 id=63 data-nosnippet>63</a>//! `#[bank] static` gives you a [`Far`] pointer. Holding one is always fine;
-<a href=#64 id=64 data-nosnippet>64</a>//! reading through it is what needs the bank mapped.
+<a href=#64 id=64 data-nosnippet>64</a>//! reading through it needs the bank mapped.
 <a href=#65 id=65 data-nosnippet>65</a>//!
 <a href=#66 id=66 data-nosnippet>66</a>//! ```ignore
 <a href=#67 id=67 data-nosnippet>67</a>//! #[bank::main]
@@ -273,79 +273,80 @@
 <a href=#273 id=273 data-nosnippet>273</a>//!
 <a href=#274 id=274 data-nosnippet>274</a>//! # Cartridges
 <a href=#275 id=275 data-nosnippet>275</a>//!
-<a href=#276 id=276 data-nosnippet>276</a>//! Which banks exist at all is the cartridge's business. `cargo-gb` reads the type
-<a href=#277 id=277 data-nosnippet>277</a>//! from `header.toml` and refuses a build that needs more banks than it can map.
-<a href=#278 id=278 data-nosnippet>278</a>//!
-<a href=#279 id=279 data-nosnippet>279</a>//! | Cartridge | Switchable banks | ROM | with `wide_banks = true` |
-<a href=#280 id=280 data-nosnippet>280</a>//! |---|---|---|---|
-<a href=#281 id=281 data-nosnippet>281</a>//! | ROM ONLY | none | 32 KiB | |
-<a href=#282 id=282 data-nosnippet>282</a>//! | MBC1 | 1-31 | 512 KiB | 1-127 minus `0x20`, `0x40`, `0x60`, 2 MiB |
-<a href=#283 id=283 data-nosnippet>283</a>//! | MBC2 | 1-15 | 256 KiB | |
-<a href=#284 id=284 data-nosnippet>284</a>//! | MBC3 | 1-127 | 2 MiB | |
-<a href=#285 id=285 data-nosnippet>285</a>//! | MBC5 | 1-255 | 4 MiB | 1-511, 8 MiB |
-<a href=#286 id=286 data-nosnippet>286</a>//! | MBC7 | 1-127 | 2 MiB | |
-<a href=#287 id=287 data-nosnippet>287</a>//!
-<a href=#288 id=288 data-nosnippet>288</a>//! The ranges without `wide_banks` are what a single write to the register at
-<a href=#289 id=289 data-nosnippet>289</a>//! `0x2000` selects, and that is all the runtime writes by default. `wide_banks`
-<a href=#290 id=290 data-nosnippet>290</a>//! brings in the cartridge's second bank register, which only MBC1 and MBC5 have;
-<a href=#291 id=291 data-nosnippet>291</a>//! see [`BankNumber`] for what that costs. The three banks MBC1 has to skip are the
-<a href=#292 id=292 data-nosnippet>292</a>//! ones whose low five bits are zero, which it reads as bank 1, and its upper bits
-<a href=#293 id=293 data-nosnippet>293</a>//! only reach the ROM in banking mode 0, so selecting mode 1 for RAM banking gives
-<a href=#294 id=294 data-nosnippet>294</a>//! up banks 32 and above.
-<a href=#295 id=295 data-nosnippet>295</a>//!
-<a href=#296 id=296 data-nosnippet>296</a>//! MBC6, MMM01, HuC1, HuC3, and the Pocket Camera and TAMA5 mappers are not built
-<a href=#297 id=297 data-nosnippet>297</a>//! in for now. A custom cartridge that selects banks its own way implements
-<a href=#298 id=298 data-nosnippet>298</a>//! [`Mapper`] and names it with [`set_mapper!`].
-<a href=#299 id=299 data-nosnippet>299</a>//!
-<a href=#300 id=300 data-nosnippet>300</a>
-<a href=#301 id=301 data-nosnippet>301</a></span><span class="attr">#![no_std]
-<a href=#302 id=302 data-nosnippet>302</a>#![feature(asm_experimental_arch)]
-<a href=#303 id=303 data-nosnippet>303</a>#![feature(negative_impls)]
-<a href=#304 id=304 data-nosnippet>304</a>#![feature(fn_traits, unboxed_closures, tuple_trait, const_trait_impl, const_cmp)]
-<a href=#305 id=305 data-nosnippet>305</a>
-<a href=#306 id=306 data-nosnippet>306</a></span><span class="comment">// The runtime model (bank tokens, far pointers, the scope/switch primitives) lives
-<a href=#307 id=307 data-nosnippet>307</a>// in a private module and is re-exported flat; the facade below adds the macros.
-<a href=#308 id=308 data-nosnippet>308</a></span><span class="kw">mod </span>model;
-<a href=#309 id=309 data-nosnippet>309</a><span class="kw">pub use </span>model::<span class="kw-2">*</span>;
-<a href=#310 id=310 data-nosnippet>310</a>
-<a href=#311 id=311 data-nosnippet>311</a><span class="comment">// `#[bank]` lives in the macro namespace; `bank::{main, module, zero}` in the
-<a href=#312 id=312 data-nosnippet>312</a>// module namespace. The two `bank`s coexist (different namespaces).
-<a href=#313 id=313 data-nosnippet>313</a></span><span class="kw">pub use </span>gb_bank_macros::{bank, far};
-<a href=#314 id=314 data-nosnippet>314</a>
-<a href=#315 id=315 data-nosnippet>315</a><span class="doccomment">/// The types the macros name in their expansion. Not an API.
-<a href=#316 id=316 data-nosnippet>316</a></span><span class="attr">#[doc(hidden)]
-<a href=#317 id=317 data-nosnippet>317</a></span><span class="kw">pub mod </span>__private {
-<a href=#318 id=318 data-nosnippet>318</a>    <span class="kw">pub use </span><span class="kw">crate</span>::model::warp::{BankedWarp, FixedFn, FixedWarp};
-<a href=#319 id=319 data-nosnippet>319</a>}
-<a href=#320 id=320 data-nosnippet>320</a>
+<a href=#276 id=276 data-nosnippet>276</a>//! The cartridge type decides which banks exist at all. You name it in
+<a href=#277 id=277 data-nosnippet>277</a>//! `header.toml`, and `cargo-gb` refuses a build that needs more banks than it
+<a href=#278 id=278 data-nosnippet>278</a>//! can map.
+<a href=#279 id=279 data-nosnippet>279</a>//!
+<a href=#280 id=280 data-nosnippet>280</a>//! | Cartridge | Switchable banks | ROM | with `wide_banks = true` |
+<a href=#281 id=281 data-nosnippet>281</a>//! |---|---|---|---|
+<a href=#282 id=282 data-nosnippet>282</a>//! | ROM ONLY | none | 32 KiB | |
+<a href=#283 id=283 data-nosnippet>283</a>//! | MBC1 | 1-31 | 512 KiB | 1-127 minus `0x20`, `0x40`, `0x60`, 2 MiB |
+<a href=#284 id=284 data-nosnippet>284</a>//! | MBC2 | 1-15 | 256 KiB | |
+<a href=#285 id=285 data-nosnippet>285</a>//! | MBC3 | 1-127 | 2 MiB | |
+<a href=#286 id=286 data-nosnippet>286</a>//! | MBC5 | 1-255 | 4 MiB | 1-511, 8 MiB |
+<a href=#287 id=287 data-nosnippet>287</a>//! | MBC7 | 1-127 | 2 MiB | |
+<a href=#288 id=288 data-nosnippet>288</a>//!
+<a href=#289 id=289 data-nosnippet>289</a>//! The ranges without `wide_banks` are what a single write to the register at
+<a href=#290 id=290 data-nosnippet>290</a>//! `0x2000` selects, and that is all the runtime writes by default. `wide_banks`
+<a href=#291 id=291 data-nosnippet>291</a>//! brings in the cartridge's second bank register, which only MBC1 and MBC5 have;
+<a href=#292 id=292 data-nosnippet>292</a>//! see [`BankNumber`] for what that costs. The three banks MBC1 has to skip are the
+<a href=#293 id=293 data-nosnippet>293</a>//! ones whose low five bits are zero, which it reads as bank 1, and its upper bits
+<a href=#294 id=294 data-nosnippet>294</a>//! only reach the ROM in banking mode 0, so selecting mode 1 for RAM banking gives
+<a href=#295 id=295 data-nosnippet>295</a>//! up banks 32 and above.
+<a href=#296 id=296 data-nosnippet>296</a>//!
+<a href=#297 id=297 data-nosnippet>297</a>//! MBC6, MMM01, HuC1, HuC3, and the Pocket Camera and TAMA5 mappers are not built
+<a href=#298 id=298 data-nosnippet>298</a>//! in for now. A custom cartridge that selects banks its own way implements
+<a href=#299 id=299 data-nosnippet>299</a>//! [`Mapper`] and names it with [`set_mapper!`].
+<a href=#300 id=300 data-nosnippet>300</a>//!
+<a href=#301 id=301 data-nosnippet>301</a>
+<a href=#302 id=302 data-nosnippet>302</a></span><span class="attr">#![no_std]
+<a href=#303 id=303 data-nosnippet>303</a>#![feature(asm_experimental_arch)]
+<a href=#304 id=304 data-nosnippet>304</a>#![feature(negative_impls)]
+<a href=#305 id=305 data-nosnippet>305</a>#![feature(fn_traits, unboxed_closures, tuple_trait, const_trait_impl, const_cmp)]
+<a href=#306 id=306 data-nosnippet>306</a>
+<a href=#307 id=307 data-nosnippet>307</a></span><span class="comment">// The runtime model (bank tokens, far pointers, the scope/switch primitives) lives
+<a href=#308 id=308 data-nosnippet>308</a>// in a private module and is re-exported flat; the facade below adds the macros.
+<a href=#309 id=309 data-nosnippet>309</a></span><span class="kw">mod </span>model;
+<a href=#310 id=310 data-nosnippet>310</a><span class="kw">pub use </span>model::<span class="kw-2">*</span>;
+<a href=#311 id=311 data-nosnippet>311</a>
+<a href=#312 id=312 data-nosnippet>312</a><span class="comment">// `#[bank]` lives in the macro namespace; `bank::{main, module, zero}` in the
+<a href=#313 id=313 data-nosnippet>313</a>// module namespace. The two `bank`s coexist (different namespaces).
+<a href=#314 id=314 data-nosnippet>314</a></span><span class="kw">pub use </span>gb_bank_macros::{bank, far};
+<a href=#315 id=315 data-nosnippet>315</a>
+<a href=#316 id=316 data-nosnippet>316</a><span class="doccomment">/// The types the macros name in their expansion. Not an API.
+<a href=#317 id=317 data-nosnippet>317</a></span><span class="attr">#[doc(hidden)]
+<a href=#318 id=318 data-nosnippet>318</a></span><span class="kw">pub mod </span>__private {
+<a href=#319 id=319 data-nosnippet>319</a>    <span class="kw">pub use </span><span class="kw">crate</span>::model::warp::{BankedWarp, FixedFn, FixedWarp};
+<a href=#320 id=320 data-nosnippet>320</a>}
 <a href=#321 id=321 data-nosnippet>321</a>
-<a href=#322 id=322 data-nosnippet>322</a><span class="doccomment">/// The banking attribute macros, namespaced as `bank::*`.
-<a href=#323 id=323 data-nosnippet>323</a>///
-<a href=#324 id=324 data-nosnippet>324</a>/// [`bank::module!()`](bank::module) declares a bank group,
-<a href=#325 id=325 data-nosnippet>325</a>/// [`#[bank::main]`](macro@bank::main) the bank-0 entry point, and
-<a href=#326 id=326 data-nosnippet>326</a>/// [`#[bank::zero]`](macro@bank::zero) a bank-0 helper. (The bare
-<a href=#327 id=327 data-nosnippet>327</a>/// [`#[bank]`](macro@crate::bank) attribute is a sibling in the macro namespace,
-<a href=#328 id=328 data-nosnippet>328</a>/// not in this module.)
-<a href=#329 id=329 data-nosnippet>329</a></span><span class="kw">pub mod </span>bank {
-<a href=#330 id=330 data-nosnippet>330</a>    <span class="kw">pub use </span>gb_bank_macros::{
-<a href=#331 id=331 data-nosnippet>331</a>        bank_inherit <span class="kw">as </span>inherit, bank_main <span class="kw">as </span>main, bank_module <span class="kw">as </span>module, bank_zero <span class="kw">as </span>zero,
-<a href=#332 id=332 data-nosnippet>332</a>    };
-<a href=#333 id=333 data-nosnippet>333</a>}
-<a href=#334 id=334 data-nosnippet>334</a>
-<a href=#335 id=335 data-nosnippet>335</a><span class="doccomment">/// The [`mod@bank`] attributes, also at the root.
-<a href=#336 id=336 data-nosnippet>336</a>///
-<a href=#337 id=337 data-nosnippet>337</a>/// A facade re-exporting this crate as its own `bank` module then reaches them as
-<a href=#338 id=338 data-nosnippet>338</a>/// `bank::main` rather than `bank::bank::main`.
-<a href=#339 id=339 data-nosnippet>339</a></span><span class="kw">pub use </span>gb_bank_macros::{
-<a href=#340 id=340 data-nosnippet>340</a>    bank_inherit <span class="kw">as </span>inherit, bank_main <span class="kw">as </span>main, bank_module <span class="kw">as </span>module, bank_zero <span class="kw">as </span>zero,
-<a href=#341 id=341 data-nosnippet>341</a>};
-<a href=#342 id=342 data-nosnippet>342</a>
-<a href=#343 id=343 data-nosnippet>343</a><span class="doccomment">/// Everything needed to write banked code in one import.
-<a href=#344 id=344 data-nosnippet>344</a></span><span class="kw">pub mod </span>prelude {
-<a href=#345 id=345 data-nosnippet>345</a>    <span class="kw">pub use </span><span class="kw">crate</span>::bank;
-<a href=#346 id=346 data-nosnippet>346</a>    <span class="kw">pub use crate</span>::{
-<a href=#347 id=347 data-nosnippet>347</a>        far, scope, Anchor, Bank, DynFar, Far, FarCall, FarWith, Group, GroupZero, Warp,
-<a href=#348 id=348 data-nosnippet>348</a>        BankSafe,
-<a href=#349 id=349 data-nosnippet>349</a>    };
-<a href=#350 id=350 data-nosnippet>350</a>}
+<a href=#322 id=322 data-nosnippet>322</a>
+<a href=#323 id=323 data-nosnippet>323</a><span class="doccomment">/// The banking attribute macros, namespaced as `bank::*`.
+<a href=#324 id=324 data-nosnippet>324</a>///
+<a href=#325 id=325 data-nosnippet>325</a>/// [`bank::module!()`](bank::module) declares a bank group,
+<a href=#326 id=326 data-nosnippet>326</a>/// [`#[bank::main]`](macro@bank::main) the bank-0 entry point, and
+<a href=#327 id=327 data-nosnippet>327</a>/// [`#[bank::zero]`](macro@bank::zero) a bank-0 helper. (The bare
+<a href=#328 id=328 data-nosnippet>328</a>/// [`#[bank]`](macro@crate::bank) attribute is a sibling in the macro namespace,
+<a href=#329 id=329 data-nosnippet>329</a>/// not in this module.)
+<a href=#330 id=330 data-nosnippet>330</a></span><span class="kw">pub mod </span>bank {
+<a href=#331 id=331 data-nosnippet>331</a>    <span class="kw">pub use </span>gb_bank_macros::{
+<a href=#332 id=332 data-nosnippet>332</a>        bank_inherit <span class="kw">as </span>inherit, bank_main <span class="kw">as </span>main, bank_module <span class="kw">as </span>module, bank_zero <span class="kw">as </span>zero,
+<a href=#333 id=333 data-nosnippet>333</a>    };
+<a href=#334 id=334 data-nosnippet>334</a>}
+<a href=#335 id=335 data-nosnippet>335</a>
+<a href=#336 id=336 data-nosnippet>336</a><span class="doccomment">/// The [`mod@bank`] attributes, also at the root.
+<a href=#337 id=337 data-nosnippet>337</a>///
+<a href=#338 id=338 data-nosnippet>338</a>/// A facade re-exporting this crate as its own `bank` module then reaches them as
+<a href=#339 id=339 data-nosnippet>339</a>/// `bank::main` rather than `bank::bank::main`.
+<a href=#340 id=340 data-nosnippet>340</a></span><span class="kw">pub use </span>gb_bank_macros::{
+<a href=#341 id=341 data-nosnippet>341</a>    bank_inherit <span class="kw">as </span>inherit, bank_main <span class="kw">as </span>main, bank_module <span class="kw">as </span>module, bank_zero <span class="kw">as </span>zero,
+<a href=#342 id=342 data-nosnippet>342</a>};
+<a href=#343 id=343 data-nosnippet>343</a>
+<a href=#344 id=344 data-nosnippet>344</a><span class="doccomment">/// Everything needed to write banked code in one import.
+<a href=#345 id=345 data-nosnippet>345</a></span><span class="kw">pub mod </span>prelude {
+<a href=#346 id=346 data-nosnippet>346</a>    <span class="kw">pub use </span><span class="kw">crate</span>::bank;
+<a href=#347 id=347 data-nosnippet>347</a>    <span class="kw">pub use crate</span>::{
+<a href=#348 id=348 data-nosnippet>348</a>        far, scope, Anchor, Bank, DynFar, Far, FarCall, FarWith, Group, GroupZero, Warp,
+<a href=#349 id=349 data-nosnippet>349</a>        BankSafe,
+<a href=#350 id=350 data-nosnippet>350</a>    };
+<a href=#351 id=351 data-nosnippet>351</a>}
 </code></pre></div></section></main></body></html>
