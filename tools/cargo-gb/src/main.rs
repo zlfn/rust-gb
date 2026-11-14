@@ -1,20 +1,17 @@
 //! `cargo gb`: build a Game Boy ROM from a Rust crate using the rust-z80
-//! toolchain. Everything is taken from the toolchain sysroot, so no linker or
-//! tool paths need configuring.
+//! toolchain.
 
 mod ramfn;
 mod rom;
 mod toolchain;
 mod ui;
 
-use cargo_metadata::MetadataCommand;
+use cargo_metadata::{Message, MetadataCommand};
 use object::{Object, ObjectSection};
 use std::path::{Path, PathBuf};
-use std::process::{self, Command};
-use toolchain::{TARGET, Toolchain};
+use std::process::{self, Command, Stdio};
+use toolchain::{Toolchain, TARGET};
 
-/// Declared so that a crate not reached by `gb-bank` or `gb-pak` still compiles
-/// without `unexpected_cfgs` firing on what they gate.
 const CHECK_CFG: &str = concat!(
     " --check-cfg=cfg(gb_wide_bank,values(\"mbc1\",\"mbc5\"))",
     " --check-cfg=cfg(gb_custom_mapper)",
@@ -28,10 +25,11 @@ const CHECK_CFG: &str = concat!(
 );
 
 fn main() {
-    let cmd = std::env::args().nth(1).unwrap_or_else(|| "build".to_string());
+    let cmd = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "build".to_string());
     let result = match cmd.as_str() {
-        // Invoked as `cargo gb <cmd>`, so the subcommand is argv[2] under cargo;
-        // accept it directly too.
+        // Invoked as `cargo gb <cmd>`, so the subcommand is argv[2] under cargo.
         "gb" => dispatch(std::env::args().nth(2).as_deref().unwrap_or("build")),
         other => dispatch(other),
     };
@@ -46,7 +44,9 @@ fn dispatch(cmd: &str) -> Result<(), String> {
         "build" => build().map(|_| ()),
         "run" => run_rom(),
         "clean" => clean(),
-        other => Err(format!("unknown command '{other}' (expected build, run, or clean)")),
+        other => Err(format!(
+            "unknown command '{other}' (expected build, run, or clean)"
+        )),
     }
 }
 
@@ -67,7 +67,6 @@ fn run_rom() -> Result<(), String> {
 struct Project {
     name: String,
     staticlib: PathBuf,
-    release_dir: PathBuf,
     out_dir: PathBuf,
     header: Option<PathBuf>,
 }
@@ -99,7 +98,6 @@ fn resolve_project() -> Result<Project, String> {
     Ok(Project {
         name: root.name.clone(),
         staticlib,
-        release_dir,
         out_dir,
         header: header.exists().then_some(header),
     })
@@ -109,10 +107,7 @@ fn build() -> Result<PathBuf, String> {
     let tc = Toolchain::discover()?;
     let proj = resolve_project()?;
 
-    // 1. Compile the Rust staticlib. cargo's own progress flows through. Wide
-    //    banking changes the width of a bank number and how selecting one reaches
-    //    the cartridge, so it has to be settled before compiling; header.toml stays
-    //    the single place it is written.
+    // 1. Compile the Rust staticlib.
     let mut cargo = Command::new("cargo");
     cargo.args(["build", "--release", "--target", TARGET]);
     let cart = match proj.header.as_deref() {
@@ -124,7 +119,6 @@ fn build() -> Result<PathBuf, String> {
         // project that sets both loses the latter here.
         let mut flags = std::env::var("RUSTFLAGS").unwrap_or_default();
         flags.push_str(CHECK_CFG);
-        // ROM ONLY: no window to switch, so gb-bank leaves the switching out.
         if cart.max_bank == 0 {
             flags.push_str(" --cfg gb_flat_rom");
         }
@@ -151,8 +145,21 @@ fn build() -> Result<PathBuf, String> {
         }
         cargo.env("RUSTFLAGS", flags);
     }
-    let built = cargo
-        .status()
+
+    cargo.arg("--message-format=json-render-diagnostics");
+    cargo.stdout(Stdio::piped());
+    let mut child = cargo
+        .spawn()
+        .map_err(|e| format!("failed to run cargo: {e}"))?;
+    let stdout = child.stdout.take().ok_or("cargo stdout is not piped")?;
+    let mut out_dirs = Vec::new();
+    for msg in Message::parse_stream(std::io::BufReader::new(stdout)) {
+        if let Message::BuildScriptExecuted(script) = msg.map_err(|e| e.to_string())? {
+            out_dirs.push(script.out_dir.into_std_path_buf());
+        }
+    }
+    let built = child
+        .wait()
         .map_err(|e| format!("failed to run cargo: {e}"))?;
     if !built.success() {
         return Err("cargo build failed".to_string());
@@ -160,9 +167,7 @@ fn build() -> Result<PathBuf, String> {
 
     std::fs::create_dir_all(&proj.out_dir).map_err(|e| e.to_string())?;
 
-    // 2. Banking: patch the banked objects and repack them, or take the staticlib
-    //    as is. gb.ld always `INCLUDE`s gb_banked.ld, so write an empty one when
-    //    there is no banking.
+    // 2. Banking: patch the banked objects and repack them.
     let banked = is_banked(&proj.staticlib)?;
     let (link_input, summary) = if banked {
         let obj_dir = proj.out_dir.join("bank_obj");
@@ -180,7 +185,7 @@ fn build() -> Result<PathBuf, String> {
 
     // 3. Link.
     let pb = ui::spinner("Linking", &format!("{}.elf", proj.name));
-    let elf = link(&tc, &proj, &link_input);
+    let elf = link(&tc, &proj, &link_input, &out_dirs);
     pb.finish_and_clear();
     let elf = elf?;
 
@@ -198,9 +203,11 @@ fn build() -> Result<PathBuf, String> {
         None => None,
     };
 
-    // 7. A ROM whose CGB flag is set (hybrid or CGB-only) uses the .gbc
-    //    extension; DMG-only ROMs use .gb.
-    let rom_path = if info.as_ref().is_some_and(|i| i.cgb != gb_header_fix::CgbFlag::None) {
+    // 7. Set the extension of the output file (.gb or .gbc).
+    let rom_path = if info
+        .as_ref()
+        .is_some_and(|i| i.cgb != gb_header_fix::CgbFlag::None)
+    {
         let gbc = proj.out_dir.join(format!("{}.gbc", proj.name));
         std::fs::rename(&gb, &gbc).map_err(|e| e.to_string())?;
         gbc
@@ -209,10 +216,15 @@ fn build() -> Result<PathBuf, String> {
     };
     let rom_name = rom_path.file_name().unwrap_or_default().to_string_lossy();
 
+    // 8. Print the packing summary.
     let size_kb = info
         .as_ref()
         .map(|i| i.total_bytes / 1024)
-        .unwrap_or_else(|| std::fs::metadata(&rom_path).map(|m| m.len() as usize / 1024).unwrap_or(0));
+        .unwrap_or_else(|| {
+            std::fs::metadata(&rom_path)
+                .map(|m| m.len() as usize / 1024)
+                .unwrap_or(0)
+        });
     if let Some(i) = &info {
         for w in &i.warnings {
             eprintln!("warning: {w}");
@@ -236,14 +248,14 @@ fn build() -> Result<PathBuf, String> {
 
 fn is_banked(staticlib: &Path) -> Result<bool, String> {
     let data = std::fs::read(staticlib).map_err(|e| format!("{}: {e}", staticlib.display()))?;
-    let archive =
-        object::read::archive::ArchiveFile::parse(&*data).map_err(|e| e.to_string())?;
+    let archive = object::read::archive::ArchiveFile::parse(&*data).map_err(|e| e.to_string())?;
     for member in archive.members() {
         let member = member.map_err(|e| e.to_string())?;
         let mdata = member.data(&*data).map_err(|e| e.to_string())?;
         if let Ok(obj) = object::File::parse(mdata) {
             if obj.sections().any(|s| {
-                s.name().is_ok_and(|n| n.starts_with(gb_bank_pack::MARKER_SECTION))
+                s.name()
+                    .is_ok_and(|n| n.starts_with(gb_bank_pack::MARKER_SECTION))
             }) {
                 return Ok(true);
             }
@@ -256,8 +268,7 @@ fn extract_archive(staticlib: &Path, dir: &Path) -> Result<Vec<PathBuf>, String>
     let _ = std::fs::remove_dir_all(dir);
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     let data = std::fs::read(staticlib).map_err(|e| e.to_string())?;
-    let archive =
-        object::read::archive::ArchiveFile::parse(&*data).map_err(|e| e.to_string())?;
+    let archive = object::read::archive::ArchiveFile::parse(&*data).map_err(|e| e.to_string())?;
 
     let mut objs = Vec::new();
     for (i, member) in archive.members().enumerate() {
@@ -277,11 +288,19 @@ fn extract_archive(staticlib: &Path, dir: &Path) -> Result<Vec<PathBuf>, String>
 
 fn repack(ar: &Path, archive: &Path, objs: &[PathBuf]) -> Result<(), String> {
     let _ = std::fs::remove_file(archive);
-    run(Command::new(ar).arg("rcs").arg(archive).args(objs), "llvm-ar")
+    run(
+        Command::new(ar).arg("rcs").arg(archive).args(objs),
+        "llvm-ar",
+    )
 }
 
-fn link(tc: &Toolchain, proj: &Project, input: &Path) -> Result<PathBuf, String> {
-    let (gb_ld, supplementary) = collect_linker_scripts(&proj.release_dir)?;
+fn link(
+    tc: &Toolchain,
+    proj: &Project,
+    input: &Path,
+    out_dirs: &[PathBuf],
+) -> Result<PathBuf, String> {
+    let (gb_ld, supplementary) = collect_linker_scripts(out_dirs)?;
     let elf = proj.out_dir.join(format!("{}.elf", proj.name));
 
     let mut cmd = Command::new(&tc.lld);
@@ -302,79 +321,54 @@ fn link(tc: &Toolchain, proj: &Project, input: &Path) -> Result<PathBuf, String>
     Ok(elf)
 }
 
-/// Holds what the interrupt vectors fall back to.
-const DEFAULTS_LD: &str = "gb_defaults.ld";
-
-/// Collect the linker scripts dropped into each crate's build-script `OUT_DIR`:
-/// `gb.ld` (the main script) plus any supplementary scripts, newest-first and one
-/// per filename so stale build directories do not double-define sections.
-///
-/// The supplementary ones come back in name order with [`DEFAULTS_LD`] last. A
-/// `PROVIDE` yields to an earlier one, so those fallbacks have to be read after
-/// any library offering a handler of its own.
-/// Collect the `.ld` files sitting in one build-script output directory.
-fn scripts_in(out: &Path, found: &mut Vec<(std::time::SystemTime, PathBuf)>) -> Result<(), String> {
-    let Ok(read) = std::fs::read_dir(out) else {
-        return Ok(());
-    };
-    for f in read {
-        let path = f.map_err(|e| e.to_string())?.path();
-        if path.extension().is_some_and(|e| e == "ld") {
-            let mtime = std::fs::metadata(&path)
-                .and_then(|m| m.modified())
-                .map_err(|e| e.to_string())?;
-            found.push((mtime, path));
-        }
-    }
-    Ok(())
-}
-
-fn collect_linker_scripts(release_dir: &Path) -> Result<(PathBuf, Vec<PathBuf>), String> {
-    let build = release_dir.join("build");
-    let mut found: Vec<(std::time::SystemTime, PathBuf)> = Vec::new();
-    for entry in std::fs::read_dir(&build).map_err(|e| e.to_string())? {
-        let dir = entry.map_err(|e| e.to_string())?.path();
-        // Cargo has laid a build script's output out two ways: `<crate>-<hash>/out`,
-        // and `<crate>/<hash>/out` from 1.100 on.
-        scripts_in(&dir.join("out"), &mut found)?;
-        if let Ok(hashes) = std::fs::read_dir(&dir) {
-            for h in hashes {
-                scripts_in(&h.map_err(|e| e.to_string())?.path().join("out"), &mut found)?;
+/// Collect the linker scripts from the build-script `OUT_DIR`s of the crates in
+/// this build.
+fn collect_linker_scripts(out_dirs: &[PathBuf]) -> Result<(PathBuf, Vec<PathBuf>), String> {
+    let mut gb_ld = None;
+    let mut supplementary = Vec::new();
+    for out in out_dirs {
+        let Ok(read) = std::fs::read_dir(out) else {
+            continue;
+        };
+        for f in read {
+            let path = f.map_err(|e| e.to_string())?.path();
+            if path.extension().is_none_or(|e| e != "ld") {
+                continue;
+            }
+            if path.file_name().is_some_and(|n| n == "gb.ld") {
+                if gb_ld.replace(path).is_some() {
+                    return Err("gb.ld found in more than one crate".to_string());
+                }
+            } else {
+                supplementary.push(path);
             }
         }
     }
-    found.sort_by(|a, b| b.0.cmp(&a.0));
-
-    let mut seen = std::collections::HashSet::new();
-    let mut gb_ld = None;
-    let mut supplementary = Vec::new();
-    for (_, path) in found {
-        let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
-        if !seen.insert(name.clone()) {
-            continue;
-        }
-        if name == "gb.ld" {
-            gb_ld = Some(path);
-        } else {
-            supplementary.push(path);
-        }
-    }
     let gb_ld = gb_ld.ok_or("gb.ld not found (is gb-rt a dependency of the crate?)")?;
+    // gb_defaults.ld should be last because it `PROVIDE`s the default interrupt handlers.
     supplementary.sort_by_key(|p| {
-        let name = p.file_name().unwrap_or_default().to_string_lossy().into_owned();
-        (name == DEFAULTS_LD, name)
+        let name = p
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
+        (name == "gb_defaults.ld", name)
     });
     Ok((gb_ld, supplementary))
 }
 
 fn clean() -> Result<(), String> {
-    let out = std::env::current_dir().map_err(|e| e.to_string())?.join("target");
+    let out = std::env::current_dir()
+        .map_err(|e| e.to_string())?
+        .join("target");
     let _ = std::fs::remove_dir_all(&out);
     Ok(())
 }
 
 fn run(cmd: &mut Command, what: &str) -> Result<(), String> {
-    let status = cmd.status().map_err(|e| format!("failed to run {what}: {e}"))?;
+    let status = cmd
+        .status()
+        .map_err(|e| format!("failed to run {what}: {e}"))?;
     if !status.success() {
         return Err(format!("{what} failed"));
     }

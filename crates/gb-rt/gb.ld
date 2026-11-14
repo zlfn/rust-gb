@@ -36,13 +36,11 @@ SECTIONS {
         *(.rodata .rodata.*)
     } > ROM
 
-    /* The initializers follow .text in bank 0, where rrt0 can reach them. */
-    .data 0xC0A0 : {
+    .data : {
         *(.data .data.*)
-        *(.data.initialized)
     } > WRAM AT> ROM
 
-    /* Named by rrt0, which copies the initializers at reset. */
+    /* These are used by rrt0.s, which copies the initializers at reset. */
     s__INITIALIZER = LOADADDR(.data);
     l__INITIALIZER = SIZEOF(.data);
     s__INITIALIZED = ADDR(.data);
