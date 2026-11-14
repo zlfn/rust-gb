@@ -14,11 +14,11 @@
 //!   at. `Group::bank()` reads the bank off that symbol's address, so defining it
 //!   in the generated script is what sets the runtime bank number.
 
+use object::build::elf::SectionData;
 use object::read::elf::ElfFile32;
 use object::{Object, ObjectSection, ObjectSymbol};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
-
 
 /// Prefix of the section a group marker sits in. The `bank::module!` expansion
 /// writes the matching name; keep the two in step.
@@ -133,8 +133,12 @@ pub fn compute_layout(
     let mut pinned: HashMap<String, u16> = HashMap::new();
 
     for obj_path in obj_files {
-        let Ok(data) = std::fs::read(obj_path) else { continue };
-        let Ok(elf) = ElfFile32::<object::Endianness>::parse(&*data) else { continue };
+        let Ok(data) = std::fs::read(obj_path) else {
+            continue;
+        };
+        let Ok(elf) = ElfFile32::<object::Endianness>::parse(&*data) else {
+            continue;
+        };
 
         for sec in elf.sections() {
             if let Ok(name) = sec.name() {
@@ -158,9 +162,14 @@ pub fn compute_layout(
                 .as_deref()
                 .and_then(|n| n.strip_prefix(MARKER_SECTION))
             {
-                let Some(module) = bank_marker_module(&dm) else { continue };
+                let Some(module) = bank_marker_module(&dm) else {
+                    continue;
+                };
                 bank_modules.push(module.clone());
-                if let Some(sec) = sym.section_index().and_then(|i| elf.section_by_index(i).ok()) {
+                if let Some(sec) = sym
+                    .section_index()
+                    .and_then(|i| elf.section_by_index(i).ok())
+                {
                     if let Some((off, _)) = sec.file_range() {
                         let width = sym.size().clamp(1, 2) as u8;
                         // A non-zero initial value is the bank `bank::module!(N)` asked for.
@@ -170,7 +179,10 @@ pub fn compute_layout(
                         }
                     }
                 }
-                pending.push(PendingSymbol { name: name.to_string(), module });
+                pending.push(PendingSymbol {
+                    name: name.to_string(),
+                    module,
+                });
                 continue;
             }
 
@@ -184,7 +196,10 @@ pub fn compute_layout(
             // `__BankGroup` (capital B), none of which match.
             let clean = dm.replace(['<', '>'], "");
             if nested_in_banked(&dm) {
-                banked.push(BankedSym { raw: name.to_string(), clean });
+                banked.push(BankedSym {
+                    raw: name.to_string(),
+                    clean,
+                });
             }
         }
     }
@@ -208,7 +223,9 @@ pub fn compute_layout(
     // Group placement sections by module.
     let mut group_sections: HashMap<String, Vec<String>> = HashMap::new();
     for b in &banked {
-        let Some(group) = group_of(&b.clean, &bank_modules) else { continue };
+        let Some(group) = group_of(&b.clean, &bank_modules) else {
+            continue;
+        };
         let entry = group_sections.entry(group.clone()).or_default();
         for kind in [".text.", ".rodata.", ".data."] {
             let sec = format!("{kind}{}", b.raw);
@@ -296,7 +313,9 @@ pub fn compute_layout(
                 next_bank += 1;
             }
             if next_bank > max_bank {
-                return Err(vec![format!("too many banks needed, the limit is bank {max_bank}")]);
+                return Err(vec![format!(
+                    "too many banks needed, the limit is bank {max_bank}"
+                )]);
             }
             group_banks.insert(group.clone(), next_bank);
             *bank_sizes.entry(next_bank).or_insert(0) += size;
@@ -318,7 +337,10 @@ pub fn compute_layout(
     let mut placements: HashMap<u16, Vec<String>> = HashMap::new();
     for (group, secs) in &group_sections {
         let bank = group_banks[group];
-        placements.entry(bank).or_default().extend(secs.iter().cloned());
+        placements
+            .entry(bank)
+            .or_default()
+            .extend(secs.iter().cloned());
     }
     for v in placements.values_mut() {
         v.sort();
@@ -358,7 +380,65 @@ pub fn compute_layout(
     })
 }
 
+pub fn banked_name(bank: u16, section: &str) -> String {
+    format!(".bank{bank}{section}")
+}
+
+/// Rename every banked section in `obj_files` to [`banked_name`].
+pub fn rename_sections(obj_files: &[&Path], layout: &BankLayout) -> std::io::Result<()> {
+    let mut target: HashMap<&str, u16> = HashMap::new();
+    for (bank, secs) in &layout.placements {
+        for s in secs {
+            target.insert(s.as_str(), *bank);
+        }
+    }
+    if target.is_empty() {
+        return Ok(());
+    }
+
+    let invalid = |e: object::build::Error| {
+        std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
+    };
+    for obj_path in obj_files {
+        let data = std::fs::read(obj_path)?;
+        let mut builder = object::build::elf::Builder::read(&*data).map_err(invalid)?;
+        let mut renamed = false;
+        for sec in builder.sections.iter_mut() {
+            let Ok(name) = std::str::from_utf8(&sec.name) else {
+                continue;
+            };
+            if let Some(&bank) = target.get(name) {
+                sec.name = banked_name(bank, name).into_bytes().into();
+                renamed = true;
+            }
+        }
+        if renamed {
+            // LLVM stores section names in the symbol `.strtab`, which the builder
+            // cannot write back, so add a separate `.shstrtab` for them.
+            if !builder
+                .sections
+                .iter()
+                .any(|s| matches!(s.data, SectionData::SectionString))
+            {
+                let shstrtab = builder.sections.add();
+                shstrtab.name = b".shstrtab"[..].into();
+                shstrtab.sh_type = object::elf::SHT_STRTAB;
+                shstrtab.sh_addralign = 1;
+                shstrtab.data = SectionData::SectionString;
+            }
+            let mut out = Vec::new();
+            builder.write(&mut out).map_err(invalid)?;
+            std::fs::write(obj_path, out)?;
+        }
+    }
+    Ok(())
+}
+
 /// Generate the linker-script fragment placing each bank at its LMA.
+///
+/// Each bank is its own `OVERLAY`: the banks share the `0x4000` window, and lld
+/// lets overlay members overlap there without turning off its other overlap
+/// checks.
 pub fn generate_linker_script(layout: &BankLayout) -> String {
     if layout.bank_count == 0 && layout.symbols.is_empty() {
         return String::new();
@@ -378,12 +458,10 @@ pub fn generate_linker_script(layout: &BankLayout) -> String {
 
     for bank in 1..=layout.bank_count {
         let lma = bank as u32 * 0x4000;
-        out.push_str(&format!("    .bank{bank} 0x4000 : AT(0x{lma:X}) {{\n"));
-        if let Some(secs) = layout.placements.get(&bank) {
-            for s in secs {
-                out.push_str(&format!("        *({s})\n"));
-            }
-        }
+        out.push_str(&format!("    OVERLAY 0x4000 : AT(0x{lma:X}) {{\n"));
+        out.push_str(&format!(
+            "        .bank{bank} {{ *(SORT(.bank{bank}.*)) }}\n"
+        ));
         out.push_str("    }\n");
     }
     out
@@ -397,12 +475,20 @@ mod tests {
     fn banked_bodies_and_nested_items_match() {
         // banked free fn / static / method
         assert!(nested_in_banked("bank_test::arithmetic::__bank_fn_add"));
-        assert!(nested_in_banked("bank_test::trig::__bank_static_SINE_TABLE"));
+        assert!(nested_in_banked(
+            "bank_test::trig::__bank_static_SINE_TABLE"
+        ));
         // nested closure / local fn inside a banked body
-        assert!(nested_in_banked("bank_test::geometry::__bank_fn_probe_nest::{closure#0}"));
-        assert!(nested_in_banked("bank_test::geometry::__bank_fn_probe_nest::nested_helper"));
+        assert!(nested_in_banked(
+            "bank_test::geometry::__bank_fn_probe_nest::{closure#0}"
+        ));
+        assert!(nested_in_banked(
+            "bank_test::geometry::__bank_fn_probe_nest::nested_helper"
+        ));
         // generic banked fn instance: `__bank_` sits before the `<...>`
-        assert!(nested_in_banked("bank_test::arithmetic::__bank_fn_clamp::<u8>"));
+        assert!(nested_in_banked(
+            "bank_test::arithmetic::__bank_fn_clamp::<u8>"
+        ));
         // banked trait method: name sits after the `<T as Trait>` head
         assert!(nested_in_banked(
             "<bank_test::geometry::Point as bank_test::geometry::Metric>::__bank_distance"

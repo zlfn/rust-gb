@@ -1,11 +1,16 @@
-//! Runtime routines provided by the startup code, exposed as raw symbols.
+//! Runtime routines provided by the startup code.
 //!
-//! The `RST` helpers use a register-based calling convention, so they are meant
-//! to be invoked from inline assembly (for example through the `sym` operand),
-//! not called directly. [`isr_noop`] is an ordinary parameterless routine.
+//! The Game Boy offers the RST vectors, which can be used to jump quickly to
+//! specific routines that are frequently used.
+//!
+//! [`call_hl()`] is assumed by both LLVM-Z80 and GBDK to be present.
+//!
+//! [`memset_small()`] and [`memcpy_small()`] are currently intended for
+//! compatibility with GBDK. You can use them in inline assembly, but it
+//! is not recommended. If necessary, LLVM-Z80 should optimize such byte copying.
 
 unsafe extern "C" {
-    /// `RST 0x20` indirect call helper: `jp (hl)`, jumping to the address in `HL`.
+    /// `RST 0x20` indirect call helper: `jp (hl)`.
     #[link_name = "_call_hl"]
     pub fn call_hl();
 

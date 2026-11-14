@@ -1,11 +1,4 @@
 //! Link-time bank allocator for the `gb-bank` toolchain.
-//!
-//! It reads the linked objects, demangles their symbols, groups each banked
-//! function/static under its module's `BANK` marker, first-fit bin-packs the
-//! groups into 16 KiB banks, then patches every module's `BANK` marker to its
-//! assigned bank number and emits a linker fragment placing each
-//! `.text`/`.rodata`/`.data.<sym>` section into its `.bankN` region. The resident
-//! region stays in bank 0; banked groups go to banks 1 and up.
 
 use std::path::{Path, PathBuf};
 
@@ -59,11 +52,8 @@ impl From<std::io::Error> for LinkError {
 
 /// Pack the banked symbols in `obj_files` into ROM banks.
 ///
-/// Patches the `BANK` markers in the objects in place, writes the `gb_banked.ld`
+/// Renames the banked sections in the objects in place, writes the `gb_banked.ld`
 /// linker fragment into `out_dir`, and returns the per-bank allocation.
-/// `header_toml`, when given, bounds the bank count by the cartridge's MBC type.
-/// With no MBC nothing is banked: the 32 KiB is fixed end to end, so splitting it
-/// at `0x4000` would only wall off the two halves.
 pub fn link(
     out_dir: &Path,
     obj_files: &[PathBuf],
@@ -71,8 +61,7 @@ pub fn link(
 ) -> Result<LinkSummary, LinkError> {
     let bank_size = 0x4000;
 
-    // The highest bank `switch_bank` can select, or 0 with no MBC, in which case the
-    // packer leaves every group flat.
+    // The highest bank `switch_bank` can select, or 0 with no MBC
     let limits = header_toml.and_then(|p| gb_header_fix::read_cartridge(p).ok().flatten());
     let (max_bank, excluded) = match limits {
         Some(l) => (l.max_bank, l.excluded),
@@ -84,6 +73,7 @@ pub fn link(
     let layout = packer::compute_layout(&obj_paths, bank_size, max_bank, excluded)
         .map_err(LinkError::Layout)?;
 
+    packer::rename_sections(&obj_paths, &layout)?;
     let ld_script = packer::generate_linker_script(&layout);
     std::fs::write(out_dir.join("gb_banked.ld"), ld_script)?;
 
@@ -106,4 +96,3 @@ pub fn link(
 
     Ok(LinkSummary { bank_size, banks })
 }
-

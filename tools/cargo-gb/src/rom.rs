@@ -1,8 +1,8 @@
 //! Flatten a linked SM83 ELF into a raw ROM image (the `objcopy -O binary` step).
 
-use object::Endianness;
 use object::elf::{FileHeader32, PT_LOAD, SHT_NOBITS};
 use object::read::elf::{FileHeader, ProgramHeader, SectionHeader};
+use object::Endianness;
 use std::path::Path;
 
 /// Place each loadable section's bytes at its physical address (LMA), filling the
@@ -54,16 +54,15 @@ pub fn elf_to_rom(elf_path: &Path) -> Result<Vec<u8>, String> {
         return Err("no loadable sections in ELF".to_string());
     }
 
-    let base = placed.iter().map(|(lma, _)| *lma).min().unwrap();
     let end = placed
         .iter()
         .map(|(lma, b)| lma + b.len() as u32)
         .max()
         .unwrap();
 
-    let mut rom = vec![0xFFu8; (end - base) as usize];
+    let mut rom = vec![0xFFu8; end as usize];
     for (lma, bytes) in placed {
-        let at = (lma - base) as usize;
+        let at = lma as usize;
         rom[at..at + bytes.len()].copy_from_slice(bytes);
     }
     Ok(rom)

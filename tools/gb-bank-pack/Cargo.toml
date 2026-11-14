@@ -7,7 +7,7 @@ description = "Link-time bank allocator for the gb-bank toolchain"
 
 [dependencies]
 gb-header-fix = { path = "../gb-header-fix" }
-object = "0.36"
+object = { version = "0.36", features = ["build"] }
 rustc-demangle = "0.1"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"

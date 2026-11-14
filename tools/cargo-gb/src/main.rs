@@ -180,7 +180,7 @@ fn build() -> Result<PathBuf, String> {
 
     // 3. Link.
     let pb = ui::spinner("Linking", &format!("{}.elf", proj.name));
-    let elf = link(&tc, &proj, &link_input, banked);
+    let elf = link(&tc, &proj, &link_input);
     pb.finish_and_clear();
     let elf = elf?;
 
@@ -280,7 +280,7 @@ fn repack(ar: &Path, archive: &Path, objs: &[PathBuf]) -> Result<(), String> {
     run(Command::new(ar).arg("rcs").arg(archive).args(objs), "llvm-ar")
 }
 
-fn link(tc: &Toolchain, proj: &Project, input: &Path, banked: bool) -> Result<PathBuf, String> {
+fn link(tc: &Toolchain, proj: &Project, input: &Path) -> Result<PathBuf, String> {
     let (gb_ld, supplementary) = collect_linker_scripts(&proj.release_dir)?;
     let elf = proj.out_dir.join(format!("{}.elf", proj.name));
 
@@ -290,9 +290,6 @@ fn link(tc: &Toolchain, proj: &Project, input: &Path, banked: bool) -> Result<Pa
         cmd.arg("-T").arg(s);
     }
     cmd.arg("--gc-sections");
-    if banked {
-        cmd.arg("--no-check-sections");
-    }
     cmd.arg(input);
     // The target spec's `late-link-args`, which reach the linker after the
     // inputs so the archive answers what they left undefined. Its `crt-objects`

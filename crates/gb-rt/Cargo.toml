@@ -8,7 +8,7 @@ repository.workspace = true
 documentation = "https://zlfn.github.io/rust-gb/gb_rt/"
 keywords.workspace = true
 categories.workspace = true
-description = "Core Game Boy (SM83) runtime: startup code and linker script"
+description = "Run-time support for Game Boy (SM83)"
 
 [features]
 ## Run in CGB double speed mode.

@@ -58,22 +58,13 @@ pub use gb_pak as __pak;
 pub use gb_ram_fn as __ram_fn;
 
 /// Whether the machine has the Game Boy Color's hardware.
-///
-/// From the value the boot ROM leaves in `A`, so it costs one load. A Game Boy
-/// Advance reports yes as well: it runs the same hardware.
-///
-/// A cartridge built for both machines needs this wherever a Color feature has
-/// nothing to fall back on.
 #[inline]
 pub fn is_cgb() -> bool {
-    rt::boot::a() == 0x11
+    rt::boot::BOOT_A == 0x11
 }
 
 /// Whether the machine is a Game Boy Advance running a Game Boy Color cartridge.
-///
-/// Programs usually ask in order to lighten their palettes, the Advance's screen
-/// being the darker of the two.
 #[inline]
 pub fn is_gba() -> bool {
-    is_cgb() && rt::boot::b() & 1 != 0
+    is_cgb() && rt::boot::BOOT_B & 1 != 0
 }

@@ -3,11 +3,12 @@
  *
  * Collects each `ram_fn!` function and its two boundary markers into ROM. SORT
  * keeps a function's `_0`/`_1`/`_2` sections adjacent, so `END - START` is the
- * function's exact length. Placed after gb-rt's ROM sections (no fixed address),
- * so it does not collide with the resident `.text`/`.data` load addresses.
+ * function's exact length. Inserted after `.data`, so it follows the `.data`
+ * initializers in bank 0, ahead of the banks gb_banked.ld adds.
  */
 SECTIONS {
-    .ramfn (LOADADDR(.bss) + SIZEOF(.bss)) : AT(LOADADDR(.bss) + SIZEOF(.bss)) {
+    .ramfn : {
         KEEP(*(SORT(ramfn_*)))
     } > ROM
 }
+INSERT AFTER .data;
