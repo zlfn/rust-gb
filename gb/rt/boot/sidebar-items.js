@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["a","b"]};
+window.SIDEBAR_ITEMS = {"static":["BOOT_A","BOOT_B"]};

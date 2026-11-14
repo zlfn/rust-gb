@@ -58,23 +58,14 @@
 <a href=#58 id=58 data-nosnippet>58</a></span><span class="kw">pub use </span>gb_ram_fn <span class="kw">as </span>__ram_fn;
 <a href=#59 id=59 data-nosnippet>59</a>
 <a href=#60 id=60 data-nosnippet>60</a><span class="doccomment">/// Whether the machine has the Game Boy Color's hardware.
-<a href=#61 id=61 data-nosnippet>61</a>///
-<a href=#62 id=62 data-nosnippet>62</a>/// From the value the boot ROM leaves in `A`, so it costs one load. A Game Boy
-<a href=#63 id=63 data-nosnippet>63</a>/// Advance reports yes as well: it runs the same hardware.
-<a href=#64 id=64 data-nosnippet>64</a>///
-<a href=#65 id=65 data-nosnippet>65</a>/// A cartridge built for both machines needs this wherever a Color feature has
-<a href=#66 id=66 data-nosnippet>66</a>/// nothing to fall back on.
+<a href=#61 id=61 data-nosnippet>61</a></span><span class="attr">#[inline]
+<a href=#62 id=62 data-nosnippet>62</a></span><span class="kw">pub fn </span>is_cgb() -&gt; bool {
+<a href=#63 id=63 data-nosnippet>63</a>    rt::boot::BOOT_A == <span class="number">0x11
+<a href=#64 id=64 data-nosnippet>64</a></span>}
+<a href=#65 id=65 data-nosnippet>65</a>
+<a href=#66 id=66 data-nosnippet>66</a><span class="doccomment">/// Whether the machine is a Game Boy Advance running a Game Boy Color cartridge.
 <a href=#67 id=67 data-nosnippet>67</a></span><span class="attr">#[inline]
-<a href=#68 id=68 data-nosnippet>68</a></span><span class="kw">pub fn </span>is_cgb() -&gt; bool {
-<a href=#69 id=69 data-nosnippet>69</a>    rt::boot::a() == <span class="number">0x11
+<a href=#68 id=68 data-nosnippet>68</a></span><span class="kw">pub fn </span>is_gba() -&gt; bool {
+<a href=#69 id=69 data-nosnippet>69</a>    is_cgb() &amp;&amp; rt::boot::BOOT_B &amp; <span class="number">1 </span>!= <span class="number">0
 <a href=#70 id=70 data-nosnippet>70</a></span>}
-<a href=#71 id=71 data-nosnippet>71</a>
-<a href=#72 id=72 data-nosnippet>72</a><span class="doccomment">/// Whether the machine is a Game Boy Advance running a Game Boy Color cartridge.
-<a href=#73 id=73 data-nosnippet>73</a>///
-<a href=#74 id=74 data-nosnippet>74</a>/// Programs usually ask in order to lighten their palettes, the Advance's screen
-<a href=#75 id=75 data-nosnippet>75</a>/// being the darker of the two.
-<a href=#76 id=76 data-nosnippet>76</a></span><span class="attr">#[inline]
-<a href=#77 id=77 data-nosnippet>77</a></span><span class="kw">pub fn </span>is_gba() -&gt; bool {
-<a href=#78 id=78 data-nosnippet>78</a>    is_cgb() &amp;&amp; rt::boot::b() &amp; <span class="number">1 </span>!= <span class="number">0
-<a href=#79 id=79 data-nosnippet>79</a></span>}
 </code></pre></div></section></main></body></html>
