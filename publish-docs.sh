@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 # Build the API docs and publish them to the gh-pages branch.
-#
-# docs.rs cannot build these crates: they need the rust-z80 fork for the SM83
-# target and the features the runtime uses. So the docs are built here, where
-# that toolchain is, and pushed as a branch GitHub Pages serves.
+# docs.rs cannot build these crates, since they need the rust-z80 toolchain.
 #
 # Usage: ./publish-docs.sh [--dry-run]
 
@@ -12,7 +9,8 @@ set -euo pipefail
 BRANCH=gh-pages
 ROOT_CRATE=gb
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKTREE="$REPO/target/gh-pages"
+TARGET_DIR="$REPO/target/doc-build"
+DOC="$TARGET_DIR/sm83-nintendo-none-elf/doc"
 
 cd "$REPO"
 
@@ -22,17 +20,10 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 REV="$(git rev-parse --short HEAD)"
 
-# `cargo doc-all` carries the target and the `--cfg`s the crates gate their API
-# on; several of them document as if they did not exist otherwise. Building the
-# published docs the same way anyone builds them locally keeps the two in step.
-#
-# Its own directory: these flags fingerprint differently from a ROM build, and
-# sharing one would rebuild the world on either side of every docs run.
-cargo doc-all --target-dir "$REPO/target/doc-build"
-DOC="$(ls -d "$REPO"/target/doc-build/*/doc | head -1)"
-[ -d "$DOC" ] || { echo "no doc output under target/" >&2; exit 1; }
+# A separate target dir, so the doc flags do not invalidate the ROM builds.
+cargo doc-all --target-dir "$TARGET_DIR"
 
-# Pages serves the branch root, and rustdoc writes no index there.
+# Pages serves the branch root, where rustdoc writes no index.
 cat > "$DOC/index.html" <<EOF
 <!doctype html>
 <meta charset="utf-8">
@@ -41,8 +32,7 @@ cat > "$DOC/index.html" <<EOF
 <a href="$ROOT_CRATE/index.html">rust-gb documentation</a>
 EOF
 
-# Without this, Pages runs Jekyll, which drops rustdoc's `static.files` and
-# anything else beginning with an underscore.
+# Without this, Jekyll on Pages drops `static.files` and other `_` files.
 touch "$DOC/.nojekyll"
 
 if [ "${1-}" = "--dry-run" ]; then
@@ -50,26 +40,23 @@ if [ "${1-}" = "--dry-run" ]; then
     exit 0
 fi
 
-rm -rf "$WORKTREE"
-if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
-    git worktree add -q "$WORKTREE" "$BRANCH"
+# Snapshot the doc tree through a scratch index, without a checkout.
+INDEX="$TARGET_DIR/gh-pages.index"
+rm -f "$INDEX"
+GIT_INDEX_FILE="$INDEX" git -C "$DOC" --work-tree="$DOC" add -A -f -- . ':!.lock'
+TREE="$(GIT_INDEX_FILE="$INDEX" git write-tree)"
+rm -f "$INDEX"
+
+# Commit on top of the published branch, so the push is a fast-forward.
+if git fetch -q origin "$BRANCH" 2>/dev/null; then
+    PARENT="$(git rev-parse FETCH_HEAD)"
+    if [ "$(git rev-parse "$PARENT^{tree}")" = "$TREE" ]; then
+        echo "docs unchanged at $REV"
+        exit 0
+    fi
+    COMMIT="$(git commit-tree "$TREE" -p "$PARENT" -m "docs: build from $REV")"
 else
-    git worktree add -q --orphan -B "$BRANCH" "$WORKTREE"
+    COMMIT="$(git commit-tree "$TREE" -m "docs: build from $REV")"
 fi
-
-# Replace rather than merge, so a page for a removed item does not linger.
-find "$WORKTREE" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-cp -a "$DOC/." "$WORKTREE/"
-
-cd "$WORKTREE"
-git add -A
-if git diff --cached --quiet; then
-    echo "docs unchanged at $REV"
-else
-    git commit -q -m "docs: build from $REV"
-    git push -q origin "$BRANCH"
-    echo "published $REV to $BRANCH"
-fi
-
-cd "$REPO"
-git worktree remove --force "$WORKTREE"
+git push -q origin "$COMMIT:refs/heads/$BRANCH"
+echo "published $REV to $BRANCH"
