@@ -4,7 +4,7 @@
 #![no_std]
 #![no_main]
 
-use core::ffi::{c_char, c_uint};
+use core::ffi::c_uint;
 use gb_hram::hram;
 use gb_ram_fn::{RamFn, ram_fn};
 use gbdk_sys::stdio::{printf, puts};
@@ -32,7 +32,7 @@ hram! {
 fn print_counter() {
     unsafe {
         printf(
-            b" Counter is %u\n\0".as_ptr() as *const c_char,
+            c" Counter is %u\n".as_ptr(),
             core::ptr::read_volatile(&raw const COUNTER) as c_uint,
         );
     }
@@ -43,24 +43,24 @@ fn main() -> ! {
     unsafe {
         gbdk_sys::init();
 
-        puts(b"Program Start...\0".as_ptr() as *const c_char);
+        puts(c"Program Start...".as_ptr());
         print_counter();
 
-        puts(b"Call ROM\0".as_ptr() as *const c_char);
+        puts(c"Call ROM".as_ptr());
         inc.rom()();
         print_counter();
 
-        puts(b"Call RAM\0".as_ptr() as *const c_char);
+        puts(c"Call RAM".as_ptr());
         let ram_inc = inc.install(&raw mut RAM_BUF);
         ram_inc();
         print_counter();
 
-        puts(b"Call HIRAM\0".as_ptr() as *const c_char);
+        puts(c"Call HIRAM".as_ptr());
         let hram_inc = inc.install(HRAM_BUF.as_array_ptr());
         hram_inc();
         print_counter();
 
-        puts(b"The End...\0".as_ptr() as *const c_char);
+        puts(c"The End...".as_ptr());
     }
 
     loop {}

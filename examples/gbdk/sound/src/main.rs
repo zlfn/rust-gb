@@ -11,7 +11,7 @@
 #![no_std]
 #![no_main]
 
-use core::ffi::{c_char, c_int};
+use core::ffi::{CStr, c_char, c_int};
 use gbdk_sys::gb::gb::*;
 use gbdk_sys::gbdk::console::{gotoxy, setchar};
 use gbdk_sys::stdio::printf;
@@ -31,99 +31,99 @@ const SPACE_CHAR: c_char = b' ' as c_char;
 
 // ===== Text helpers (printf-based, like the C original) =====
 
-fn print(s: &[u8]) {
-    unsafe { printf(b"%s\0".as_ptr() as *const c_char, s.as_ptr() as *const c_char) };
+fn print(s: &CStr) {
+    unsafe { printf(c"%s".as_ptr(), s.as_ptr()) };
 }
 
 fn printn(n: u16, base: u8) {
     unsafe {
         if base == 16 {
             const HEX: &[u8; 16] = b"0123456789ABCDEF";
-            printf(b"%c\0".as_ptr() as *const c_char, HEX[((n >> 4) & 0xF) as usize] as c_int);
-            printf(b"%c\0".as_ptr() as *const c_char, HEX[(n & 0xF) as usize] as c_int);
+            printf(c"%c".as_ptr(), HEX[((n >> 4) & 0xF) as usize] as c_int);
+            printf(c"%c".as_ptr(), HEX[(n & 0xF) as usize] as c_int);
         } else {
-            printf(b"%d\0".as_ptr() as *const c_char, n as c_int);
+            printf(c"%d".as_ptr(), n as c_int);
         }
     }
 }
 
 fn println(n: u16, base: u8) {
     printn(n, base);
-    print(b"\n\0");
+    print(c"\n");
 }
 
 fn clss() {
     for i in 0..18u8 {
         unsafe { gotoxy(0, i) };
-        print(b"                    \0");
+        print(c"                    ");
     }
 }
 
 // ===== Menu tables: (name, max). Index 0 is the title. =====
 
-type Param = (&'static [u8], u16);
+type Param = (&'static CStr, u16);
 
 const PARAMS_0: &[Param] = &[
-    (b"Main Controls\0", 0),
-    (b"All On/Off\0", 1),
-    (b"Vin->SO1\0", 1),
-    (b"Vin->SO2\0", 1),
-    (b"SO1 Volume\0", 7),
-    (b"SO2 Volume\0", 7),
+    (c"Main Controls", 0),
+    (c"All On/Off", 1),
+    (c"Vin->SO1", 1),
+    (c"Vin->SO2", 1),
+    (c"SO1 Volume", 7),
+    (c"SO2 Volume", 7),
 ];
 const PARAMS_1: &[Param] = &[
-    (b"Sound Mode #1\0", 0),
-    (b"Swp Time\0", 7),
-    (b"Swp Mode\0", 1),
-    (b"Swp Shifts\0", 7),
-    (b"Pat Duty\0", 3),
-    (b"Sound Len\0", 63),
-    (b"Env Init\0", 15),
-    (b"Env Mode\0", 1),
-    (b"Env Nb Swp\0", 7),
-    (b"Frequency\0", 2047),
-    (b"Cons Sel\0", 1),
-    (b"Out to SO1\0", 1),
-    (b"Out to SO2\0", 1),
-    (b"On/Off\0", 1),
+    (c"Sound Mode #1", 0),
+    (c"Swp Time", 7),
+    (c"Swp Mode", 1),
+    (c"Swp Shifts", 7),
+    (c"Pat Duty", 3),
+    (c"Sound Len", 63),
+    (c"Env Init", 15),
+    (c"Env Mode", 1),
+    (c"Env Nb Swp", 7),
+    (c"Frequency", 2047),
+    (c"Cons Sel", 1),
+    (c"Out to SO1", 1),
+    (c"Out to SO2", 1),
+    (c"On/Off", 1),
 ];
 const PARAMS_2: &[Param] = &[
-    (b"Sound Mode #2\0", 0),
-    (b"Pat Duty\0", 3),
-    (b"Sound Len\0", 63),
-    (b"Env Init\0", 15),
-    (b"Env Mode\0", 1),
-    (b"Env Nb Step\0", 7),
-    (b"Frequency\0", 2047),
-    (b"Cons Sel\0", 1),
-    (b"Out to SO1\0", 1),
-    (b"Out to SO2\0", 1),
-    (b"On/Off\0", 1),
+    (c"Sound Mode #2", 0),
+    (c"Pat Duty", 3),
+    (c"Sound Len", 63),
+    (c"Env Init", 15),
+    (c"Env Mode", 1),
+    (c"Env Nb Step", 7),
+    (c"Frequency", 2047),
+    (c"Cons Sel", 1),
+    (c"Out to SO1", 1),
+    (c"Out to SO2", 1),
+    (c"On/Off", 1),
 ];
 const PARAMS_3: &[Param] = &[
-    (b"Sound Mode #3\0", 0),
-    (b"Sound On/Off\0", 1),
-    (b"Sound Len\0", 255),
-    (b"Sel Out Level\0", 3),
-    (b"Frequency\0", 2047),
-    (b"Cons Sel\0", 1),
-    (b"Out to SO1\0", 1),
-    (b"Out to SO2\0", 1),
-    (b"On/Off\0", 1),
+    (c"Sound Mode #3", 0),
+    (c"Sound On/Off", 1),
+    (c"Sound Len", 255),
+    (c"Sel Out Level", 3),
+    (c"Frequency", 2047),
+    (c"Cons Sel", 1),
+    (c"Out to SO1", 1),
+    (c"Out to SO2", 1),
+    (c"On/Off", 1),
 ];
 const PARAMS_4: &[Param] = &[
-    (b"Sound Mode #4\0", 0),
-    (b"Sound Len\0", 63),
-    (b"Env Init\0", 15),
-    (b"Env Mode\0", 1),
-    (b"Env Nb Step\0", 7),
-    (b"Poly Cnt Freq\0", 15),
-    (b"Poly Cnt Step\0", 1),
-    (b"Poly Cnt Div\0", 7),
-    (b"Cons Sel\0", 1),
-    (b"Out to SO1\0", 1),
-    (b"Out to SO2\0", 1),
-    (b"On/Off\0", 1),
+    (c"Sound Mode #4", 0),
+    (c"Sound Len", 63),
+    (c"Env Init", 15),
+    (c"Env Mode", 1),
+    (c"Env Nb Step", 7),
+    (c"Poly Cnt Freq", 15),
+    (c"Poly Cnt Step", 1),
+    (c"Poly Cnt Div", 7),
+    (c"Cons Sel", 1),
+    (c"Out to SO1", 1),
+    (c"Out to SO2", 1),
+    (c"On/Off", 1),
 ];
 
 fn params(mode: u8) -> &'static [Param] {
@@ -496,45 +496,45 @@ fn show_register_channel(mode: u8) {
         let r = &sr!();
         match mode {
             1 => {
-                print(b"NR10-14:\0");
+                print(c"NR10-14:");
                 gotoxy(1, 17);
-                printn(r.nr10() as u16, 16); print(b", \0");
-                printn(r.nr11() as u16, 16); print(b", \0");
-                printn(r.nr12() as u16, 16); print(b", \0");
-                printn(r.nr13() as u16, 16); print(b", \0");
+                printn(r.nr10() as u16, 16); print(c", ");
+                printn(r.nr11() as u16, 16); print(c", ");
+                printn(r.nr12() as u16, 16); print(c", ");
+                printn(r.nr13() as u16, 16); print(c", ");
                 printn((0x80 | r.nr14()) as u16, 16);
             }
             2 => {
-                print(b"NR21-24:\0");
+                print(c"NR21-24:");
                 gotoxy(1, 17);
-                printn(r.nr21() as u16, 16); print(b", \0");
-                printn(r.nr22() as u16, 16); print(b", \0");
-                printn(r.nr23() as u16, 16); print(b", \0");
+                printn(r.nr21() as u16, 16); print(c", ");
+                printn(r.nr22() as u16, 16); print(c", ");
+                printn(r.nr23() as u16, 16); print(c", ");
                 printn((0x80 | r.nr24()) as u16, 16);
             }
             3 => {
-                print(b"NR30-34:\0");
+                print(c"NR30-34:");
                 gotoxy(1, 17);
-                printn(r.nr30() as u16, 16); print(b", \0");
-                printn(r.nr31() as u16, 16); print(b", \0");
-                printn(r.nr32() as u16, 16); print(b", \0");
-                printn(r.nr33() as u16, 16); print(b", \0");
+                printn(r.nr30() as u16, 16); print(c", ");
+                printn(r.nr31() as u16, 16); print(c", ");
+                printn(r.nr32() as u16, 16); print(c", ");
+                printn(r.nr33() as u16, 16); print(c", ");
                 printn((0x80 | r.nr34()) as u16, 16);
             }
             4 => {
-                print(b"NR41-44:\0");
+                print(c"NR41-44:");
                 gotoxy(1, 17);
-                printn(r.nr41() as u16, 16); print(b", \0");
-                printn(r.nr42() as u16, 16); print(b", \0");
-                printn(r.nr43() as u16, 16); print(b", \0");
+                printn(r.nr41() as u16, 16); print(c", ");
+                printn(r.nr42() as u16, 16); print(c", ");
+                printn(r.nr43() as u16, 16); print(c", ");
                 printn((0x80 | r.nr44()) as u16, 16);
             }
             _ => {
-                print(b"NR50-52:\0");
+                print(c"NR50-52:");
                 gotoxy(1, 17);
-                printn(r.nr50() as u16, 16); print(b", \0");
-                printn(r.nr51() as u16, 16); print(b", \0");
-                printn(r.nr52() as u16, 16); print(b", \0");
+                printn(r.nr50() as u16, 16); print(c", ");
+                printn(r.nr51() as u16, 16); print(c", ");
+                printn(r.nr52() as u16, 16); print(c", ");
             }
         }
     }
@@ -543,24 +543,24 @@ fn show_register_channel(mode: u8) {
 fn dump_registers() {
     clss();
     unsafe { gotoxy(FIRST_X, TITLE_Y) };
-    print(b"Register Dump\n\n\0");
+    print(c"Register Dump\n\n");
     unsafe {
         let r = &sr!();
-        print(b"NR10:\0"); println(r.nr10() as u16, 16);
-        print(b"NR11:\0"); printn(r.nr11() as u16, 16); print(b" NR21:\0"); println(r.nr21() as u16, 16);
-        print(b"NR12:\0"); printn(r.nr12() as u16, 16); print(b" NR22:\0"); println(r.nr22() as u16, 16);
-        print(b"NR13:\0"); printn(r.nr13() as u16, 16); print(b" NR23:\0"); println(r.nr23() as u16, 16);
-        print(b"NR14:\0"); printn((0x80 | r.nr14()) as u16, 16); print(b" NR24:\0"); println((0x80 | r.nr24()) as u16, 16);
-        print(b"\n\0");
-        print(b"NR30:\0"); println(r.nr30() as u16, 16);
-        print(b"NR31:\0"); printn(r.nr31() as u16, 16); print(b" NR41:\0"); println(r.nr41() as u16, 16);
-        print(b"NR32:\0"); printn(r.nr32() as u16, 16); print(b" NR42:\0"); println(r.nr42() as u16, 16);
-        print(b"NR33:\0"); printn(r.nr33() as u16, 16); print(b" NR43:\0"); println(r.nr43() as u16, 16);
-        print(b"NR34:\0"); printn((0x80 | r.nr34()) as u16, 16); print(b" NR44:\0"); println((0x80 | r.nr44()) as u16, 16);
-        print(b"\n\0");
-        print(b"NR50:\0"); println(r.nr50() as u16, 16);
-        print(b"NR51:\0"); println(r.nr51() as u16, 16);
-        print(b"NR52:\0"); println(r.nr52() as u16, 16);
+        print(c"NR10:"); println(r.nr10() as u16, 16);
+        print(c"NR11:"); printn(r.nr11() as u16, 16); print(c" NR21:"); println(r.nr21() as u16, 16);
+        print(c"NR12:"); printn(r.nr12() as u16, 16); print(c" NR22:"); println(r.nr22() as u16, 16);
+        print(c"NR13:"); printn(r.nr13() as u16, 16); print(c" NR23:"); println(r.nr23() as u16, 16);
+        print(c"NR14:"); printn((0x80 | r.nr14()) as u16, 16); print(c" NR24:"); println((0x80 | r.nr24()) as u16, 16);
+        print(c"\n");
+        print(c"NR30:"); println(r.nr30() as u16, 16);
+        print(c"NR31:"); printn(r.nr31() as u16, 16); print(c" NR41:"); println(r.nr41() as u16, 16);
+        print(c"NR32:"); printn(r.nr32() as u16, 16); print(c" NR42:"); println(r.nr42() as u16, 16);
+        print(c"NR33:"); printn(r.nr33() as u16, 16); print(c" NR43:"); println(r.nr43() as u16, 16);
+        print(c"NR34:"); printn((0x80 | r.nr34()) as u16, 16); print(c" NR44:"); println((0x80 | r.nr44()) as u16, 16);
+        print(c"\n");
+        print(c"NR50:"); println(r.nr50() as u16, 16);
+        print(c"NR51:"); println(r.nr51() as u16, 16);
+        print(c"NR52:"); println(r.nr52() as u16, 16);
     }
 }
 
@@ -608,7 +608,7 @@ fn wait_event(mut mode: u8) -> ! {
                     unsafe { sr!().update_value(mode, line, l) };
                 }
                 unsafe { gotoxy(VAL_X, y) };
-                print(b"    \0");
+                print(c"    ");
                 unsafe { gotoxy(VAL_X, y) };
                 println(l, 10);
                 show_register_channel(mode);
@@ -629,7 +629,7 @@ fn wait_event(mut mode: u8) -> ! {
                     unsafe { sr!().update_value(mode, line, l) };
                 }
                 unsafe { gotoxy(VAL_X, y) };
-                print(b"    \0");
+                print(c"    ");
                 unsafe { gotoxy(VAL_X, y) };
                 println(l, 10);
                 show_register_channel(mode);

@@ -6,7 +6,6 @@
 #![no_std]
 #![no_main]
 
-use core::ffi::c_char;
 use gbdk_sys::gb::gb::*;
 use gbdk_sys::stdio::printf;
 
@@ -27,7 +26,7 @@ unsafe extern "C" fn scanline_isr() {
 fn main() -> ! {
     unsafe {
         gbdk_sys::init();
-        printf(b"This is\na wobble\ntest\nfor DMG\n|\n|\n|\n|\n|\0".as_ptr() as *const c_char);
+        printf(c"This is\na wobble\ntest\nfor DMG\n|\n|\n|\n|\n|".as_ptr());
 
         // CRITICAL: install the handler chain with interrupts disabled.
         disable_interrupts();

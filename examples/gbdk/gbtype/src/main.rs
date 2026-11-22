@@ -7,7 +7,6 @@
 #![no_main]
 #![allow(unsafe_op_in_unsafe_fn)]
 
-use core::ffi::c_char;
 use gbdk_sys::gb::gb::*;
 use gbdk_sys::gb::sgb::*;
 use gbdk_sys::stdio::printf;
@@ -29,19 +28,19 @@ fn main() -> ! {
 
         if is_sgb != 0 {
             if _cpu == DMG_TYPE {
-                printf(b"This is a SGB 1!\0".as_ptr() as *const c_char);
+                printf(c"This is a SGB 1!".as_ptr());
             } else if _cpu == MGB_TYPE {
-                printf(b"This is a SGB 2!\0".as_ptr() as *const c_char);
+                printf(c"This is a SGB 2!".as_ptr());
             }
         } else if _cpu == DMG_TYPE {
-            printf(b"This is a DMG! (OG Game Boy)\0".as_ptr() as *const c_char);
+            printf(c"This is a DMG! (OG Game Boy)".as_ptr());
         } else if _cpu == MGB_TYPE {
-            printf(b"This is a MGB! (Game Boy Pocket / Light)\0".as_ptr() as *const c_char);
+            printf(c"This is a MGB! (Game Boy Pocket / Light)".as_ptr());
         } else if _cpu == CGB_TYPE {
             if _is_GBA == GBA_DETECTED {
-                printf(b"This is a GBA in CGB mode!\0".as_ptr() as *const c_char);
+                printf(c"This is a GBA in CGB mode!".as_ptr());
             } else {
-                printf(b"This is a CGB! (Game Boy Color)\0".as_ptr() as *const c_char);
+                printf(c"This is a CGB! (Game Boy Color)".as_ptr());
             }
         }
 

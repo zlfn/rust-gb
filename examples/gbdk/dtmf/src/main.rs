@@ -14,13 +14,13 @@ mod dtmf_lcd;
 mod key_num;
 mod cursor;
 
-use core::ffi::c_char;
+use core::ffi::{CStr, c_char};
 use gbdk_sys::gb::gb::*;
 use gbdk_sys::stdio::sprintf;
 use gbdk_sys::string::strcpy;
 
 // Display
-const TITLE: &[u8] = b" GB-DTMF BY 05AMU \0";
+const TITLE: &CStr = c" GB-DTMF BY 05AMU ";
 
 const OFFSET: u8 = 27;
 const KEY_STEP: u8 = 24;
@@ -359,7 +359,7 @@ fn main() -> ! {
         init_background();
         init_key();
         init_cursor();
-        disp(TITLE);
+        disp(TITLE.to_bytes_with_nul());
 
         show_bkg();
         show_sprites();
@@ -388,14 +388,14 @@ fn main() -> ! {
 
                     // '?' button
                     if i == 5 && j == 0 && non_flick == OFF {
-                        disp(TITLE);
+                        disp(TITLE.to_bytes_with_nul());
                         non_flick = ON;
                     }
 
                     // incremental/decremental button
                     if i == 5 && (j == 1 || j == 2) && non_flick == OFF {
                         sprintf(str_ms.as_mut_ptr() as *mut c_char,
-                                b"%u MS\0".as_ptr() as *const c_char,
+                                c"%u MS".as_ptr(),
                                 on_time as u32);
                         disp(&str_ms);
                         non_flick = ON;
@@ -442,7 +442,7 @@ fn main() -> ! {
                     // all clear button
                     if i == 4 && j == 0 {
                         ch_pos = 0x00;
-                        strcpy(str.as_mut_ptr() as *mut c_char, b"\0".as_ptr() as *const c_char);
+                        strcpy(str.as_mut_ptr() as *mut c_char, c"".as_ptr());
                         clr_disp();
                     }
 

@@ -13,10 +13,6 @@ use gbdk_sys::stdio::{printf, puts};
 static MESSAGE: [u8; 13] = *b"Hello World!\0";
 static mut BUFFER: [u8; 32] = [0; 32];
 
-fn cstr(s: &[u8]) -> *const c_char {
-    s.as_ptr() as *const c_char
-}
-
 unsafe fn io_status() -> u8 {
     unsafe { core::ptr::read_volatile(&raw const _io_status) }
 }
@@ -29,12 +25,12 @@ fn main() -> ! {
     unsafe {
         gbdk_sys::init();
 
-        puts(cstr(b"Byte\0"));
-        puts(cstr(b"  A      : Send\0"));
-        puts(cstr(b"  B      : Receive\0"));
-        puts(cstr(b"String\0"));
-        puts(cstr(b"  START  : Send\0"));
-        puts(cstr(b"  SELECT : Receive\0"));
+        puts(c"Byte".as_ptr());
+        puts(c"  A      : Send".as_ptr());
+        puts(c"  B      : Receive".as_ptr());
+        puts(c"String".as_ptr());
+        puts(c"  START  : Send".as_ptr());
+        puts(c"  SELECT : Receive".as_ptr());
 
         // The handler chain must be installed with interrupts disabled.
         disable_interrupts();
@@ -48,27 +44,27 @@ fn main() -> ! {
             waitpadup();
 
             if key == J_A {
-                printf(cstr(b"Sending b... \0"));
+                printf(c"Sending b... ".as_ptr());
                 core::ptr::write_volatile(&raw mut _io_out, n);
                 n = n.wrapping_add(1);
                 send_byte();
                 while io_status() == IO_SENDING && joypad() == 0 {}
                 if io_status() == IO_IDLE {
-                    printf(cstr(b"OK\n\0"));
+                    printf(c"OK\n".as_ptr());
                 } else {
-                    printf(cstr(b"#%d\n\0"), io_status() as i32);
+                    printf(c"#%d\n".as_ptr(), io_status() as i32);
                 }
             } else if key == J_B {
-                printf(cstr(b"Receiving b... \0"));
+                printf(c"Receiving b... ".as_ptr());
                 receive_byte();
                 while io_status() == IO_RECEIVING && joypad() == 0 {}
                 if io_status() == IO_IDLE {
-                    printf(cstr(b"OK\n%d\n\0"), io_in() as i32);
+                    printf(c"OK\n%d\n".as_ptr(), io_in() as i32);
                 } else {
-                    printf(cstr(b"#%d\n\0"), io_status() as i32);
+                    printf(c"#%d\n".as_ptr(), io_status() as i32);
                 }
             } else if key == J_START {
-                printf(cstr(b"Sending s... \0"));
+                printf(c"Sending s... ".as_ptr());
                 let mut idx = 0usize;
                 loop {
                     let c = MESSAGE[idx];
@@ -81,7 +77,7 @@ fn main() -> ! {
                         }
                     }
                     if io_status() != IO_IDLE {
-                        printf(cstr(b"#%d\n\0"), io_status() as i32);
+                        printf(c"#%d\n".as_ptr(), io_status() as i32);
                         break;
                     }
                     if c == 0 {
@@ -90,16 +86,16 @@ fn main() -> ! {
                     idx += 1;
                 }
                 if io_status() == IO_IDLE {
-                    printf(cstr(b"OK\n\0"));
+                    printf(c"OK\n".as_ptr());
                 }
             } else if key == J_SELECT {
-                printf(cstr(b"Receiving s... \0"));
+                printf(c"Receiving s... ".as_ptr());
                 let mut idx = 0usize;
                 loop {
                     receive_byte();
                     while io_status() == IO_RECEIVING && joypad() == 0 {}
                     if io_status() != IO_IDLE {
-                        printf(cstr(b"#%d\n\0"), io_status() as i32);
+                        printf(c"#%d\n".as_ptr(), io_status() as i32);
                         break;
                     }
                     let c = io_in();
@@ -110,7 +106,7 @@ fn main() -> ! {
                     idx += 1;
                 }
                 if io_status() == IO_IDLE {
-                    printf(cstr(b"OK\n%s\n\0"), (&raw const BUFFER) as *const c_char);
+                    printf(c"OK\n%s\n".as_ptr(), (&raw const BUFFER) as *const c_char);
                 }
             }
 

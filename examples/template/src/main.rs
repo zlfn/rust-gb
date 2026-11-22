@@ -6,7 +6,6 @@
 #![no_std]
 #![no_main]
 
-use core::ffi::c_char;
 use gbdk_sys::stdio::printf;
 
 #[gb_rt::entry]
@@ -16,7 +15,7 @@ fn main() -> ! {
         gbdk_sys::init();
 
         // C strings must be NUL-terminated.
-        printf(b"Hello, Rust-GB!\n\0".as_ptr() as *const c_char);
+        printf(c"Hello, Rust-GB!\n".as_ptr());
     }
 
     // A Game Boy program never returns; spin forever.

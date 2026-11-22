@@ -15,10 +15,6 @@ const MAXOP: usize = 40;
 /// The NUMBER token: a parsed number is reported as the digit `'0'`.
 const NUMBER: u8 = b'0';
 
-fn cstr(s: &[u8]) -> *const c_char {
-    s.as_ptr() as *const c_char
-}
-
 fn is_digit(c: c_char) -> bool {
     (b'0' as c_char..=b'9' as c_char).contains(&c)
 }
@@ -43,7 +39,7 @@ impl Calc {
             self.stack[self.sp] = l;
             self.sp += 1;
         } else {
-            unsafe { puts(cstr(b"Stack full\0")) };
+            unsafe { puts(c"Stack full".as_ptr()) };
         }
     }
 
@@ -52,7 +48,7 @@ impl Calc {
             self.sp -= 1;
             self.stack[self.sp]
         } else {
-            unsafe { puts(cstr(b"Stack empty\0")) };
+            unsafe { puts(c"Stack empty".as_ptr()) };
             0
         }
     }
@@ -61,7 +57,7 @@ impl Calc {
         if self.sp > 0 {
             self.stack[self.sp - 1]
         } else {
-            unsafe { puts(cstr(b"Stack empty\0")) };
+            unsafe { puts(c"Stack empty".as_ptr()) };
             0
         }
     }
@@ -99,7 +95,7 @@ impl Calc {
 #[gb_rt::entry]
 fn main() -> ! {
     unsafe { gbdk_sys::init() };
-    unsafe { puts(cstr(b"RPN Calculator\0")) };
+    unsafe { puts(c"RPN Calculator".as_ptr()) };
 
     let mut calc = Calc::new();
     loop {
@@ -127,13 +123,13 @@ fn main() -> ! {
                     let v = calc.pop() / op2;
                     calc.push(v);
                 } else {
-                    unsafe { puts(cstr(b"Divide by 0\0")) };
+                    unsafe { puts(c"Divide by 0".as_ptr()) };
                 }
             }
             b'\n' => unsafe {
                 // GBDK printf reads the low 16 bits; pass a 32-bit arg as Rust
                 // variadics require (c_int is only 16-bit on this target).
-                printf(cstr(b"==> %d\n\0"), calc.top() as i32);
+                printf(c"==> %d\n".as_ptr(), calc.top() as i32);
             },
             _ => {}
         }

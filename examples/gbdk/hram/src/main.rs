@@ -5,7 +5,7 @@
 #![no_main]
 #![feature(asm_experimental_arch)]
 
-use core::ffi::{c_char, c_int, c_uint};
+use core::ffi::{c_int, c_uint};
 use gb_hram::{hram, prelude::*};
 use gbdk_sys::stdio::printf;
 
@@ -23,7 +23,7 @@ fn main() -> ! {
         // `c_int`/`c_uint` are 16-bit on sm83, so use `%d`/`%x` (which consume a
         // 16-bit int); `%hd` would consume only one byte and misalign `%x`.
         printf(
-            b"value is: %d at %x\0".as_ptr() as *const c_char,
+            c"value is: %d at %x".as_ptr(),
             MY_HRAM_VARIABLE.get() as c_int,
             MY_HRAM_VARIABLE.as_ptr() as usize as c_uint,
         );

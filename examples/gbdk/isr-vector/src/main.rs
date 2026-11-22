@@ -10,7 +10,6 @@
 #![feature(abi_z80_interrupt)]
 #![no_main]
 
-use core::ffi::c_char;
 use gbdk_sys::gb::gb::*;
 use gbdk_sys::stdio::printf;
 
@@ -31,7 +30,7 @@ fn wobble() {
 fn main() -> ! {
     unsafe {
         gbdk_sys::init();
-        printf(b"Direct\nISR\nvector\n|\n|\n|\n|\n|\n|\0".as_ptr() as *const c_char);
+        printf(c"Direct\nISR\nvector\n|\n|\n|\n|\n|\n|".as_ptr());
 
         // Trigger STAT on mode 0 (H-Blank); add the LCD interrupt to the VBlank
         // that `init` already enabled.
